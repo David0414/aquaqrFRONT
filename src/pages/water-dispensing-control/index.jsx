@@ -1,85 +1,151 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+// src/pages/water-dispensing-control/index.jsx
+import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
+
 import MachineInfoCard from './components/MachineInfoCard';
-import LiterSelector from './components/LiterSelector';
+import BottleSizeSelector from './components/BottleSizeSelector';
 import PricingCalculator from './components/PricingCalculator';
 import DispenseButton from './components/DispenseButton';
 import SecurityVerification from './components/SecurityVerification';
+import NotificationToast, { showErrorToast, showInfoToast, showSuccessToast } from '../../components/ui/NotificationToast';
+
+const API = import.meta.env.VITE_API_URL;
+const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+
+// Puedes cambiar estos “mock” de máquina si quieres
+const MOCK_MACHINE = {
+  id: 'AQ-2024-001',
+  location: 'Centro Comercial Plaza Norte, Local 15',
+};
 
 const WaterDispensingControl = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  
-  // State management
-  const [selectedLiters, setSelectedLiters] = useState(1);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [isLoading, setIsLoading] = useState(false);
+  const { getToken } = useAuth();
+
+  // UI / estado de conexión simulado
+  const [connectionStatus, setConnectionStatus] = useState('connecting'); // connecting | connected | disconnected
   const [isVerified, setIsVerified] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mock data - in real app this would come from props/context/API
-  const mockMachineData = {
-    id: 'AQ-2024-001',
-    location: 'Centro Comercial Plaza Norte, Local 15',
-    pricePerLiter: 2.50,
-    maxLiters: 50
-  };
+  // Config desde backend (precio y opciones)
+  const [pricePerLiterCents, setPricePerLiterCents] = useState(175); // fallback a $35/20L
+  const [allowedLiters, setAllowedLiters] = useState([5, 10, 20]);
 
-  const mockUserData = {
-    currentBalance: 45.75,
-    name: 'María González'
-  };
+  // Saldo real del usuario
+  const [balance, setBalance] = useState(0);
 
-  // Calculate pricing
-  const totalCost = selectedLiters * mockMachineData?.pricePerLiter;
-  const hasInsufficientFunds = mockUserData?.currentBalance < totalCost;
+  // Selección (por defecto garrafón completo)
+  const [selectedLiters, setSelectedLiters] = useState(20);
 
-  // Simulate connection establishment
-  useEffect(() => {
-    const connectTimer = setTimeout(() => {
-      setConnectionStatus('connected');
-      setIsVerified(true);
-    }, 2000);
+  const pricePerLiter = useMemo(() => (pricePerLiterCents || 0) / 100, [pricePerLiterCents]);
+  const totalCost = useMemo(() => selectedLiters * pricePerLiter, [selectedLiters, pricePerLiter]);
 
-    return () => clearTimeout(connectTimer);
-  }, []);
-
-  // Handle dispensing start
-  const handleDispenseStart = async (dispensingData) => {
-    setIsLoading(true);
-    
+  // 1) Trae config del backend (precio/env)
+  const fetchConfig = async () => {
     try {
-      // Simulate API call to start dispensing
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Store dispensing data in localStorage for progress tracking
-      localStorage.setItem('currentDispensing', JSON.stringify({
-        ...dispensingData,
-        machineId: mockMachineData?.id,
-        startTime: Date.now()
-      }));
-      
-      // Show success toast
-      if (window.showToast) {
-        window.showToast('Dispensado iniciado correctamente', 'success');
+      const res = await fetch(`${API}/api/dispense/config`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo obtener config');
+
+      setPricePerLiterCents(data.pricePerLiterCents);
+      setAllowedLiters(data.allowedLiters || [5, 10, 20]);
+
+      // Si por alguna razón el litro seleccionado no está en allowed, ajústalo
+      if (!(data.allowedLiters || [5, 10, 20]).includes(selectedLiters)) {
+        setSelectedLiters((data.allowedLiters || [5, 10, 20])[0]);
       }
-    } catch (error) {
-      console.error('Error starting dispensing:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+    } catch (e) {
+      showErrorToast(e.message || 'Error cargando configuración');
     }
   };
 
-  const handleBackClick = () => {
-    navigate('/home-dashboard');
+  // 2) Trae saldo real
+  const fetchWallet = async () => {
+    try {
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      const res = await fetch(`${API}/api/me/wallet`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo obtener el saldo');
+
+      setBalance((data.balanceCents ?? 0) / 100);
+    } catch (e) {
+      showErrorToast(e.message || 'Error cargando saldo');
+    }
   };
 
-  const handleHelpClick = () => {
-    if (window.showToast) {
-      window.showToast('Soporte: Si necesitas ayuda, contacta al +1-800-AQUAQR', 'info', 8000);
+  useEffect(() => {
+    fetchConfig();
+    fetchWallet();
+
+    // simular conexión/verificación
+    const t = setTimeout(() => {
+      setConnectionStatus('connected');
+      setIsVerified(true);
+    }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Inicia dispensado (cobra en el backend y descuenta)
+  const handleDispenseStart = async () => {
+    try {
+      setIsLoading(true);
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+
+      const res = await fetch(`${API}/api/dispense`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          liters: selectedLiters,
+          machineId: MOCK_MACHINE.id,
+          location: MOCK_MACHINE.location,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.status === 400 && data?.error === 'INSUFFICIENT_FUNDS') {
+        // mandar a recargar, preservando litros requeridos
+        navigate('/balance-recharge', {
+          state: {
+            returnTo: '/water-dispensing-control',
+            requiredAmount: Math.max(0, (data.amountCents - data.balanceCents) / 100),
+            selectedLiters,
+            fromInsufficientBalance: true,
+          },
+        });
+        return;
+      }
+
+      if (!res.ok) throw new Error(data.error || 'No se pudo iniciar el dispensado');
+
+      // Actualiza saldo local
+      setBalance((data.newBalanceCents ?? 0) / 100);
+
+      // Navega a “progreso” (si quieres mantener esa pantalla)
+      navigate('/filling-progress', {
+        state: {
+          liters: selectedLiters,
+          cost: (data.amountCents || 0) / 100,
+          startTime: Date.now(),
+        },
+      });
+
+      showSuccessToast('Dispensado iniciado y cobrado');
+    } catch (e) {
+      showErrorToast(e.message || 'Error al dispensar');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -88,113 +154,71 @@ const WaterDispensingControl = () => {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between px-4 h-16">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleBackClick}
-            className="h-10 w-10"
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate('/home-dashboard')} className="h-10 w-10">
             <Icon name="ArrowLeft" size={20} />
           </Button>
-          
+
           <div className="text-center">
-            <h1 className="text-lg font-semibold text-text-primary">
-              Control de Dispensado
-            </h1>
-            <p className="text-sm text-text-secondary">
-              Selecciona y dispensa agua purificada
-            </p>
+            <h1 className="text-lg font-semibold text-text-primary">Control de Despachado</h1>
+            <p className="text-sm text-text-secondary">Selecciona y dispensa agua purificada</p>
           </div>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleHelpClick}
-            className="h-10 w-10"
-          >
+
+          <Button variant="ghost" size="icon" onClick={() => showInfoToast('Soporte: +52 55 0000 0000')} className="h-10 w-10">
             <Icon name="HelpCircle" size={20} />
           </Button>
         </div>
       </header>
-      {/* Main Content */}
+
+      {/* Main */}
       <main className="px-4 py-6 pb-20 space-y-6">
-        {/* Machine Information */}
+ 
         <MachineInfoCard
-          machineId={mockMachineData?.id}
-          location={mockMachineData?.location}
+          machineId={MOCK_MACHINE.id}
+          location={MOCK_MACHINE.location}
           connectionStatus={connectionStatus}
-          pricePerLiter={mockMachineData?.pricePerLiter}
+          pricePerGarrafon={(pricePerLiterCents * 20) / 100}  // $/garrafón desde config
+          garrafonLiters={20}
         />
 
-        {/* Security Verification */}
-        <SecurityVerification
-          machineId={mockMachineData?.id}
-          isVerified={isVerified}
-        />
-
-        {/* Liter Selection */}
-        <LiterSelector
+        <BottleSizeSelector
+          allowedLiters={allowedLiters}
           selectedLiters={selectedLiters}
-          onLiterChange={setSelectedLiters}
-          maxLiters={mockMachineData?.maxLiters}
+          onChange={setSelectedLiters}          // <— ya coincide
+          garrafonLiters={20}
         />
 
-        {/* Pricing Calculator */}
+
         <PricingCalculator
           selectedLiters={selectedLiters}
-          pricePerLiter={mockMachineData?.pricePerLiter}
-          currentBalance={mockUserData?.currentBalance}
+          pricePerLiter={pricePerLiter}
+          currentBalance={balance}
         />
 
-        {/* Dispense Button */}
         <DispenseButton
           selectedLiters={selectedLiters}
           totalCost={totalCost}
-          currentBalance={mockUserData?.currentBalance}
+          currentBalance={balance}
           connectionStatus={connectionStatus}
           onDispenseStart={handleDispenseStart}
           isLoading={isLoading}
         />
 
-        {/* Additional Information */}
         <div className="bg-surface border border-border rounded-xl p-4">
           <div className="flex items-start space-x-3">
             <Icon name="Info" size={20} className="text-primary flex-shrink-0 mt-0.5" />
             <div className="space-y-2">
-              <h4 className="font-medium text-text-primary">
-                Información importante
-              </h4>
+              <h4 className="font-medium text-text-primary">Información importante</h4>
               <ul className="text-sm text-text-secondary space-y-1">
-                <li>• El agua se dispensa en tiempo real</li>
-                <li>• Puedes cancelar el proceso en cualquier momento</li>
-                <li>• El saldo se descuenta al completar el dispensado</li>
-                <li>• Mantén tu recipiente en posición durante el proceso</li>
+                <li>• El saldo se descuenta al iniciar el dispensado</li>
+                <li>• Conexión simulada; cuando tengas el ESP32, llama tu API interna aquí</li>
               </ul>
             </div>
           </div>
         </div>
-
-        {/* Emergency Contact */}
-        <div className="text-center">
-          <p className="text-sm text-text-secondary mb-2">
-            ¿Problemas con el dispensador?
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (window.showToast) {
-                window.showToast('Contactando soporte técnico...', 'info');
-              }
-            }}
-          >
-            <Icon name="Phone" size={16} />
-            Contactar soporte
-          </Button>
-        </div>
       </main>
-      {/* Bottom Navigation */}
+
       <BottomTabNavigation />
+      <NotificationToast />
     </div>
   );
 };

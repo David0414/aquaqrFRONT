@@ -2,21 +2,21 @@ import React from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 
-const TransactionDetailModal = ({ 
-  transaction, 
-  isOpen, 
-  onClose, 
-  onGenerateReceipt, 
-  onShare 
+const TransactionDetailModal = ({
+  transaction,
+  isOpen,
+  onClose,
+  onGenerateReceipt,
+  onShare
 }) => {
   if (!isOpen || !transaction) return null;
 
-  const formatAmount = (amount, type) => {
-    const formattedAmount = new Intl.NumberFormat('es-ES', {
+  const formatAmount = (amount, type, currency = 'MXN') => {
+    const formattedAmount = new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'EUR',
+      currency,
       minimumFractionDigits: 2
-    })?.format(Math.abs(amount));
+    }).format(Math.abs(amount));
 
     return type === 'recharge' ? `+${formattedAmount}` : `-${formattedAmount}`;
   };
@@ -46,30 +46,30 @@ const TransactionDetailModal = ({
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      completed: { 
-        label: 'Completada', 
+      completed: {
+        label: 'Completada',
         className: 'bg-success/10 text-success border-success/20',
         icon: 'CheckCircle'
       },
-      pending: { 
-        label: 'Pendiente', 
+      pending: {
+        label: 'Pendiente',
         className: 'bg-warning/10 text-warning border-warning/20',
         icon: 'Clock'
       },
-      failed: { 
-        label: 'Fallida', 
+      failed: {
+        label: 'Fallida',
         className: 'bg-error/10 text-error border-error/20',
         icon: 'XCircle'
       },
-      cancelled: { 
-        label: 'Cancelada', 
+      cancelled: {
+        label: 'Cancelada',
         className: 'bg-text-secondary/10 text-text-secondary border-text-secondary/20',
         icon: 'Ban'
       }
     };
 
     const config = statusConfig?.[status] || statusConfig?.completed;
-    
+
     return (
       <div className={`
         inline-flex items-center space-x-2 px-3 py-2 rounded-lg border
@@ -103,7 +103,7 @@ const TransactionDetailModal = ({
               </p>
             </div>
           </div>
-          
+
           <Button
             variant="ghost"
             size="icon"
@@ -123,8 +123,9 @@ const TransactionDetailModal = ({
               text-heading-sm font-bold
               ${transaction?.type === 'recharge' ? 'text-success' : 'text-text-primary'}
             `}>
-              {formatAmount(transaction?.amount, transaction?.type)}
+              {formatAmount(transaction?.amount, transaction?.type, transaction?.currency)}
             </div>
+
           </div>
 
           {/* Transaction Details */}
@@ -195,10 +196,10 @@ const TransactionDetailModal = ({
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Saldo anterior:</span>
                       <span className="font-medium">
-                        {new Intl.NumberFormat('es-ES', {
+                        {new Intl.NumberFormat('es-MX', {
                           style: 'currency',
-                          currency: 'EUR'
-                        })?.format(transaction?.balanceBefore)}
+                          currency: transaction?.currency || 'MXN'
+                        }).format(transaction?.balanceBefore)}
                       </span>
                     </div>
                   )}
@@ -206,10 +207,10 @@ const TransactionDetailModal = ({
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Saldo después:</span>
                       <span className="font-medium">
-                        {new Intl.NumberFormat('es-ES', {
+                        {new Intl.NumberFormat('es-MX', {
                           style: 'currency',
-                          currency: 'EUR'
-                        })?.format(transaction?.balanceAfter)}
+                          currency: transaction?.currency || 'MXN'
+                        }).format(transaction?.balanceAfter)}
                       </span>
                     </div>
                   )}

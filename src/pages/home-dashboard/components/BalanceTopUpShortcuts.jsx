@@ -64,7 +64,7 @@ const BalanceTopUpShortcuts = () => {
               ${preset?.amount}
             </div>
             <div className="text-caption text-text-secondary">
-              USD
+              MXN
             </div>
           </button>
         ))}

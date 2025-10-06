@@ -1,149 +1,109 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/home-dashboard/index.jsx
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser, useAuth } from '@clerk/clerk-react';
+
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import BalanceCard from './components/BalanceCard';
 import SocialImpactCard from './components/SocialImpactCard';
-import QuickActionCards from './components/QuickActionCards';
 import PromotionalBanner from './components/PromotionalBanner';
-import RecentTransactions from './components/RecentTransactions';
-import BalanceTopUpShortcuts from './components/BalanceTopUpShortcuts';
-import MachineStatusIndicators from './components/MachineStatusIndicators';
+
+import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
+
+const API = import.meta.env.VITE_API_URL;
+const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 
 const HomeDashboard = () => {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState(null);
+
+  // Clerk
+  const { isLoaded: isClerkLoaded, isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
+
+  const displayName = useMemo(() => {
+    if (!user) return 'AquaQR';
+    const base =
+      user.firstName ||
+      user.fullName ||
+      user.username ||
+      user.primaryEmailAddress?.emailAddress?.split('@')[0] ||
+      'AquaQR';
+    return base.split(' ')[0];
+  }, [user]);
+
   const [isLoading, setIsLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
 
-  // Mock user data
-  const mockUserData = {
-    id: "user_12345",
-    name: "María González",
-    email: "maria.gonzalez@email.com",
-    phone: "+1234567890",
-    balance: 127.50,
-    totalDonations: 45.75,
-    impactMetrics: {
-      familiesHelped: 12,
-      litersProvided: 156
-    }
-  };
+  // Saldo real
+  const [walletBalanceCents, setWalletBalanceCents] = useState(0);
+  const [walletLoading, setWalletLoading] = useState(true);
 
-  // Mock recent transactions
-  const mockTransactions = [
-    {
-      id: "txn_001",
-      type: "dispensing",
-      description: "Dispensado de Agua - 2.5L",
-      amount: -5.00,
-      date: "2025-01-05T14:30:00Z",
-      status: "completed",
-      machineId: "AQ-001",
-      location: "Plaza Central",
-      liters: 2.5
-    },
-    {
-      id: "txn_002",
-      type: "recharge",
-      description: "Recarga de Saldo",
-      amount: 50.00,
-      date: "2025-01-05T10:15:00Z",
-      status: "completed"
-    },
-    {
-      id: "txn_003",
-      type: "dispensing",
-      description: "Dispensado de Agua - 1L",
-      amount: -2.00,
-      date: "2025-01-04T16:45:00Z",
-      status: "completed",
-      machineId: "AQ-002",
-      location: "Centro Comercial Norte",
-      liters: 1.0
-    },
-    {
-      id: "txn_004",
-      type: "donation",
-      description: "Donación Social",
-      amount: -1.50,
-      date: "2025-01-04T16:45:00Z",
-      status: "completed"
-    },
-    {
-      id: "txn_005",
-      type: "recharge",
-      description: "Recarga de Saldo",
-      amount: 100.00,
-      date: "2025-01-03T09:20:00Z",
-      status: "completed"
-    }
-  ];
 
-  // Mock recent machines
-  const mockRecentMachines = [
-    {
-      id: "AQ-001",
-      name: "AquaQR Plaza Central",
-      location: "Plaza Central, Local 15",
-      lastUsed: "2025-01-05T14:30:00Z"
-    },
-    {
-      id: "AQ-002",
-      name: "AquaQR Centro Norte",
-      location: "Centro Comercial Norte",
-      lastUsed: "2025-01-04T16:45:00Z"
-    },
-    {
-      id: "AQ-003",
-      name: "AquaQR Universidad",
-      location: "Campus Universitario",
-      lastUsed: "2025-01-02T11:20:00Z"
-    }
-  ];
+ 
 
-  // Load user data on component mount
+  // Cargar mock de usuario
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(r => setTimeout(r, 600));
         setUserData(mockUserData);
-      } catch (error) {
-        console.error('Error loading user data:', error);
-        if (window.showToast) {
-          window.showToast('Error al cargar los datos del usuario', 'error');
-        }
+      } catch (err) {
+        console.error('Error loading user data:', err);
+        if (window.showToast) window.showToast('Error al cargar los datos del usuario', 'error');
       } finally {
         setIsLoading(false);
       }
     };
-
     loadUserData();
   }, []);
 
-  // Handle navigation actions
-  const handleRecharge = () => {
-    navigate('/balance-recharge');
+  // Traer saldo real
+  const fetchWallet = async () => {
+    try {
+      setWalletLoading(true);
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      if (!token) throw new Error('No se pudo obtener token de sesión');
+
+      const res = await fetch(`${API}/api/me/wallet`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('No se pudo obtener el saldo');
+      const data = await res.json();
+      setWalletBalanceCents(Number(data.balanceCents ?? 0));
+    } catch (e) {
+      console.error(e);
+      if (window.showToast) window.showToast(e.message || 'Error cargando saldo', 'error');
+      setWalletBalanceCents(0);
+    } finally {
+      setWalletLoading(false);
+    }
   };
 
-  // Modified dispense handler to go to QR scanner first
+  useEffect(() => {
+    if (isClerkLoaded && isSignedIn) fetchWallet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClerkLoaded, isSignedIn]);
+
+  useEffect(() => {
+    const onFocus = () => fetchWallet();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClerkLoaded, isSignedIn]);
+
+  // Navegaciones
+  const handleRecharge = () => navigate('/balance-recharge');
   const handleDispense = () => {
     navigate('/qr-scanner-landing', {
-      state: { 
-        fromDashboard: true,
-        action: 'dispense',
-        redirectAfterScan: '/water-dispensing-control'
-      }
+      state: { fromDashboard: true, action: 'dispense', redirectAfterScan: '/water-dispensing-control' }
     });
   };
+  const handleViewAllTransactions = () => navigate('/transaction-history');
 
-  const handleViewAllTransactions = () => {
-    navigate('/transaction-history');
-  };
-
-  // Loading state
-  if (isLoading) {
+  // Loading
+  if (isLoading || !isClerkLoaded || !isSignedIn || walletLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -153,6 +113,8 @@ const HomeDashboard = () => {
       </div>
     );
   }
+
+  const balanceMXN = (walletBalanceCents || 0) / 100;
 
   return (
     <div className="min-h-screen bg-background">
@@ -165,15 +127,10 @@ const HomeDashboard = () => {
                 <Icon name="Droplets" size={24} className="text-primary" />
               </div>
               <div>
-                <h1 className="text-heading-sm font-bold text-text-primary">
-                  AquaQR
-                </h1>
-                <p className="text-caption text-text-secondary">
-                  ¡Hola, {userData?.name?.split(' ')?.[0]}!
-                </p>
+                <h1 className="text-heading-sm font-bold text-text-primary">AquaQR</h1>
+                <p className="text-caption text-text-secondary">¡Hola, {displayName}!</p>
               </div>
             </div>
-            
             <button
               onClick={() => navigate('/user-profile-settings')}
               className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center hover:bg-muted/80 transition-colors duration-200"
@@ -184,13 +141,14 @@ const HomeDashboard = () => {
           </div>
         </div>
       </header>
-      {/* Main Content */}
+
+      {/* Main */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20">
         <div className="space-y-6">
-          {/* Balance and Social Impact Row */}
+          {/* Balance + Impacto */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <BalanceCard
-              balance={userData?.balance}
+              balance={balanceMXN}
               onRecharge={handleRecharge}
               onDispense={handleDispense}
             />
@@ -200,33 +158,22 @@ const HomeDashboard = () => {
             />
           </div>
 
-          {/* Quick Actions */}
-          <QuickActionCards />
 
-          {/* Promotional Banner */}
+
+          {/* Banner */}
           <PromotionalBanner />
 
-          {/* Content Grid */}
+          {/* Grid de contenido */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Recent Transactions - Takes 2 columns on large screens */}
-            <div className="lg:col-span-2">
-              <RecentTransactions
-                transactions={mockTransactions}
-                onViewAll={handleViewAllTransactions}
-              />
-            </div>
+            {/* ⬇️ Sustituto simple de “RecentTransactions” */}
 
-            {/* Sidebar Content */}
-            <div className="space-y-6">
-              <BalanceTopUpShortcuts />
-              <MachineStatusIndicators recentMachines={mockRecentMachines} />
-            </div>
+
+          
           </div>
         </div>
       </main>
-      {/* Bottom Navigation */}
+
       <BottomTabNavigation />
-      {/* Toast Notifications */}
       <NotificationToast />
     </div>
   );

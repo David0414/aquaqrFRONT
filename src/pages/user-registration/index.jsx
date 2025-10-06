@@ -1,157 +1,164 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+// src/pages/user-registration/index.jsx
+import React from 'react';
 import { Helmet } from 'react-helmet';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { SignUp, SignedIn, useUser } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
-import RegistrationForm from './components/RegistrationForm';
-import SocialRegistration from './components/SocialRegistration';
 
-
-const UserRegistration = () => {
+export default function UserRegistration() {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isSignedIn } = useUser();
 
-  // Check if user is already authenticated
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    const userData = localStorage.getItem('userData');
-    
-    if (token && userData) {
-      setIsAuthenticated(true);
-      navigate('/home-dashboard');
-    }
-  }, [navigate]);
-
-  const handleRegistrationSuccess = (userData) => {
-    console.log('Registration successful:', userData);
+  const onBrandClick = () => {
+    if (isSignedIn) navigate('/home-dashboard');
   };
-
-  const handleSocialSuccess = (userData) => {
-    console.log('Social registration successful:', userData);
-  };
-
-  // Don't render if already authenticated
-  if (isAuthenticated) {
-    return null;
-  }
 
   return (
     <>
       <Helmet>
         <title>Crear Cuenta - AquaQR</title>
-        <meta name="description" content="Únete a AquaQR y comienza a dispensar agua purificada de forma segura y conveniente" />
+        <meta name="description" content="Crea tu cuenta AquaQR y comienza a disfrutar de agua purificada inteligente" />
       </Helmet>
-      
-      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex flex-col">
+
+      <SignedIn><Navigate to="/home-dashboard" replace /></SignedIn>
+
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#f0fbff] via-white to-[#eef6ff]">
         {/* Header */}
-        <header className="relative z-10 p-4 lg:p-6">
-          <div className="flex items-center justify-between max-w-6xl mx-auto">
-            <Link to="/qr-scanner-landing" className="flex items-center space-x-3 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-200">
-                <Icon name="Droplets" size={24} className="text-white" />
+        <header className="w-full">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
+            <button type="button" onClick={onBrandClick} className="flex items-center gap-3 select-none" aria-label="AquaQR">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
+                <Icon name="Droplets" size={22} className="text-white" />
               </div>
-              <div>
-                <span className="text-heading-sm font-bold text-text-primary">AquaQR</span>
-                <p className="text-caption text-text-secondary">Agua purificada inteligente</p>
+              <div className="leading-tight text-left">
+                <span className="block text-base sm:text-lg font-bold text-slate-900">AquaQR</span>
+                <span className="block text-xs sm:text-sm text-slate-500">Agua purificada inteligente</span>
               </div>
-            </Link>
-            
-            <Link
-              to="/user-login"
-              className="inline-flex items-center space-x-2 px-4 py-2.5 bg-white/80 backdrop-blur-sm border border-border rounded-xl text-body-sm text-text-primary hover:bg-white hover:shadow-md transition-all duration-200"
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/user-login')}
+              className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/80 backdrop-blur border border-slate-200 rounded-xl text-sm sm:text-[15px] text-slate-800 hover:bg-white shadow-sm transition"
             >
               <Icon name="LogIn" size={16} />
               <span className="font-medium">Iniciar sesión</span>
-            </Link>
+            </button>
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="flex-1 flex items-center justify-center px-4 py-8 lg:py-12">
-          <div className="w-full max-w-lg">
-            {/* Welcome Section */}
-            <div className="text-center mb-8 space-y-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl mb-4">
-                <Icon name="UserPlus" size={28} className="text-primary" />
+        {/* Main centrado */}
+        <main className="flex-1 flex items-center justify-center px-4 py-8">
+          <div className="w-full max-w-md">
+            {/* Título */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 mb-4 shadow-lg">
+                <Icon name="Sparkles" size={28} className="text-white" />
               </div>
-              <div>
-                <h1 className="text-heading-xl font-bold text-text-primary mb-2">
-                  Crear Cuenta
-                </h1>
-                <p className="text-body-base text-text-secondary max-w-md mx-auto">
-                  Únete a AquaQR y comienza a dispensar agua purificada de forma segura y conveniente
-                </p>
+              <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">
+                Comienza gratis
+              </h1>
+              <p className="text-slate-600">
+                Crea tu cuenta y accede a agua purificada inteligente
+              </p>
+            </div>
+
+            {/* Tarjeta del formulario */}
+            <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-xl p-6 sm:p-8">
+              <SignUp
+                routing="path"
+                path="/user-registration"
+                afterSignUpUrl="/home-dashboard"
+                appearance={{
+                  layout: {
+                    socialButtonsPlacement: "top",
+                    socialButtonsVariant: "blockButton",
+                  },
+                  elements: {
+                    rootBox: "w-full",
+                    card: "w-full !shadow-none !border-0 !p-0",
+                    
+                    // Formulario perfectamente centrado
+                    form: "w-full space-y-5",
+                    formFieldRow: "w-full",
+                    formField: "w-full",
+                    formFieldLabel: "text-slate-700 font-medium text-sm mb-2",
+                    formFieldInput:
+                      "w-full h-12 px-4 rounded-xl border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all outline-none",
+
+                    formButtonPrimary:
+                      "w-full h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg",
+
+                    // Botones sociales
+                    socialButtons: "w-full flex flex-col sm:flex-row gap-3 mb-6",
+                    socialButtonsBlockButton:
+                      "flex-1 h-11 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-all",
+                    socialButtonsBlockButtonText: "text-slate-800 font-medium text-sm",
+
+                    // Divisor personalizado
+                    dividerRow: "my-6",
+                    dividerText: "text-slate-400 text-sm px-4",
+                    dividerLine: "bg-slate-200",
+
+                    // Footer con enlaces
+                    footerAction: "mt-6",
+                    footerActionText: "text-slate-600 text-sm",
+                    footerActionLink: "text-cyan-600 hover:text-cyan-700 font-semibold",
+                    
+                    // Links adicionales (términos y privacidad)
+                    footerPages: "mt-4",
+                    footerPagesLink: "text-slate-500 hover:text-slate-700 text-xs transition-colors",
+
+                    // Ocultar header por defecto de Clerk
+                    header: "hidden",
+                    headerTitle: "hidden",
+                    headerSubtitle: "hidden",
+                  },
+                }}
+              />
+            </div>
+
+            {/* Beneficios */}
+            <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex flex-col items-center text-center p-4 rounded-xl bg-white/60 backdrop-blur border border-slate-200">
+                <div className="w-10 h-10 rounded-lg bg-cyan-100 flex items-center justify-center mb-2">
+                  <Icon name="Zap" size={20} className="text-cyan-600" />
+                </div>
+                <p className="text-xs text-slate-600 font-medium">Registro rápido</p>
               </div>
-              
-              {/* Benefits Preview */}
-              <div className="grid grid-cols-3 gap-4 mt-6 max-w-md mx-auto">
-                <div className="flex flex-col items-center space-y-2 p-3 bg-white/60 backdrop-blur-sm rounded-xl border border-border/30">
-                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Icon name="Zap" size={16} className="text-primary" />
-                  </div>
-                  <span className="text-caption font-medium text-text-primary">Acceso rápido</span>
+              <div className="flex flex-col items-center text-center p-4 rounded-xl bg-white/60 backdrop-blur border border-slate-200">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mb-2">
+                  <Icon name="Shield" size={20} className="text-blue-600" />
                 </div>
-                
-                <div className="flex flex-col items-center space-y-2 p-3 bg-white/60 backdrop-blur-sm rounded-xl border border-border/30">
-                  <div className="w-8 h-8 bg-success/10 rounded-lg flex items-center justify-center">
-                    <Icon name="Shield" size={16} className="text-success" />
-                  </div>
-                  <span className="text-caption font-medium text-text-primary">Seguro</span>
+                <p className="text-xs text-slate-600 font-medium">100% seguro</p>
+              </div>
+              <div className="flex flex-col items-center text-center p-4 rounded-xl bg-white/60 backdrop-blur border border-slate-200">
+                <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center mb-2">
+                  <Icon name="Droplets" size={20} className="text-teal-600" />
                 </div>
-                
-                <div className="flex flex-col items-center space-y-2 p-3 bg-white/60 backdrop-blur-sm rounded-xl border border-border/30">
-                  <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center">
-                    <Icon name="Heart" size={16} className="text-accent" />
-                  </div>
-                  <span className="text-caption font-medium text-text-primary">Impacto social</span>
-                </div>
+                <p className="text-xs text-slate-600 font-medium">Agua al instante</p>
               </div>
             </div>
 
-            {/* Registration Form */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-soft-2xl border border-border/50 p-8 space-y-6">
-              <RegistrationForm onRegistrationSuccess={handleRegistrationSuccess} />
-              
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border/60"></div>
-                </div>
-                <div className="relative flex justify-center text-body-sm">
-                  <span className="bg-white px-4 text-text-secondary font-medium">o continúa con</span>
-                </div>
-              </div>
-              
-              {/* Social Registration */}
-              <SocialRegistration onSocialSuccess={handleSocialSuccess} />
-            </div>
-
-            {/* Login Prompt */}
-            <div className="text-center mt-8">
-              <div className="inline-flex items-center space-x-2 p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-border/30">
-                <Icon name="Users" size={16} className="text-primary" />
-                <p className="text-body-sm text-text-secondary">
-                  ¿Ya tienes cuenta?{' '}
-                  <Link
-                    to="/user-login"
-                    className="text-primary hover:text-primary/80 font-semibold transition-colors duration-200"
+            {/* CTA alterna */}
+            <div className="text-center mt-6">
+              <div className="inline-flex items-center gap-2 px-5 py-3 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm">
+                <Icon name="ArrowRight" size={16} className="text-cyan-600" />
+                <p className="text-sm text-slate-600">
+                  ¿Ya tienes cuenta?{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/user-login')}
+                    className="text-cyan-700 hover:text-cyan-600 font-semibold transition-colors"
                   >
                     Iniciar sesión
-                  </Link>
+                  </button>
                 </p>
               </div>
             </div>
           </div>
         </main>
-
-        {/* Background Decoration */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-cyan-200/20 to-blue-300/20 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-blue-200/20 to-cyan-300/20 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-br from-primary/5 to-accent/5 rounded-full blur-2xl"></div>
-        </div>
       </div>
     </>
   );
-};
-
-export default UserRegistration;
+}

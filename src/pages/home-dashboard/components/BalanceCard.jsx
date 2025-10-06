@@ -10,7 +10,7 @@ const BalanceCard = ({ balance, onRecharge, onDispense }) => {
           <p className="text-text-secondary text-body-sm font-medium">Saldo Disponible</p>
           <div className="flex items-baseline space-x-1 mt-1">
             <span className="text-3xl font-bold text-primary">${balance?.toFixed(2)}</span>
-            <span className="text-text-secondary text-body-sm">USD</span>
+            <span className="text-text-secondary text-body-sm">MXN</span>
           </div>
         </div>
         <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
