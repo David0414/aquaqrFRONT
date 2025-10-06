@@ -1,10 +1,14 @@
-// src/pages/user-profile-settings/components/PersonalInfoSection.jsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
+
 import Icon from '../../../components/AppIcon';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 
+const API = import.meta.env.VITE_API_URL;
+const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+
+// Helpers
 function splitName(full = '') {
   const parts = full.trim().replace(/\s+/g, ' ').split(' ');
   if (parts.length === 0) return { firstName: '', lastName: '' };
@@ -14,17 +18,16 @@ function splitName(full = '') {
 
 const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
   const { user: clerkUser, isLoaded } = useUser();
+  const { getToken } = useAuth();
 
-  // Datos base desde Clerk
   const clerkBasics = useMemo(() => {
     if (!clerkUser) return null;
     const fullName =
       clerkUser.fullName ||
       [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') ||
       '';
-    const primaryEmail = clerkUser.primaryEmailAddress?.emailAddress || '';
-    const phone = (clerkUser.publicMetadata?.phone || '').toString();
-    return { fullName, email: primaryEmail, phone };
+    const email = clerkUser.primaryEmailAddress?.emailAddress || '';
+    return { fullName, email };
   }, [clerkUser]);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -38,15 +41,31 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [oldPrimaryEmailId, setOldPrimaryEmailId] = useState(null);
 
+  // Carga inicial (nombre/email de Clerk, teléfono desde backend)
   useEffect(() => {
-    if (isLoaded && clerkBasics) {
-      setFormData({
+    const load = async () => {
+      if (!isLoaded || !clerkBasics) return;
+
+      const base = {
         name: clerkBasics.fullName || uiUserFromParent?.name || '',
         email: clerkBasics.email || uiUserFromParent?.email || '',
-        phone: clerkBasics.phone || uiUserFromParent?.phone || '',
-      });
-    }
-  }, [isLoaded, clerkBasics, uiUserFromParent]);
+        phone: uiUserFromParent?.phone || '',
+      };
+
+      try {
+        const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+        const res = await fetch(`${API}/api/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setFormData({ ...base, phone: data?.phone || '' });
+      } catch {
+        setFormData(base);
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, clerkBasics]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -61,25 +80,23 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
     if (!formData.email?.trim()) e.email = 'El email es requerido';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.email = 'Ingresa un email válido';
 
-    if (!formData.phone?.trim()) e.phone = 'El teléfono es requerido';
-    else if (!/^\+?[\d\s\-()]{10,}$/.test(formData.phone)) e.phone = 'Ingresa un número de teléfono válido';
+    // Teléfono OPCIONAL: solo valida si viene algo
+    const ph = (formData.phone || '').trim();
+    if (ph.length > 0 && !/^\+?[\d\s\-()]{10,}$/.test(ph)) {
+      e.phone = 'Ingresa un número de teléfono válido';
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
+  // --- Email change & verification ---
   const startEmailVerification = async (newEmail) => {
-    // 1) Crea el nuevo email en Clerk
     const emailRes = await clerkUser.createEmailAddress({ email: newEmail });
-
-    // 2) pide verificación por código al correo
     await emailRes.prepareVerification({ strategy: 'email_code' });
-
-    // Guarda ids para el step de verificación
     setPendingEmailId(emailRes.id);
     setOldPrimaryEmailId(clerkUser.primaryEmailAddress?.id || null);
-
-    if (window.showToast) window.showToast('Enviamos un código a tu nuevo email', 'info');
+    window.showToast?.('Enviamos un código a tu nuevo email', 'info');
   };
 
   const attemptVerifyEmail = async () => {
@@ -87,30 +104,19 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
     setIsVerifying(true);
     try {
       const emailObj = clerkUser.emailAddresses.find(e => e.id === pendingEmailId);
-      if (!emailObj) throw new Error('No se encontró el email para verificar');
-
-      // 3) Verifica el código
       await emailObj.attemptVerification({ code: verifyCode });
-
-      // 4) Hazlo primario
       await clerkUser.update({ primaryEmailAddressId: pendingEmailId });
-
-      // 5) (opcional) borra el anterior si existe
       if (oldPrimaryEmailId && oldPrimaryEmailId !== pendingEmailId) {
         const oldObj = clerkUser.emailAddresses.find(e => e.id === oldPrimaryEmailId);
         if (oldObj) await oldObj.destroy();
       }
-
       setPendingEmailId(null);
       setVerifyCode('');
       setOldPrimaryEmailId(null);
-
-      if (window.showToast) window.showToast('Email actualizado correctamente', 'success');
-
-      // Actualiza estado UI arriba
+      window.showToast?.('Email actualizado correctamente', 'success');
       onUserUpdate?.({ ...formData });
     } catch (err) {
-      if (window.showToast) window.showToast(err.message || 'Código inválido', 'error');
+      window.showToast?.(err.message || 'Código inválido', 'error');
     } finally {
       setIsVerifying(false);
     }
@@ -122,62 +128,59 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
 
     setIsSaving(true);
     try {
-      const updates = [];
-
-      // Nombre
-      if ((clerkBasics?.fullName || '') !== (formData.name || '')) {
+      // 1) Nombre en Clerk
+      const currentFull = clerkBasics?.fullName || '';
+      if (currentFull !== (formData.name || '')) {
         const { firstName, lastName } = splitName(formData.name || '');
-        updates.push(clerkUser.update({ firstName, lastName }));
+        await clerkUser.update({ firstName, lastName });
       }
 
-      // Teléfono en publicMetadata
-      const currentPhone = (clerkUser.publicMetadata?.phone || '').toString();
-      if (currentPhone !== (formData.phone || '')) {
-        updates.push(
-          clerkUser.update({
-            publicMetadata: {
-              ...clerkUser.publicMetadata,
-              phone: formData.phone || '',
-            },
-          })
-        );
+      // 2) Teléfono en TU backend (opcional -> "" = null)
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      const putRes = await fetch(`${API}/api/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ phone: (formData.phone || '').trim() }), // "" -> backend guardará null
+      });
+      if (!putRes.ok) {
+        const e = await putRes.json().catch(() => ({}));
+        throw new Error(e.error || 'No se pudo guardar el teléfono');
       }
 
-      // Email (flujo especial con verificación si cambió)
+      // 3) Email: si cambió -> verificación
       const currentEmail = clerkBasics?.email || '';
       const newEmail = (formData.email || '').trim();
       if (newEmail.toLowerCase() !== currentEmail.toLowerCase()) {
-        await Promise.all(updates); // primero aplica lo demás
         await startEmailVerification(newEmail);
-        setIsEditing(false); // cierra edición mientras se verifica
+        setIsEditing(false);
         setIsSaving(false);
-        return; // el resto continúa cuando confirme el código
+        return;
       }
 
-      // Aplica updates no-email
-      await Promise.all(updates);
-
       setIsEditing(false);
-      if (window.showToast) window.showToast('Información personal actualizada', 'success');
-
+      window.showToast?.('Información personal actualizada', 'success');
       onUserUpdate?.({ ...formData });
     } catch (err) {
-      if (window.showToast) window.showToast(err.message || 'No se pudo actualizar', 'error');
+      window.showToast?.(err.message || 'No se pudo actualizar', 'error');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleCancel = () => {
-    setFormData({
-      name: clerkBasics?.fullName || uiUserFromParent?.name || '',
-      email: clerkBasics?.email || uiUserFromParent?.email || '',
-      phone: clerkBasics?.phone || uiUserFromParent?.phone || '',
-    });
     setErrors({});
     setIsEditing(false);
-    setPendingEmailId(null);
-    setVerifyCode('');
+    if (isLoaded && clerkBasics) {
+      setFormData(prev => ({
+        ...prev,
+        name: clerkBasics.fullName,
+        email: clerkBasics.email,
+        // mantenemos phone como esté en state (o puedes recargar del backend si lo prefieres)
+      }));
+    }
   };
 
   return (
@@ -188,12 +191,8 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
             <Icon name="User" size={20} className="text-primary" />
           </div>
           <div>
-            <h2 className="text-heading-base font-semibold text-text-primary">
-              Información Personal
-            </h2>
-            <p className="text-body-sm text-text-secondary">
-              Actualiza tus datos personales
-            </p>
+            <h2 className="text-heading-base font-semibold text-text-primary">Información Personal</h2>
+            <p className="text-body-sm text-text-secondary">Actualiza tus datos personales</p>
           </div>
         </div>
 
@@ -210,7 +209,6 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
         )}
       </div>
 
-      {/* Formulario */}
       <div className="space-y-4">
         <Input
           label="Nombre completo"
@@ -229,26 +227,20 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
           onChange={(e) => handleInputChange('email', e?.target?.value)}
           error={errors?.email}
           disabled={!isEditing || !!pendingEmailId}
-          description={
-            isEditing
-              ? 'Si cambias el correo te enviaremos un código de verificación al nuevo email.'
-              : ''
-          }
+          description={isEditing ? "Si cambias el correo te enviaremos un código de verificación al nuevo email." : ""}
           required
         />
 
         <Input
-          label="Número de teléfono"
+          label="Número de teléfono (opcional)"
           type="tel"
           value={formData.phone}
           onChange={(e) => handleInputChange('phone', e?.target?.value)}
           error={errors?.phone}
           disabled={!isEditing || !!pendingEmailId}
           placeholder="+52 55 1234 5678"
-          required
         />
 
-        {/* Acciones edición */}
         {isEditing && !pendingEmailId && (
           <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
             <Button
@@ -274,18 +266,14 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
           </div>
         )}
 
-        {/* Bloque de verificación de email */}
         {pendingEmailId && (
           <div className="mt-4 p-4 rounded-xl border border-primary/30 bg-primary/5">
             <div className="flex items-start gap-3">
               <Icon name="Mail" size={20} className="text-primary mt-0.5" />
               <div className="flex-1">
-                <p className="text-body-sm text-text-primary font-medium">
-                  Verifica tu nuevo correo
-                </p>
+                <p className="text-body-sm font-medium text-text-primary">Verifica tu nuevo correo</p>
                 <p className="text-body-sm text-text-secondary">
-                  Hemos enviado un código de 6 dígitos a <strong>{formData.email}</strong>.
-                  Escríbelo a continuación para completar el cambio de email.
+                  Enviamos un código de 6 dígitos a <strong>{formData.email}</strong>.
                 </p>
                 <div className="mt-3 flex items-center gap-3">
                   <input
@@ -294,13 +282,7 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
                     placeholder="Código de verificación"
                     className="flex-1 h-11 px-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
-                  <Button
-                    variant="default"
-                    loading={isVerifying}
-                    onClick={attemptVerifyEmail}
-                    iconName="Check"
-                    iconPosition="left"
-                  >
+                  <Button variant="default" loading={isVerifying} onClick={attemptVerifyEmail} iconName="Check" iconPosition="left">
                     Confirmar
                   </Button>
                   <Button
@@ -309,8 +291,6 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
                       setPendingEmailId(null);
                       setVerifyCode('');
                       setOldPrimaryEmailId(null);
-                      // revert UI al email anterior de Clerk
-                      setFormData(prev => ({ ...prev, email: clerkBasics?.email || '' }));
                     }}
                     iconName="X"
                     iconPosition="left"
