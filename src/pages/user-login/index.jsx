@@ -47,21 +47,21 @@ export default function UserLogin() {
           </div>
         </header>
 
-        {/* Main centrado */}
-        <main className="flex-1 flex items-center justify-center px-4 py-8">
+        {/* Main centrado - OPTIMIZADO MÓVIL */}
+        <main className="flex-1 flex items-center justify-center px-4 py-4 sm:py-8">
           <div className="w-full max-w-md">
-            {/* Título */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">
+            {/* Título - MÁS COMPACTO EN MÓVIL */}
+            <div className="text-center mb-4 sm:mb-8">
+              <h1 className="text-2xl sm:text-4xl font-bold text-slate-900 mb-1 sm:mb-2">
                 Bienvenido de vuelta
               </h1>
-              <p className="text-slate-600">
+              <p className="text-sm sm:text-base text-slate-600">
                 Inicia sesión para gestionar tu saldo
               </p>
             </div>
 
-            {/* Tarjeta del formulario */}
-            <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-xl p-6 sm:p-8">
+            {/* Tarjeta del formulario - PADDING OPTIMIZADO */}
+            <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-xl p-4 sm:p-6">
               <SignIn
                 routing="path"
                 path="/user-login"

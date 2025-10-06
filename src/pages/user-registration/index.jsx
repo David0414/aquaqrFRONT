@@ -47,24 +47,24 @@ export default function UserRegistration() {
           </div>
         </header>
 
-        {/* Main centrado */}
-        <main className="flex-1 flex items-center justify-center px-4 py-8">
+        {/* Main centrado - OPTIMIZADO MÓVIL */}
+        <main className="flex-1 flex items-center justify-center px-4 py-4 sm:py-8">
           <div className="w-full max-w-md">
-            {/* Título */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 mb-4 shadow-lg">
-                <Icon name="Sparkles" size={28} className="text-white" />
+            {/* Título - MÁS COMPACTO EN MÓVIL */}
+            <div className="text-center mb-4 sm:mb-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 mb-3 sm:mb-4 shadow-lg">
+                <Icon name="Sparkles" size={24} className="text-white sm:w-7 sm:h-7" />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">
+              <h1 className="text-2xl sm:text-4xl font-bold text-slate-900 mb-1 sm:mb-2">
                 Comienza gratis
               </h1>
-              <p className="text-slate-600">
+              <p className="text-sm sm:text-base text-slate-600">
                 Crea tu cuenta y accede a agua purificada inteligente
               </p>
             </div>
 
-            {/* Tarjeta del formulario */}
-            <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-xl p-6 sm:p-8">
+            {/* Tarjeta del formulario - PADDING OPTIMIZADO */}
+            <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-xl p-4 sm:p-6">
               <SignUp
                 routing="path"
                 path="/user-registration"
@@ -78,35 +78,35 @@ export default function UserRegistration() {
                     rootBox: "w-full",
                     card: "w-full !shadow-none !border-0 !p-0",
                     
-                    // Formulario perfectamente centrado
-                    form: "w-full space-y-5",
+                    // Formulario perfectamente centrado - ESPACIADO COMPACTO
+                    form: "w-full space-y-3",
                     formFieldRow: "w-full",
                     formField: "w-full",
-                    formFieldLabel: "text-slate-700 font-medium text-sm mb-2",
+                    formFieldLabel: "text-slate-700 font-medium text-sm mb-1.5",
                     formFieldInput:
-                      "w-full h-12 px-4 rounded-xl border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all outline-none",
+                      "w-full h-10 px-4 rounded-xl border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all outline-none text-sm",
 
                     formButtonPrimary:
-                      "w-full h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg",
+                      "w-full h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg",
 
-                    // Botones sociales
-                    socialButtons: "w-full flex flex-col sm:flex-row gap-3 mb-6",
+                    // Botones sociales - MÁS COMPACTOS
+                    socialButtons: "w-full flex flex-col sm:flex-row gap-2 mb-4",
                     socialButtonsBlockButton:
-                      "flex-1 h-11 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-all",
+                      "flex-1 h-10 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-all",
                     socialButtonsBlockButtonText: "text-slate-800 font-medium text-sm",
 
-                    // Divisor personalizado
-                    dividerRow: "my-6",
-                    dividerText: "text-slate-400 text-sm px-4",
+                    // Divisor personalizado - MENOS ESPACIO
+                    dividerRow: "my-4",
+                    dividerText: "text-slate-400 text-xs px-4",
                     dividerLine: "bg-slate-200",
 
-                    // Footer con enlaces
-                    footerAction: "mt-6",
-                    footerActionText: "text-slate-600 text-sm",
+                    // Footer con enlaces - MÁS COMPACTO
+                    footerAction: "mt-4",
+                    footerActionText: "text-slate-600 text-xs",
                     footerActionLink: "text-cyan-600 hover:text-cyan-700 font-semibold",
                     
-                    // Links adicionales (términos y privacidad)
-                    footerPages: "mt-4",
+                    // Links adicionales (términos y privacidad) - MÁS COMPACTO
+                    footerPages: "mt-3",
                     footerPagesLink: "text-slate-500 hover:text-slate-700 text-xs transition-colors",
 
                     // Ocultar header por defecto de Clerk
