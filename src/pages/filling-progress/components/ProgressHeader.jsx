@@ -1,11 +1,11 @@
 import React from 'react';
 import Icon from '../../../components/AppIcon';
 
-const ProgressHeader = ({ 
-  machineId, 
-  location, 
-  connectionStatus, 
-  onCancel 
+const ProgressHeader = ({
+  machineId,
+  location,
+  connectionStatus, // 'connected' | 'connecting' | 'disconnected'
+  onCancel,
 }) => {
   return (
     <div className="flex items-center justify-between p-4 bg-background border-b border-border">
@@ -17,7 +17,7 @@ const ProgressHeader = ({
         >
           <Icon name="ArrowLeft" size={20} className="text-text-secondary" />
         </button>
-        
+
         <div>
           <h1 className="text-heading-sm font-semibold text-text-primary">
             Dispensando Agua
@@ -28,18 +28,30 @@ const ProgressHeader = ({
         </div>
       </div>
 
-      <div className={`
-        flex items-center space-x-2 px-3 py-1.5 rounded-full text-body-xs font-medium
-        ${connectionStatus === 'connected' ?'bg-success/10 text-success' 
-          : connectionStatus === 'connecting' ?'bg-warning/10 text-warning' :'bg-error/10 text-error'
-        }
-      `}>
-        <div className={`
-          w-2 h-2 rounded-full
-          ${connectionStatus === 'connected' ?'bg-success animate-pulse' 
-            : connectionStatus === 'connecting' ?'bg-warning animate-pulse' :'bg-error'
+      <div
+        className={`
+          flex items-center space-x-2 px-3 py-1.5 rounded-full text-body-xs font-medium
+          ${
+            connectionStatus === 'connected'
+              ? 'bg-success/10 text-success'
+              : connectionStatus === 'connecting'
+              ? 'bg-warning/10 text-warning'
+              : 'bg-error/10 text-error'
           }
-        `} />
+        `}
+      >
+        <div
+          className={`
+            w-2 h-2 rounded-full
+            ${
+              connectionStatus === 'connected'
+                ? 'bg-success animate-pulse'
+                : connectionStatus === 'connecting'
+                ? 'bg-warning animate-pulse'
+                : 'bg-error'
+            }
+          `}
+        />
         <span>
           {connectionStatus === 'connected' && 'Conectado'}
           {connectionStatus === 'connecting' && 'Conectando...'}

@@ -7,9 +7,16 @@ const PricingCalculator = ({
   currentBalance,
   className = '',
 }) => {
-  const totalCost = selectedLiters * pricePerLiter;
-  const remainingBalance = currentBalance - totalCost;
+  const totalCost = Number(selectedLiters) * Number(pricePerLiter);
+  const remainingBalance = Number(currentBalance) - totalCost;
   const hasInsufficientFunds = remainingBalance < 0;
+
+  const money = (n) =>
+    new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+    }).format(Number.isFinite(n) ? n : 0);
 
   return (
     <div className={`bg-card border border-border rounded-xl p-6 ${className}`}>
@@ -29,25 +36,31 @@ const PricingCalculator = ({
             <Icon name="DollarSign" size={18} className="text-primary" />
             <span className="text-text-secondary">Precio por litro</span>
           </div>
-          <span className="font-medium text-text-primary">${pricePerLiter.toFixed(2)} MXN</span>
+          <span className="font-medium text-text-primary">
+            {money(pricePerLiter)} MXN
+          </span>
         </div>
 
         <div className="border-t border-border pt-4">
           <div className="flex items-center justify-between py-2">
             <span className="text-lg font-semibold text-text-primary">Total a pagar</span>
-            <span className="text-2xl font-bold text-primary">${totalCost.toFixed(2)} MXN</span>
+            <span className="text-2xl font-bold text-primary">
+              {money(totalCost)} MXN
+            </span>
           </div>
         </div>
 
         <div className="bg-surface rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-text-secondary">Saldo actual</span>
-            <span className="font-semibold text-text-primary">${currentBalance.toFixed(2)} MXN</span>
+            <span className="font-semibold text-text-primary">
+              {money(currentBalance)} MXN
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-text-secondary">Saldo después</span>
             <span className={`font-semibold ${hasInsufficientFunds ? 'text-error' : 'text-success'}`}>
-              ${remainingBalance.toFixed(2)} MXN
+              {money(remainingBalance)} MXN
             </span>
           </div>
         </div>
@@ -58,7 +71,7 @@ const PricingCalculator = ({
             <div>
               <p className="font-medium text-error mb-1">Saldo insuficiente</p>
               <p className="text-sm text-error/80">
-                Necesitas recargar ${Math.abs(remainingBalance).toFixed(2)} MXN adicionales.
+                Necesitas recargar {money(Math.abs(remainingBalance))} MXN adicionales.
               </p>
             </div>
           </div>

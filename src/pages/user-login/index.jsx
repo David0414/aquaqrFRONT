@@ -17,16 +17,29 @@ export default function UserLogin() {
     <>
       <Helmet>
         <title>Iniciar Sesión - AquaQR</title>
-        <meta name="description" content="Accede a tu cuenta AquaQR para gestionar tu saldo y dispensar agua purificada" />
+        <meta
+          name="description"
+          content="Accede a tu cuenta AquaQR para gestionar tu saldo y dispensar agua purificada"
+        />
+        {/* safe areas en móvil */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Helmet>
 
-      <SignedIn><Navigate to="/home-dashboard" replace /></SignedIn>
+      {/* Si ya está logueado, redirige */}
+      <SignedIn>
+        <Navigate to="/home-dashboard" replace />
+      </SignedIn>
 
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#f0fbff] via-white to-[#eef6ff]">
         {/* Header */}
         <header className="w-full">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
-            <button type="button" onClick={onBrandClick} className="flex items-center gap-3 select-none" aria-label="AquaQR">
+            <button
+              type="button"
+              onClick={onBrandClick}
+              className="flex items-center gap-3 select-none"
+              aria-label="AquaQR"
+            >
               <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
                 <Icon name="Droplets" size={22} className="text-white" />
               </div>
@@ -47,84 +60,82 @@ export default function UserLogin() {
           </div>
         </header>
 
-        {/* Main centrado */}
-        <main className="flex-1 flex items-center justify-center px-4 py-8">
-          <div className="w-full max-w-md">
-            {/* Título */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">
-                Bienvenido de vuelta
-              </h1>
-              <p className="text-slate-600">
-                Inicia sesión para gestionar tu saldo
-              </p>
-            </div>
+        {/* Main */}
+        <main className="flex-1 px-4 py-6">
+          {/* Centrado en móvil; a la derecha en desktop */}
+          <div className="mx-auto w-full max-w-6xl flex justify-center lg:justify-end px-0 lg:pr-8">
+            {/* Ancho compacto en móvil */}
+            <div className="w-full max-w-[340px] sm:max-w-[400px] lg:mr-10">
+              {/* Título */}
+              <div className="text-center mb-6">
+                <h1 className="text-[26px] sm:text-4xl font-bold text-slate-900 mb-1">
+                  Bienvenido de vuelta
+                </h1>
+                <p className="text-slate-600 text-sm sm:text-base">
+                  Inicia sesión para gestionar tu saldo
+                </p>
+              </div>
 
-            {/* Tarjeta del formulario */}
-            <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-xl p-6 sm:p-8">
+              {/* Solo la tarjeta de Clerk */}
               <SignIn
                 routing="path"
                 path="/user-login"
                 afterSignInUrl="/home-dashboard"
                 appearance={{
+                  variables: {
+                    colorPrimary: '#06b6d4',
+                    borderRadius: '16px',
+                    fontSize: '13px', // un poco más chico en móvil
+                  },
                   layout: {
-                    socialButtonsPlacement: "top",
-                    socialButtonsVariant: "blockButton",
+                    socialButtonsPlacement: 'top',
+                    socialButtonsVariant: 'blockButton',
                   },
                   elements: {
-                    rootBox: "w-full",
-                    card: "w-full !shadow-none !border-0 !p-0",
-                    
-                    // Formulario perfectamente centrado
-                    form: "w-full space-y-5",
-                    formFieldRow: "w-full",
-                    formField: "w-full",
-                    formFieldLabel: "text-slate-700 font-medium text-sm mb-2",
+                    // Usamos el card nativo de Clerk como tarjeta
+                    card:
+                      'rounded-2xl border border-slate-200 bg-white/95 backdrop-blur shadow-xl p-4 sm:p-6',
+
+                    form: 'w-full space-y-4 sm:space-y-5',
+                    formField: 'w-full',
+                    formFieldLabel: 'text-slate-700 font-medium text-sm mb-1',
                     formFieldInput:
-                      "w-full h-12 px-4 rounded-xl border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all outline-none",
+                      'w-full h-11 sm:h-12 px-4 rounded-xl border border-slate-300 text-[16px] focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none',
 
                     formButtonPrimary:
-                      "w-full h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg",
+                      'w-full h-11 sm:h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition shadow-md hover:shadow-lg',
 
-                    // Botones sociales
-                    socialButtons: "w-full flex flex-col sm:flex-row gap-3 mb-6",
+                    socialButtons: 'grid grid-cols-2 gap-3 mb-4 sm:mb-6',
                     socialButtonsBlockButton:
-                      "flex-1 h-11 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-all",
-                    socialButtonsBlockButtonText: "text-slate-800 font-medium text-sm",
+                      'h-10 sm:h-11 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 shadow-none',
+                    socialButtonsBlockButtonText: 'text-slate-800 font-medium text-sm',
 
-                    // Divisor personalizado
-                    dividerRow: "my-6",
-                    dividerText: "text-slate-400 text-sm px-4",
-                    dividerLine: "bg-slate-200",
+                    dividerRow: 'hidden',
+                    dividerText: 'hidden',
+                    dividerLine: 'hidden',
 
-                    // Footer con enlaces
-                    footerAction: "mt-6",
-                    footerActionText: "text-slate-600 text-sm",
-                    footerActionLink: "text-cyan-600 hover:text-cyan-700 font-semibold",
-
-                    // Ocultar header por defecto de Clerk
-                    header: "hidden",
-                    headerTitle: "hidden",
-                    headerSubtitle: "hidden",
+                    header: 'hidden',
+                    headerTitle: 'hidden',
+                    headerSubtitle: 'hidden',
                   },
                 }}
               />
-            </div>
 
-            {/* CTA alterna */}
-            <div className="text-center mt-6">
-              <div className="inline-flex items-center gap-2 px-5 py-3 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm">
-                <Icon name="Sparkles" size={16} className="text-cyan-600" />
-                <p className="text-sm text-slate-600">
-                  ¿No tienes cuenta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/user-registration')}
-                    className="text-cyan-700 hover:text-cyan-600 font-semibold transition-colors"
-                  >
-                    Crear cuenta gratis
-                  </button>
-                </p>
+              {/* CTA alterna */}
+              <div className="text-center mt-5">
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm">
+                  <Icon name="Sparkles" size={16} className="text-cyan-600" />
+                  <p className="text-sm text-slate-600">
+                    ¿No tienes cuenta?{' '}
+                    <button
+                      type="button"
+                      onClick={() => navigate('/user-registration')}
+                      className="text-cyan-700 hover:text-cyan-600 font-semibold"
+                    >
+                      Crear cuenta gratis
+                    </button>
+                  </p>
+                </div>
               </div>
             </div>
           </div>

@@ -5,38 +5,38 @@ import Button from '../../../components/ui/Button';
 const HelpModal = ({ isOpen, onClose }) => {
   const helpOptions = [
     {
-      icon: "MessageCircle",
-      title: "Chat en Vivo",
-      description: "Habla con nuestro equipo de soporte",
-      action: "Iniciar chat"
+      icon: 'MessageCircle',
+      title: 'Chat en Vivo',
+      description: 'Habla con nuestro equipo de soporte',
+      action: 'Iniciar chat',
     },
     {
-      icon: "Phone",
-      title: "Llamar Soporte",
-      description: "Línea directa 24/7",
-      action: "Llamar ahora",
-      phone: "+1 (555) 123-4567"
+      icon: 'Phone',
+      title: 'Llamar Soporte',
+      description: 'Línea directa 24/7',
+      action: 'Llamar ahora',
+      phone: '+1 (555) 123-4567',
     },
     {
-      icon: "Mail",
-      title: "Enviar Email",
-      description: "Respuesta en menos de 2 horas",
-      action: "Enviar email",
-      email: "soporte@aquaqr.com"
+      icon: 'Mail',
+      title: 'Enviar Email',
+      description: 'Respuesta en menos de 2 horas',
+      action: 'Enviar email',
+      email: 'soporte@aquaqr.com',
     },
     {
-      icon: "AlertCircle",
-      title: "Reportar Problema",
-      description: "Problema con la máquina o dispensado",
-      action: "Reportar"
-    }
+      icon: 'AlertCircle',
+      title: 'Reportar Problema',
+      description: 'Problema con la máquina o dispensado',
+      action: 'Reportar',
+    },
   ];
 
   const troubleshootingSteps = [
-    "Verifica que la máquina esté conectada (luz verde)",
-    "Asegúrate de que tu recipiente esté bien colocado",
-    "Revisa que tengas saldo suficiente",
-    "Si el problema persiste, contacta soporte"
+    'Verifica que la máquina esté conectada (luz verde)',
+    'Asegúrate de que tu recipiente esté bien colocado',
+    'Revisa que tengas saldo suficiente',
+    'Si el problema persiste, contacta soporte',
   ];
 
   if (!isOpen) return null;
@@ -66,16 +66,14 @@ const HelpModal = ({ isOpen, onClose }) => {
               Solución Rápida
             </h3>
             <div className="space-y-2">
-              {troubleshootingSteps?.map((step, index) => (
+              {troubleshootingSteps.map((step, index) => (
                 <div key={index} className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                     <span className="text-body-xs font-medium text-primary">
                       {index + 1}
                     </span>
                   </div>
-                  <p className="text-body-sm text-text-secondary">
-                    {step}
-                  </p>
+                  <p className="text-body-sm text-text-secondary">{step}</p>
                 </div>
               ))}
             </div>
@@ -87,27 +85,27 @@ const HelpModal = ({ isOpen, onClose }) => {
               Contactar Soporte
             </h3>
             <div className="space-y-3">
-              {helpOptions?.map((option, index) => (
+              {helpOptions.map((option, index) => (
                 <button
                   key={index}
                   onClick={() => {
-                    if (option?.phone) {
-                      window.open(`tel:${option?.phone}`);
-                    } else if (option?.email) {
-                      window.open(`mailto:${option?.email}`);
+                    if (option.phone) {
+                      window.open(`tel:${option.phone}`);
+                    } else if (option.email) {
+                      window.open(`mailto:${option.email}`);
                     }
                   }}
                   className="w-full flex items-center space-x-4 p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors duration-200 text-left"
                 >
                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Icon name={option?.icon} size={20} className="text-primary" />
+                    <Icon name={option.icon} size={20} className="text-primary" />
                   </div>
                   <div className="flex-1">
                     <p className="text-body-sm font-medium text-text-primary">
-                      {option?.title}
+                      {option.title}
                     </p>
                     <p className="text-body-xs text-text-secondary">
-                      {option?.description}
+                      {option.description}
                     </p>
                   </div>
                   <Icon name="ChevronRight" size={16} className="text-text-secondary" />
@@ -127,13 +125,13 @@ const HelpModal = ({ isOpen, onClose }) => {
             <p className="text-body-xs text-text-secondary mb-3">
               Si hay algún problema de seguridad, puedes detener el dispensado inmediatamente.
             </p>
-            <Button 
-              variant="destructive" 
-              size="sm" 
+            <Button
+              variant="destructive"
+              size="sm"
               fullWidth
               iconName="Square"
               onClick={() => {
-                // Emergency stop logic would go here
+                // Aquí iría la lógica real de parada
                 onClose();
               }}
             >

@@ -17,16 +17,28 @@ export default function UserRegistration() {
     <>
       <Helmet>
         <title>Crear Cuenta - AquaQR</title>
-        <meta name="description" content="Crea tu cuenta AquaQR y comienza a disfrutar de agua purificada inteligente" />
+        <meta
+          name="description"
+          content="Crea tu cuenta AquaQR y comienza a disfrutar de agua purificada inteligente"
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Helmet>
 
-      <SignedIn><Navigate to="/home-dashboard" replace /></SignedIn>
+      {/* Si ya está logueado, redirige al dashboard */}
+      <SignedIn>
+        <Navigate to="/home-dashboard" replace />
+      </SignedIn>
 
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#f0fbff] via-white to-[#eef6ff]">
         {/* Header */}
         <header className="w-full">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
-            <button type="button" onClick={onBrandClick} className="flex items-center gap-3 select-none" aria-label="AquaQR">
+            <button
+              type="button"
+              onClick={onBrandClick}
+              className="flex items-center gap-3 select-none"
+              aria-label="AquaQR"
+            >
               <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
                 <Icon name="Droplets" size={22} className="text-white" />
               </div>
@@ -47,113 +59,82 @@ export default function UserRegistration() {
           </div>
         </header>
 
-        {/* Main centrado */}
-        <main className="flex-1 flex items-center justify-center px-4 py-8">
-          <div className="w-full max-w-md">
-            {/* Título */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 mb-4 shadow-lg">
-                <Icon name="Sparkles" size={28} className="text-white" />
+        {/* Main */}
+        <main className="flex-1 px-4 py-6">
+          {/* Centrado en móvil; a la derecha en desktop */}
+          <div className="mx-auto w-full max-w-6xl flex justify-center lg:justify-end px-0 lg:pr-8">
+            {/* Ancho compacto */}
+            <div className="w-full max-w-[340px] sm:max-w-[420px] lg:mr-10">
+              {/* Título */}
+              <div className="text-center mb-6">
+                <h1 className="text-[26px] sm:text-4xl font-bold text-slate-900 mb-1">
+                  Crea tu cuenta
+                </h1>
+                <p className="text-slate-600 text-sm sm:text-base">
+                  Empieza a recargar y dispensar agua al instante
+                </p>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">
-                Comienza gratis
-              </h1>
-              <p className="text-slate-600">
-                Crea tu cuenta y accede a agua purificada inteligente
-              </p>
-            </div>
 
-            {/* Tarjeta del formulario */}
-            <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-xl p-6 sm:p-8">
+              {/* Solo la tarjeta de Clerk */}
               <SignUp
                 routing="path"
                 path="/user-registration"
                 afterSignUpUrl="/home-dashboard"
+                signInUrl="/user-login"
                 appearance={{
+                  variables: {
+                    colorPrimary: '#06b6d4',
+                    borderRadius: '16px',
+                    fontSize: '13px',
+                  },
                   layout: {
-                    socialButtonsPlacement: "top",
-                    socialButtonsVariant: "blockButton",
+                    socialButtonsPlacement: 'top',
+                    socialButtonsVariant: 'blockButton',
                   },
                   elements: {
-                    rootBox: "w-full",
-                    card: "w-full !shadow-none !border-0 !p-0",
-                    
-                    // Formulario perfectamente centrado
-                    form: "w-full space-y-5",
-                    formFieldRow: "w-full",
-                    formField: "w-full",
-                    formFieldLabel: "text-slate-700 font-medium text-sm mb-2",
+                    card:
+                      'rounded-2xl border border-slate-200 bg-white/95 backdrop-blur shadow-xl p-4 sm:p-6',
+
+                    form: 'w-full space-y-4 sm:space-y-5',
+                    formField: 'w-full',
+                    formFieldLabel: 'text-slate-700 font-medium text-sm mb-1',
                     formFieldInput:
-                      "w-full h-12 px-4 rounded-xl border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all outline-none",
+                      'w-full h-11 sm:h-12 px-4 rounded-xl border border-slate-300 text-[16px] focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none',
 
                     formButtonPrimary:
-                      "w-full h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg",
+                      'w-full h-11 sm:h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition shadow-md hover:shadow-lg',
 
-                    // Botones sociales
-                    socialButtons: "w-full flex flex-col sm:flex-row gap-3 mb-6",
+                    socialButtons: 'grid grid-cols-2 gap-3 mb-4 sm:mb-6',
                     socialButtonsBlockButton:
-                      "flex-1 h-11 rounded-xl border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-all",
-                    socialButtonsBlockButtonText: "text-slate-800 font-medium text-sm",
+                      'h-10 sm:h-11 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 shadow-none',
+                    socialButtonsBlockButtonText: 'text-slate-800 font-medium text-sm',
 
-                    // Divisor personalizado
-                    dividerRow: "my-6",
-                    dividerText: "text-slate-400 text-sm px-4",
-                    dividerLine: "bg-slate-200",
+                    dividerRow: 'hidden',
+                    dividerText: 'hidden',
+                    dividerLine: 'hidden',
 
-                    // Footer con enlaces
-                    footerAction: "mt-6",
-                    footerActionText: "text-slate-600 text-sm",
-                    footerActionLink: "text-cyan-600 hover:text-cyan-700 font-semibold",
-                    
-                    // Links adicionales (términos y privacidad)
-                    footerPages: "mt-4",
-                    footerPagesLink: "text-slate-500 hover:text-slate-700 text-xs transition-colors",
-
-                    // Ocultar header por defecto de Clerk
-                    header: "hidden",
-                    headerTitle: "hidden",
-                    headerSubtitle: "hidden",
+                    header: 'hidden',
+                    headerTitle: 'hidden',
+                    headerSubtitle: 'hidden',
                   },
                 }}
               />
-            </div>
 
-            {/* Beneficios */}
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex flex-col items-center text-center p-4 rounded-xl bg-white/60 backdrop-blur border border-slate-200">
-                <div className="w-10 h-10 rounded-lg bg-cyan-100 flex items-center justify-center mb-2">
-                  <Icon name="Zap" size={20} className="text-cyan-600" />
+              {/* CTA secundaria */}
+              <div className="text-center mt-5">
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm">
+                  <Icon name="ArrowRight" size={16} className="text-cyan-600" />
+                  <p className="text-sm text-slate-600">
+                    ¿Ya tienes cuenta?{' '}
+                    <button
+                      type="button"
+                      onClick={() => navigate('/user-login')}
+                      className="text-cyan-700 hover:text-cyan-600 font-semibold"
+                    >
+                      Inicia sesión
+                    </button>
+                  </p>
                 </div>
-                <p className="text-xs text-slate-600 font-medium">Registro rápido</p>
-              </div>
-              <div className="flex flex-col items-center text-center p-4 rounded-xl bg-white/60 backdrop-blur border border-slate-200">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mb-2">
-                  <Icon name="Shield" size={20} className="text-blue-600" />
-                </div>
-                <p className="text-xs text-slate-600 font-medium">100% seguro</p>
-              </div>
-              <div className="flex flex-col items-center text-center p-4 rounded-xl bg-white/60 backdrop-blur border border-slate-200">
-                <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center mb-2">
-                  <Icon name="Droplets" size={20} className="text-teal-600" />
-                </div>
-                <p className="text-xs text-slate-600 font-medium">Agua al instante</p>
-              </div>
-            </div>
-
-            {/* CTA alterna */}
-            <div className="text-center mt-6">
-              <div className="inline-flex items-center gap-2 px-5 py-3 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm">
-                <Icon name="ArrowRight" size={16} className="text-cyan-600" />
-                <p className="text-sm text-slate-600">
-                  ¿Ya tienes cuenta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/user-login')}
-                    className="text-cyan-700 hover:text-cyan-600 font-semibold transition-colors"
-                  >
-                    Iniciar sesión
-                  </button>
-                </p>
               </div>
             </div>
           </div>

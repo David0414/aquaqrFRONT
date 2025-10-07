@@ -4,7 +4,7 @@ import Icon from '../../../components/AppIcon';
 
 const BottleSizeSelector = ({
   selectedLiters,
-  onChange,                 // <— ahora esta es la prop correcta
+  onChange,                 // callback al seleccionar
   allowedLiters = [5, 10, 20],
   garrafonLiters = 20,
   className = '',
@@ -37,7 +37,7 @@ const BottleSizeSelector = ({
           return (
             <button
               key={s.liters}
-              onClick={() => onChange(s.liters)}  // <— usa onChange
+              onClick={() => onChange?.(s.liters)}
               type="button"
               className={`
                 group p-4 rounded-lg border-2 transition-all duration-200

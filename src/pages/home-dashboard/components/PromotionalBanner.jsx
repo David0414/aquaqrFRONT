@@ -18,7 +18,7 @@ const PromotionalBanner = () => {
       id: 2,
       title: "Recarga y Ahorra",
       subtitle: "Obtén 10% extra en recargas de $100 o más",
-      image: "https://images.pixabay.com/photo/2017/04/03/15/52/water-2198781_1280.jpg",
+      image: "https://images.pexels.com/photos/40784/drops-of-water-water-nature-liquid-40784.jpeg",
       gradient: "from-success/20 to-primary/20",
       cta: "Recargar Saldo"
     },

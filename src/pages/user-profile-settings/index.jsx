@@ -1,3 +1,4 @@
+// src/pages/user-profile-settings/index.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
@@ -12,7 +13,6 @@ import PersonalInfoSection from './components/PersonalInfoSection';
 import SecuritySection from './components/SecuritySection';
 import NotificationPreferences from './components/NotificationPreferences';
 import AccountStatistics from './components/AccountStatistics';
-import PrivacySettings from './components/PrivacySettings';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -22,6 +22,72 @@ function formatMonthYear(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
 }
+
+/** ============ Sección nueva: Sesión (Cerrar sesión) ============ */
+const SessionSection = () => {
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setLoading(true);
+      // Cierra la sesión actual (no todas)
+      await signOut();
+      navigate('/user-login', { replace: true });
+    } catch (e) {
+      showErrorToast(e?.message || 'No se pudo cerrar sesión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-card rounded-2xl border border-border p-6">
+      <div className="flex items-center space-x-3 mb-4">
+        <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+          <Icon name="LogOut" size={20} className="text-warning" />
+        </div>
+        <div>
+          <h3 className="text-heading-base font-semibold text-text-primary">Sesión</h3>
+          <p className="text-body-sm text-text-secondary">
+            Cierra tu sesión de forma segura en este dispositivo.
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-error/30 bg-error/5 p-4">
+        <div className="flex items-start sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center">
+              <Icon name="AlertTriangle" size={18} className="text-error" />
+            </div>
+            <div>
+              <p className="text-body-sm font-medium text-text-primary">
+                ¿Deseas cerrar sesión?
+              </p>
+              <p className="text-body-xs text-text-secondary">
+                Podrás volver a ingresar cuando lo necesites.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="default"
+            className="bg-error text-white hover:bg-error/90 border-error"
+            iconName="LogOut"
+            iconPosition="left"
+            loading={loading}
+            onClick={handleLogout}
+          >
+            Cerrar sesión
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+/** =============================================================== */
 
 const UserProfileSettings = () => {
   const navigate = useNavigate();
@@ -57,8 +123,12 @@ const UserProfileSettings = () => {
       if (!token) throw new Error('Sin sesión');
 
       const [rechargeRes, dispenseRes] = await Promise.all([
-        fetch(`${API}/api/recharge/history?limit=100`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API}/api/dispense/history?limit=100`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API}/api/recharge/history?limit=100`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API}/api/dispense/history?limit=100`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       const rechargeData = await rechargeRes.json().catch(() => ({ items: [] }));
@@ -70,7 +140,10 @@ const UserProfileSettings = () => {
       const dispenses = dispenseData.items || [];
       const recharges = rechargeData.items || [];
 
-      const totalLitersDispensed = dispenses.reduce((acc, it) => acc + (Number(it.liters) || 0), 0);
+      const totalLitersDispensed = dispenses.reduce(
+        (acc, it) => acc + (Number(it.liters) || 0),
+        0
+      );
       const transactionCount = (dispenses.length || 0) + (recharges.length || 0);
 
       // Si tienes donaciones, cámbialo; por ahora 0:
@@ -106,7 +179,10 @@ const UserProfileSettings = () => {
         membershipDays: clerkBasics?.createdAt
           ? Math.max(
               1,
-              Math.floor((Date.now() - new Date(clerkBasics.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+              Math.floor(
+                (Date.now() - new Date(clerkBasics.createdAt).getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )
             )
           : 1,
 
@@ -136,15 +212,18 @@ const UserProfileSettings = () => {
   }, [clerkLoaded, isSignedIn]);
 
   // Handlers (si guardas cambios en tu backend, llama aquí tu API y luego setUiUser)
-  const handleUserUpdate = (updated) => setUiUser((prev) => ({ ...prev, ...updated }));
-  const handleImageUpdate = (url) => setUiUser((prev) => ({ ...prev, profileImage: url }));
+  const handleUserUpdate = (updated) =>
+    setUiUser((prev) => ({ ...prev, ...updated }));
+  const handleImageUpdate = (url) =>
+    setUiUser((prev) => ({ ...prev, profileImage: url }));
 
   const sections = [
     { id: 'personal', title: 'Personal', icon: 'User', component: PersonalInfoSection },
     { id: 'security', title: 'Seguridad', icon: 'Shield', component: SecuritySection },
     { id: 'notifications', title: 'Notificaciones', icon: 'Bell', component: NotificationPreferences },
     { id: 'statistics', title: 'Estadísticas', icon: 'BarChart3', component: AccountStatistics },
-    { id: 'privacy', title: 'Privacidad', icon: 'Lock', component: PrivacySettings },
+    // nueva pestaña:
+    { id: 'session', title: 'Sesión', icon: 'LogOut', component: SessionSection },
   ];
   const ActiveComponent = sections.find((s) => s.id === activeSection)?.component;
 
@@ -175,7 +254,9 @@ const UserProfileSettings = () => {
               />
               <div>
                 <h1 className="text-heading-lg font-bold text-text-primary">Configuración</h1>
-                <p className="text-body-sm text-text-secondary">Gestiona tu cuenta y preferencias</p>
+                <p className="text-body-sm text-text-secondary">
+                  Gestiona tu cuenta y preferencias
+                </p>
               </div>
             </div>
             <Button
@@ -205,12 +286,22 @@ const UserProfileSettings = () => {
                     className={`
                       w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left
                       transition-all duration-200
-                      ${activeSection === section.id
-                        ? 'bg-primary/10 text-primary border border-primary/20'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-muted/50'}
+                      ${
+                        activeSection === section.id
+                          ? 'bg-primary/10 text-primary border border-primary/20'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-muted/50'
+                      }
                     `}
                   >
-                    <Icon name={section.icon} size={20} className={activeSection === section.id ? 'text-primary' : 'text-text-secondary'} />
+                    <Icon
+                      name={section.icon}
+                      size={20}
+                      className={
+                        activeSection === section.id
+                          ? 'text-primary'
+                          : 'text-text-secondary'
+                      }
+                    />
                     <span className="font-medium">{section.title}</span>
                   </button>
                 ))}
@@ -228,7 +319,11 @@ const UserProfileSettings = () => {
                   className={`
                     flex items-center space-x-2 px-4 py-2 rounded-lg whitespace-nowrap
                     transition-all duration-200 flex-shrink-0
-                    ${activeSection === section.id ? 'bg-primary text-white' : 'bg-muted text-text-secondary hover:bg-muted/80'}
+                    ${
+                      activeSection === section.id
+                        ? 'bg-primary text-white'
+                        : 'bg-muted text-text-secondary hover:bg-muted/80'
+                    }
                   `}
                 >
                   <Icon name={section.icon} size={16} />
@@ -240,7 +335,9 @@ const UserProfileSettings = () => {
 
           {/* Contenido */}
           <div className="lg:col-span-3">
-            {ActiveComponent && <ActiveComponent user={uiUser} onUserUpdate={handleUserUpdate} />}
+            {ActiveComponent && (
+              <ActiveComponent user={uiUser} onUserUpdate={handleUserUpdate} />
+            )}
           </div>
         </div>
       </div>
