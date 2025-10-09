@@ -32,8 +32,7 @@ const SessionSection = () => {
   const handleLogout = async () => {
     try {
       setLoading(true);
-      // Cierra la sesión actual (no todas)
-      await signOut();
+      await signOut(); // Cierra la sesión actual
       navigate('/user-login', { replace: true });
     } catch (e) {
       showErrorToast(e?.message || 'No se pudo cerrar sesión');
@@ -91,7 +90,7 @@ const SessionSection = () => {
 
 const UserProfileSettings = () => {
   const navigate = useNavigate();
-  const { user, isLoaded: clerkLoaded, isSignedIn } = useUser();
+  const { user: clerkUser, isLoaded: clerkLoaded, isSignedIn } = useUser();
   const { getToken } = useAuth();
 
   // Estado “user” que consumen tus componentes hijos (rellenado con datos reales)
@@ -101,20 +100,20 @@ const UserProfileSettings = () => {
 
   // Derivados de Clerk
   const clerkBasics = useMemo(() => {
-    if (!user) return null;
+    if (!clerkUser) return null;
     return {
       name:
-        user.fullName ||
-        [user.firstName, user.lastName].filter(Boolean).join(' ') ||
-        user.username ||
-        user.primaryEmailAddress?.emailAddress ||
+        clerkUser.fullName ||
+        [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') ||
+        clerkUser.username ||
+        clerkUser.primaryEmailAddress?.emailAddress ||
         'Usuario',
-      email: user.primaryEmailAddress?.emailAddress || '',
-      profileImage: user.imageUrl || '',
-      memberSince: formatMonthYear(user.createdAt),
-      createdAt: user.createdAt,
+      email: clerkUser.primaryEmailAddress?.emailAddress || '',
+      profileImage: clerkUser.imageUrl || '',
+      memberSince: formatMonthYear(clerkUser.createdAt),
+      createdAt: clerkUser.createdAt,
     };
-  }, [user]);
+  }, [clerkUser]);
 
   // Cargar métricas reales desde backend (historial)
   const loadMetrics = async () => {
@@ -214,16 +213,24 @@ const UserProfileSettings = () => {
   // Handlers (si guardas cambios en tu backend, llama aquí tu API y luego setUiUser)
   const handleUserUpdate = (updated) =>
     setUiUser((prev) => ({ ...prev, ...updated }));
-  const handleImageUpdate = (url) =>
-    setUiUser((prev) => ({ ...prev, profileImage: url }));
+
+  // ⬇️ Subir imagen a Clerk y refrescar la URL
+  const handleImageUpload = async (file) => {
+    if (!clerkUser) throw new Error('No hay sesión activa');
+    await clerkUser.setProfileImage({ file }); // Subida directa a Clerk
+    await clerkUser.reload(); // Refresca datos del usuario en el cliente
+
+    // Cache-busting para que <Image> no muestre la versión anterior
+    const freshUrl = `${clerkUser.imageUrl}?v=${Date.now()}`;
+    setUiUser((prev) => ({ ...prev, profileImage: freshUrl }));
+  };
 
   const sections = [
     { id: 'personal', title: 'Personal', icon: 'User', component: PersonalInfoSection },
     { id: 'security', title: 'Seguridad', icon: 'Shield', component: SecuritySection },
     { id: 'notifications', title: 'Notificaciones', icon: 'Bell', component: NotificationPreferences },
     { id: 'statistics', title: 'Estadísticas', icon: 'BarChart3', component: AccountStatistics },
-    // nueva pestaña:
-    { id: 'session', title: 'Sesión', icon: 'LogOut', component: SessionSection },
+    { id: 'session', title: 'Sesión', icon: 'LogOut', component: SessionSection }, // nueva pestaña
   ];
   const ActiveComponent = sections.find((s) => s.id === activeSection)?.component;
 
@@ -271,8 +278,8 @@ const UserProfileSettings = () => {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-6 pb-20">
-        {/* Cabecera con datos reales */}
-        <ProfileHeader user={uiUser} onImageUpdate={handleImageUpdate} />
+        {/* Cabecera con datos reales + subida de imagen */}
+        <ProfileHeader user={uiUser} onImageUpload={handleImageUpload} />
 
         <div className="lg:grid lg:grid-cols-4 lg:gap-8">
           {/* Sidebar (desktop) */}
