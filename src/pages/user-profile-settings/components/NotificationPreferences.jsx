@@ -5,13 +5,12 @@ import Button from '../../../components/ui/Button';
 
 const NotificationPreferences = ({ user }) => {
   const [preferences, setPreferences] = useState({
-    // Tipos de notificación
+    // Tipos de notificación (sin socialImpactUpdates)
     transactionConfirmations: user?.notifications?.transactionConfirmations ?? true,
     promotionalOffers:        user?.notifications?.promotionalOffers ?? true,
-    socialImpactUpdates:      user?.notifications?.socialImpactUpdates ?? true,
     securityAlerts:           user?.notifications?.securityAlerts ?? true,
     maintenanceNotices:       user?.notifications?.maintenanceNotices ?? false,
-    // Canales (solo Email y WhatsApp)
+    // Canales
     emailNotifications:       user?.notifications?.emailNotifications ?? true,
     whatsappNotifications:    user?.notifications?.whatsappNotifications ?? true,
   });
@@ -24,17 +23,16 @@ const NotificationPreferences = ({ user }) => {
 
   const handleSavePreferences = async () => {
     setIsLoading(true);
-    // TODO: llama a tu API para persistir
+    // TODO: persistir en tu API
     setTimeout(() => {
       setIsLoading(false);
-      if (window.showToast) window.showToast('Preferencias de notificación actualizadas', 'success');
+      window.showToast?.('Preferencias de notificación actualizadas', 'success');
     }, 900);
   };
 
   const notificationTypes = [
     { key: 'transactionConfirmations', title: 'Confirmaciones de transacción',   description: 'Recibe confirmaciones cuando completes una transacción', icon: 'Receipt',  color: 'text-primary' },
     { key: 'securityAlerts',           title: 'Alertas de seguridad',            description: 'Notificaciones críticas de seguridad de tu cuenta',     icon: 'Shield',   color: 'text-error' },
-    { key: 'socialImpactUpdates',      title: 'Actualizaciones de impacto',      description: 'Conoce el impacto ambiental de tus acciones',           icon: 'Heart',    color: 'text-success' },
     { key: 'promotionalOffers',        title: 'Ofertas y promociones',           description: 'Descuentos y novedades relevantes',                      icon: 'Tag',      color: 'text-warning' },
     { key: 'maintenanceNotices',       title: 'Avisos de mantenimiento',         description: 'Información de mantenimiento de dispensadores',          icon: 'Settings', color: 'text-secondary' },
   ];

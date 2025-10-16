@@ -1,3 +1,4 @@
+// src/pages/home-dasboard/components/BalanceCard.jsx
 import React from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
@@ -17,24 +18,34 @@ const BalanceCard = ({ balance, onRecharge, onDispense }) => {
           <Icon name="Wallet" size={24} className="text-primary" />
         </div>
       </div>
+
       <div className="flex space-x-3">
-        <Button 
-          variant="default" 
-          size="sm" 
-          iconName="Plus" 
+        {/* Principal: Recargar (primario) */}
+        <Button
+          variant="default"
+          size="sm"
+          iconName="Plus"
           iconPosition="left"
           onClick={onRecharge}
           className="flex-1"
         >
           Recargar
         </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          iconName="Droplets" 
+
+        {/* Secundario: Dispensar (ACENTO bien visible) */}
+        <Button
+          variant="default"
+          size="sm"
+          iconName="Droplets"
           iconPosition="left"
           onClick={onDispense}
-          className="flex-1"
+          className="
+            flex-1
+            bg-accent text-white border-accent
+            hover:bg-accent/90
+            focus:outline-none focus:ring-4 focus:ring-accent/30
+            shadow-sm
+          "
         >
           Dispensar
         </Button>

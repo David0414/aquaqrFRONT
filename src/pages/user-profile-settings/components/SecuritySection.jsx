@@ -110,7 +110,6 @@ const SecuritySection = ({ user: uiUser }) => {
 
       const params = {
         newPassword: passwordData.newPassword,
-        // por seguridad, cerramos sesiones en otros dispositivos
         signOutOfOtherSessions: true,
       };
       if (passwordEnabled) {
@@ -154,31 +153,25 @@ const SecuritySection = ({ user: uiUser }) => {
 
       setDeleteLoading(true);
 
-      // 1) (Opcional pero recomendado) Limpieza en tu backend
-      //    Si tienes endpoint para borrar datos del usuario actual.
+      // 1) Limpieza en tu backend (opcional)
       try {
         const apiUrl = import.meta.env.VITE_API_URL;
         if (apiUrl) {
           const token = await getToken({ template: 'default' });
           await fetch(`${apiUrl.replace(/\/$/, '')}/api/me`, {
             method: 'DELETE',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           });
         }
       } catch (e) {
-        // No bloqueamos la eliminación en Clerk si el backend falla, pero lo notificamos.
         console.error('Error limpiando datos en backend:', e);
       }
 
-      // 2) Borrar el usuario en Clerk (esto cierra la sesión)
+      // 2) Borrar el usuario en Clerk
       await user.delete();
 
       showSuccessToast('Tu cuenta ha sido eliminada.');
-      // Redirigimos al login (por si el router sigue montado)
       navigate('/user-login', { replace: true });
-      // o: window.location.href = '/user-login';
     } catch (err) {
       const msg =
         err?.errors?.[0]?.longMessage ||
@@ -190,6 +183,16 @@ const SecuritySection = ({ user: uiUser }) => {
     }
   };
 
+  // ====== Estilos de inputs con contorno SIEMPRE visible + focus marcado ======
+  const inputBaseClasses = `
+    h-12 px-3 rounded-lg border-2
+    border-primary/60 bg-background
+    placeholder:text-text-tertiary
+    focus:outline-none focus:border-primary
+    focus:ring-4 focus:ring-primary/25 focus:ring-offset-2 focus:ring-offset-background
+    transition-all
+  `;
+
   return (
     <>
       {/* Seguridad / Contraseña */}
@@ -197,14 +200,6 @@ const SecuritySection = ({ user: uiUser }) => {
         <div className="flex items-center space-x-3 mb-6">
           <div className="w-10 h-10 bg-error/10 rounded-lg flex items-center justify-center">
             <Icon name="Shield" size={20} className="text-error" />
-          </div>
-          <div>
-            <h2 className="text-heading-base font-semibold text-text-primary">
-              Seguridad
-            </h2>
-            <p className="text-body-sm text-text-secondary">
-              Gestiona la seguridad de tu cuenta
-            </p>
           </div>
         </div>
 
@@ -244,6 +239,8 @@ const SecuritySection = ({ user: uiUser }) => {
                   }
                   error={passwordErrors?.currentPassword}
                   required
+                  className={inputBaseClasses}
+                  inputClassName={inputBaseClasses}
                 />
               )}
 
@@ -257,6 +254,8 @@ const SecuritySection = ({ user: uiUser }) => {
                   }
                   error={passwordErrors?.newPassword}
                   required
+                  className={inputBaseClasses}
+                  inputClassName={inputBaseClasses}
                 />
 
                 {passwordData?.newPassword && (
@@ -336,6 +335,8 @@ const SecuritySection = ({ user: uiUser }) => {
                 }
                 error={passwordErrors?.confirmPassword}
                 required
+                className={inputBaseClasses}
+                inputClassName={inputBaseClasses}
               />
 
               <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
@@ -355,7 +356,13 @@ const SecuritySection = ({ user: uiUser }) => {
                   disabled={isLoading}
                   iconName="X"
                   iconPosition="left"
-                  className="sm:flex-1"
+                  className="
+                    sm:flex-1
+                    !bg-transparent !text-error !border !border-error
+                    hover:!bg-error/10 active:!bg-error/15
+                    focus:!outline-none focus:!ring-4 focus:!ring-error/30
+                    disabled:opacity-60 disabled:cursor-not-allowed
+                  "
                 >
                   Cancelar
                 </Button>
@@ -399,6 +406,8 @@ const SecuritySection = ({ user: uiUser }) => {
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder="ELIMINAR"
+              className={inputBaseClasses}
+              inputClassName={inputBaseClasses}
             />
 
             <div className="flex flex-col sm:flex-row gap-3">
@@ -415,7 +424,13 @@ const SecuritySection = ({ user: uiUser }) => {
               </Button>
               <Button
                 variant="outline"
-                className="sm:flex-1"
+                className="
+                  sm:flex-1
+                  !bg-transparent !text-error !border !border-error
+                  hover:!bg-error/10 active:!bg-error/15
+                  focus:!outline-none focus:!ring-4 focus:!ring-error/30
+                  disabled:opacity-60 disabled:cursor-not-allowed
+                "
                 disabled={deleteLoading}
                 onClick={() => {
                   setIsConfirmingDelete(false);

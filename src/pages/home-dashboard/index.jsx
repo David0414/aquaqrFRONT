@@ -6,8 +6,8 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import BalanceCard from './components/BalanceCard';
-import SocialImpactCard from './components/SocialImpactCard';
 import PromotionalBanner from './components/PromotionalBanner';
+import WaterDropAvatar from './components/WaterDropAvatar';
 
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
@@ -33,31 +33,9 @@ const HomeDashboard = () => {
     return base.split(' ')[0];
   }, [user]);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [userData, setUserData] = useState(null);
-
   // Saldo real
   const [walletBalanceCents, setWalletBalanceCents] = useState(0);
   const [walletLoading, setWalletLoading] = useState(true);
-
-
- 
-
-  // Cargar mock de usuario
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        await new Promise(r => setTimeout(r, 600));
-        setUserData(mockUserData);
-      } catch (err) {
-        console.error('Error loading user data:', err);
-        if (window.showToast) window.showToast('Error al cargar los datos del usuario', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadUserData();
-  }, []);
 
   // Traer saldo real
   const fetchWallet = async () => {
@@ -74,7 +52,7 @@ const HomeDashboard = () => {
       setWalletBalanceCents(Number(data.balanceCents ?? 0));
     } catch (e) {
       console.error(e);
-      if (window.showToast) window.showToast(e.message || 'Error cargando saldo', 'error');
+      window.showToast?.(e.message || 'Error cargando saldo', 'error');
       setWalletBalanceCents(0);
     } finally {
       setWalletLoading(false);
@@ -103,7 +81,7 @@ const HomeDashboard = () => {
   const handleViewAllTransactions = () => navigate('/transaction-history');
 
   // Loading
-  if (isLoading || !isClerkLoaded || !isSignedIn || walletLoading) {
+  if (!isClerkLoaded || !isSignedIn || walletLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -145,30 +123,22 @@ const HomeDashboard = () => {
       {/* Main */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20">
         <div className="space-y-6">
-          {/* Balance + Impacto */}
+          {/* Balance + Gota */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <BalanceCard
               balance={balanceMXN}
               onRecharge={handleRecharge}
               onDispense={handleDispense}
             />
-            <SocialImpactCard
-              totalDonations={userData?.totalDonations}
-              impactMetrics={userData?.impactMetrics}
-            />
+            <WaterDropAvatar title="Tu gota AquaQR" />
           </div>
 
-
-
-          {/* Banner */}
+          {/* Banners promocionales (se mantienen) */}
           <PromotionalBanner />
 
-          {/* Grid de contenido */}
+          {/* Grid de contenido futuro */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* ⬇️ Sustituto simple de “RecentTransactions” */}
-
-
-          
+            {/* contenido adicional aquí */}
           </div>
         </div>
       </main>

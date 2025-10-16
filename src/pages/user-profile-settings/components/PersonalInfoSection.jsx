@@ -1,3 +1,4 @@
+// src/pages/user-profile-settings/components/PersonalInfoSection.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 
@@ -80,7 +81,6 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
     if (!formData.email?.trim()) e.email = 'El email es requerido';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.email = 'Ingresa un email válido';
 
-    // Teléfono OPCIONAL: solo valida si viene algo
     const ph = (formData.phone || '').trim();
     if (ph.length > 0 && !/^\+?[\d\s\-()]{10,}$/.test(ph)) {
       e.phone = 'Ingresa un número de teléfono válido';
@@ -128,14 +128,12 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
 
     setIsSaving(true);
     try {
-      // 1) Nombre en Clerk
       const currentFull = clerkBasics?.fullName || '';
       if (currentFull !== (formData.name || '')) {
         const { firstName, lastName } = splitName(formData.name || '');
         await clerkUser.update({ firstName, lastName });
       }
 
-      // 2) Teléfono en TU backend (opcional -> "" = null)
       const token = await getToken({ template: CLERK_JWT_TEMPLATE });
       const putRes = await fetch(`${API}/api/profile`, {
         method: 'PUT',
@@ -143,14 +141,13 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ phone: (formData.phone || '').trim() }), // "" -> backend guardará null
+        body: JSON.stringify({ phone: (formData.phone || '').trim() }),
       });
       if (!putRes.ok) {
         const e = await putRes.json().catch(() => ({}));
         throw new Error(e.error || 'No se pudo guardar el teléfono');
       }
 
-      // 3) Email: si cambió -> verificación
       const currentEmail = clerkBasics?.email || '';
       const newEmail = (formData.email || '').trim();
       if (newEmail.toLowerCase() !== currentEmail.toLowerCase()) {
@@ -178,10 +175,19 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
         ...prev,
         name: clerkBasics.fullName,
         email: clerkBasics.email,
-        // mantenemos phone como esté en state (o puedes recargar del backend si lo prefieres)
       }));
     }
   };
+
+  // Input: contorno SIEMPRE visible + focus muy marcado (móvil/desktop)
+  const inputBaseClasses = `
+    h-12 px-3 rounded-lg border-2
+    border-primary/60 bg-background
+    placeholder:text-text-tertiary
+    focus:outline-none focus:border-primary
+    focus:ring-4 focus:ring-primary/25 focus:ring-offset-2 focus:ring-offset-background
+    transition-all
+  `;
 
   return (
     <div className="bg-card rounded-2xl border border-border p-6 mb-6">
@@ -218,6 +224,9 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
           error={errors?.name}
           disabled={!isEditing || !!pendingEmailId}
           required
+          autoComplete="name"
+          className={inputBaseClasses}
+          inputClassName={inputBaseClasses}
         />
 
         <Input
@@ -229,6 +238,9 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
           disabled={!isEditing || !!pendingEmailId}
           description={isEditing ? "Si cambias el correo te enviaremos un código de verificación al nuevo email." : ""}
           required
+          autoComplete="email"
+          className={inputBaseClasses}
+          inputClassName={inputBaseClasses}
         />
 
         <Input
@@ -239,6 +251,9 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
           error={errors?.phone}
           disabled={!isEditing || !!pendingEmailId}
           placeholder="+52 55 1234 5678"
+          autoComplete="tel"
+          className={inputBaseClasses}
+          inputClassName={inputBaseClasses}
         />
 
         {isEditing && !pendingEmailId && (
@@ -253,13 +268,21 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
             >
               Guardar Cambios
             </Button>
+
+            {/* CANCELAR — SIEMPRE visible (rojo): evita “blanco” con overrides ! */}
             <Button
               variant="outline"
               onClick={handleCancel}
               disabled={isSaving}
               iconName="X"
               iconPosition="left"
-              className="sm:flex-1"
+              className="
+                sm:flex-1
+                !bg-transparent !text-error !border !border-error
+                hover:!bg-error/10 active:!bg-error/15
+                focus:!outline-none focus:!ring-4 focus:!ring-error/30
+                disabled:opacity-60 disabled:cursor-not-allowed
+              "
             >
               Cancelar
             </Button>
@@ -280,9 +303,22 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
                     value={verifyCode}
                     onChange={(e) => setVerifyCode(e.target.value)}
                     placeholder="Código de verificación"
-                    className="flex-1 h-11 px-3 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="
+                      flex-1 h-11 px-3 rounded-lg border-2
+                      border-primary/60 bg-background
+                      focus:outline-none focus:border-primary
+                      focus:ring-4 focus:ring-primary/25 focus:ring-offset-2 focus:ring-offset-background
+                      transition-all
+                    "
+                    inputMode="numeric"
                   />
-                  <Button variant="default" loading={isVerifying} onClick={attemptVerifyEmail} iconName="Check" iconPosition="left">
+                  <Button
+                    variant="default"
+                    loading={isVerifying}
+                    onClick={attemptVerifyEmail}
+                    iconName="Check"
+                    iconPosition="left"
+                  >
                     Confirmar
                   </Button>
                   <Button

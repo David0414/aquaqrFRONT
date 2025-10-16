@@ -13,15 +13,6 @@ const AccountStatistics = ({ user }) => {
       progress: Math.min((user?.totalLitersDispensed / 1000) * 100, 100)
     },
     {
-      title: 'Impacto ambiental',
-      value: `${user?.totalDonated}kg`,
-      subtitle: 'CO₂ evitado',
-      icon: 'Leaf',
-      color: 'text-success',
-      bgColor: 'bg-success/10',
-      progress: Math.min((user?.totalDonated / 100) * 100, 100)
-    },
-    {
       title: 'Transacciones',
       value: user?.transactionCount,
       subtitle: 'Completadas',
@@ -65,14 +56,6 @@ const AccountStatistics = ({ user }) => {
       icon: 'Star',
       earned: user?.transactionCount >= 50,
       earnedDate: user?.transactionCount >= 50 ? '10 Abr 2024' : null
-    },
-    {
-      id: 4,
-      title: 'Guardián del Planeta',
-      description: 'Evitaste más de 50kg de CO₂',
-      icon: 'Globe',
-      earned: user?.totalDonated >= 50,
-      earnedDate: user?.totalDonated >= 50 ? '28 Abr 2024' : null
     }
   ];
 
@@ -87,10 +70,11 @@ const AccountStatistics = ({ user }) => {
             Estadísticas de Cuenta
           </h2>
           <p className="text-body-sm text-text-secondary">
-            Tu actividad y progreso en AquaQR
+            Tu actividad en AquaQR
           </p>
         </div>
       </div>
+
       {/* Statistics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         {statistics?.map((stat, index) => (
@@ -113,11 +97,11 @@ const AccountStatistics = ({ user }) => {
                 </div>
               </div>
             </div>
-            
+
             {/* Progress Bar */}
             <div className="space-y-2">
               <div className="w-full bg-muted rounded-full h-2">
-                <div 
+                <div
                   className={`h-2 rounded-full transition-all duration-500 ${
                     stat?.color?.includes('primary') ? 'bg-primary' :
                     stat?.color?.includes('success') ? 'bg-success' :
@@ -134,33 +118,30 @@ const AccountStatistics = ({ user }) => {
           </div>
         ))}
       </div>
+
       {/* Achievements */}
       <div className="border-t border-border pt-6">
         <h3 className="text-body-base font-medium text-text-primary mb-4">
           Logros
         </h3>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {achievements?.map((achievement) => (
-            <div 
+            <div
               key={achievement?.id}
               className={`
                 p-4 rounded-xl border transition-all duration-200
-                ${achievement?.earned 
-                  ? 'bg-success/5 border-success/20' :'bg-muted/20 border-border opacity-60'
-                }
+                ${achievement?.earned ? 'bg-success/5 border-success/20' : 'bg-muted/20 border-border opacity-60'}
               `}
             >
               <div className="flex items-start space-x-3">
                 <div className={`
                   w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
-                  ${achievement?.earned 
-                    ? 'bg-success/20 text-success' :'bg-muted text-text-secondary'
-                  }
+                  ${achievement?.earned ? 'bg-success/20 text-success' : 'bg-muted text-text-secondary'}
                 `}>
                   <Icon name={achievement?.icon} size={20} />
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2 mb-1">
                     <h4 className={`
@@ -173,11 +154,11 @@ const AccountStatistics = ({ user }) => {
                       <Icon name="Check" size={16} className="text-success" />
                     )}
                   </div>
-                  
+
                   <p className="text-body-sm text-text-secondary mb-2">
                     {achievement?.description}
                   </p>
-                  
+
                   {achievement?.earned && achievement?.earnedDate && (
                     <p className="text-body-xs text-success font-medium">
                       Obtenido el {achievement?.earnedDate}
