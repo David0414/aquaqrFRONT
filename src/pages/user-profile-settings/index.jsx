@@ -23,7 +23,7 @@ function formatMonthYear(dateStr) {
   return d.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
 }
 
-/** ============ Sección nueva: Sesión (Cerrar sesión) ============ */
+/** ============ Sección: Sesión (Cerrar sesión) ============ */
 const SessionSection = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -32,7 +32,7 @@ const SessionSection = () => {
   const handleLogout = async () => {
     try {
       setLoading(true);
-      await signOut(); // Cierra la sesión actual
+      await signOut();
       navigate('/user-login', { replace: true });
     } catch (e) {
       showErrorToast(e?.message || 'No se pudo cerrar sesión');
@@ -56,24 +56,24 @@ const SessionSection = () => {
       </div>
 
       <div className="rounded-xl border border-error/30 bg-error/5 p-4">
-        <div className="flex items-start sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
+        {/* ✅ En móvil: columna; en desktop: fila */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center">
               <Icon name="AlertTriangle" size={18} className="text-error" />
             </div>
             <div>
-              <p className="text-body-sm font-medium text-text-primary">
-                ¿Deseas cerrar sesión?
-              </p>
+              <p className="text-body-sm font-medium text-text-primary">¿Deseas cerrar sesión?</p>
               <p className="text-body-xs text-text-secondary">
                 Podrás volver a ingresar cuando lo necesites.
               </p>
             </div>
           </div>
 
+          {/* ✅ Botón full width en móvil, compacto en desktop */}
           <Button
             variant="default"
-            className="bg-error text-white hover:bg-error/90 border-error"
+            className="w-full sm:w-auto bg-error text-white hover:bg-error/90 border-error"
             iconName="LogOut"
             iconPosition="left"
             loading={loading}
@@ -86,19 +86,17 @@ const SessionSection = () => {
     </div>
   );
 };
-/** =============================================================== */
+/** ======================================================== */
 
 const UserProfileSettings = () => {
   const navigate = useNavigate();
   const { user: clerkUser, isLoaded: clerkLoaded, isSignedIn } = useUser();
   const { getToken } = useAuth();
 
-  // Estado “user” que consumen tus componentes hijos (rellenado con datos reales)
   const [uiUser, setUiUser] = useState(null);
   const [activeSection, setActiveSection] = useState('personal');
   const [loading, setLoading] = useState(true);
 
-  // Derivados de Clerk
   const clerkBasics = useMemo(() => {
     if (!clerkUser) return null;
     return {
@@ -115,7 +113,6 @@ const UserProfileSettings = () => {
     };
   }, [clerkUser]);
 
-  // Cargar métricas reales desde backend (historial)
   const loadMetrics = async () => {
     try {
       const token = await getToken({ template: CLERK_JWT_TEMPLATE });
@@ -144,8 +141,6 @@ const UserProfileSettings = () => {
         0
       );
       const transactionCount = (dispenses.length || 0) + (recharges.length || 0);
-
-      // Si tienes donaciones, cámbialo; por ahora 0:
       const totalDonated = 0;
 
       return { totalLitersDispensed, transactionCount, totalDonated };
@@ -155,7 +150,6 @@ const UserProfileSettings = () => {
     }
   };
 
-  // Cargar todo
   useEffect(() => {
     const run = async () => {
       if (!clerkLoaded || !isSignedIn) return;
@@ -163,7 +157,6 @@ const UserProfileSettings = () => {
       const metrics = await loadMetrics();
 
       setUiUser({
-        // Identidad (Clerk)
         name: clerkBasics?.name || 'Usuario',
         email: clerkBasics?.email || '',
         profileImage: clerkBasics?.profileImage || '',
@@ -171,7 +164,6 @@ const UserProfileSettings = () => {
         lastPasswordChange: '—',
         twoFactorEnabled: false,
 
-        // Métricas reales
         totalLitersDispensed: Math.round(metrics.totalLitersDispensed),
         totalDonated: metrics.totalDonated,
         transactionCount: metrics.transactionCount,
@@ -185,7 +177,6 @@ const UserProfileSettings = () => {
             )
           : 1,
 
-        // Preferencias por defecto (puedes rellenar desde tu API si las guardas)
         notifications: {
           transactionConfirmations: true,
           promotionalOffers: true,
@@ -210,17 +201,13 @@ const UserProfileSettings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clerkLoaded, isSignedIn]);
 
-  // Handlers (si guardas cambios en tu backend, llama aquí tu API y luego setUiUser)
   const handleUserUpdate = (updated) =>
     setUiUser((prev) => ({ ...prev, ...updated }));
 
-  // ⬇️ Subir imagen a Clerk y refrescar la URL
   const handleImageUpload = async (file) => {
     if (!clerkUser) throw new Error('No hay sesión activa');
-    await clerkUser.setProfileImage({ file }); // Subida directa a Clerk
-    await clerkUser.reload(); // Refresca datos del usuario en el cliente
-
-    // Cache-busting para que <Image> no muestre la versión anterior
+    await clerkUser.setProfileImage({ file });
+    await clerkUser.reload();
     const freshUrl = `${clerkUser.imageUrl}?v=${Date.now()}`;
     setUiUser((prev) => ({ ...prev, profileImage: freshUrl }));
   };
@@ -230,7 +217,7 @@ const UserProfileSettings = () => {
     { id: 'security', title: 'Seguridad', icon: 'Shield', component: SecuritySection },
     { id: 'notifications', title: 'Notificaciones', icon: 'Bell', component: NotificationPreferences },
     { id: 'statistics', title: 'Estadísticas', icon: 'BarChart3', component: AccountStatistics },
-    { id: 'session', title: 'Sesión', icon: 'LogOut', component: SessionSection }, // nueva pestaña
+    { id: 'session', title: 'Sesión', icon: 'LogOut', component: SessionSection },
   ];
   const ActiveComponent = sections.find((s) => s.id === activeSection)?.component;
 
@@ -258,6 +245,7 @@ const UserProfileSettings = () => {
                 iconName="ArrowLeft"
                 onClick={() => navigate('/home-dashboard')}
                 className="lg:hidden"
+                aria-label="Volver"
               />
               <div>
                 <h1 className="text-heading-lg font-bold text-text-primary">Configuración</h1>
@@ -272,18 +260,19 @@ const UserProfileSettings = () => {
               iconName="X"
               onClick={() => navigate('/home-dashboard')}
               className="hidden lg:flex"
+              aria-label="Cerrar"
             />
           </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 pb-20">
+      <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
         {/* Cabecera con datos reales + subida de imagen */}
         <ProfileHeader user={uiUser} onImageUpload={handleImageUpload} />
 
         <div className="lg:grid lg:grid-cols-4 lg:gap-8">
           {/* Sidebar (desktop) */}
-          <div className="hidden lg:block lg:col-span-1">
+          <aside className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24">
               <nav className="space-y-2">
                 {sections.map((section) => (
@@ -303,29 +292,25 @@ const UserProfileSettings = () => {
                     <Icon
                       name={section.icon}
                       size={20}
-                      className={
-                        activeSection === section.id
-                          ? 'text-primary'
-                          : 'text-text-secondary'
-                      }
+                      className={activeSection === section.id ? 'text-primary' : 'text-text-secondary'}
                     />
                     <span className="font-medium">{section.title}</span>
                   </button>
                 ))}
               </nav>
             </div>
-          </div>
+          </aside>
 
-          {/* Pestañas móviles */}
+          {/* Pestañas móviles (scroll con snap, sin cortes en bordes) */}
           <div className="lg:hidden mb-6">
-            <div className="flex overflow-x-auto space-x-2 pb-2">
+            <div className="flex overflow-x-auto space-x-2 pb-2 -mx-1 px-1 snap-x snap-mandatory">
               {sections.map((section) => (
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
                   className={`
                     flex items-center space-x-2 px-4 py-2 rounded-lg whitespace-nowrap
-                    transition-all duration-200 flex-shrink-0
+                    transition-all duration-200 flex-shrink-0 snap-start
                     ${
                       activeSection === section.id
                         ? 'bg-primary text-white'
