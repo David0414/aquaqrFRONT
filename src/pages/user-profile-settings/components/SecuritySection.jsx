@@ -1,4 +1,3 @@
-// src/pages/user-profile-settings/components/SecuritySection.jsx
 import React, { useMemo, useState } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
@@ -6,10 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
-import {
-  showErrorToast,
-  showSuccessToast,
-} from '../../../components/ui/NotificationToast';
+import { showErrorToast, showSuccessToast } from '../../../components/ui/NotificationToast';
 
 const SecuritySection = ({ user: uiUser }) => {
   const navigate = useNavigate();
@@ -206,9 +202,7 @@ const SecuritySection = ({ user: uiUser }) => {
         <div className="space-y-4 mb-2">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-body-base font-medium text-text-primary">
-                Contraseña
-              </h3>
+              <h3 className="text-body-base font-medium text-text-primary">Contraseña</h3>
               <p className="text-body-sm text-text-secondary">
                 Última actualización: {uiUser?.lastPasswordChange || '—'}
               </p>
@@ -221,6 +215,11 @@ const SecuritySection = ({ user: uiUser }) => {
                 iconName="Key"
                 iconPosition="left"
                 onClick={() => setIsChangingPassword(true)}
+                className="
+                  !bg-transparent !text-primary !border-2 !border-primary
+                  hover:!bg-primary/10 active:!bg-primary/15
+                  focus:!outline-none focus:!ring-4 focus:!ring-primary/30
+                "
               >
                 Cambiar
               </Button>
@@ -234,9 +233,7 @@ const SecuritySection = ({ user: uiUser }) => {
                   label="Contraseña actual"
                   type="password"
                   value={passwordData?.currentPassword}
-                  onChange={(e) =>
-                    handlePasswordChange('currentPassword', e?.target?.value)
-                  }
+                  onChange={(e) => handlePasswordChange('currentPassword', e?.target?.value)}
                   error={passwordErrors?.currentPassword}
                   required
                   className={inputBaseClasses}
@@ -249,9 +246,7 @@ const SecuritySection = ({ user: uiUser }) => {
                   label="Nueva contraseña"
                   type="password"
                   value={passwordData?.newPassword}
-                  onChange={(e) =>
-                    handlePasswordChange('newPassword', e?.target?.value)
-                  }
+                  onChange={(e) => handlePasswordChange('newPassword', e?.target?.value)}
                   error={passwordErrors?.newPassword}
                   required
                   className={inputBaseClasses}
@@ -273,9 +268,7 @@ const SecuritySection = ({ user: uiUser }) => {
                           style={{ width: `${(passwordStrength / 5) * 100}%` }}
                         />
                       </div>
-                      <span
-                        className={`text-body-xs font-medium ${strengthInfo?.color}`}
-                      >
+                      <span className={`text-body-xs font-medium ${strengthInfo?.color}`}>
                         {strengthInfo?.text}
                       </span>
                     </div>
@@ -283,16 +276,10 @@ const SecuritySection = ({ user: uiUser }) => {
                     <div className="text-body-xs text-text-secondary space-y-1">
                       <div className="flex items-center space-x-2">
                         <Icon
-                          name={
-                            passwordData?.newPassword?.length >= 8
-                              ? 'Check'
-                              : 'X'
-                          }
+                          name={passwordData?.newPassword?.length >= 8 ? 'Check' : 'X'}
                           size={12}
                           className={
-                            passwordData?.newPassword?.length >= 8
-                              ? 'text-success'
-                              : 'text-error'
+                            passwordData?.newPassword?.length >= 8 ? 'text-success' : 'text-error'
                           }
                         />
                         <span>Al menos 8 caracteres</span>
@@ -301,11 +288,7 @@ const SecuritySection = ({ user: uiUser }) => {
                         <Icon
                           name={/[A-Z]/.test(passwordData?.newPassword) ? 'Check' : 'X'}
                           size={12}
-                          className={
-                            /[A-Z]/.test(passwordData?.newPassword)
-                              ? 'text-success'
-                              : 'text-error'
-                          }
+                          className={/[A-Z]/.test(passwordData?.newPassword) ? 'text-success' : 'text-error'}
                         />
                         <span>Una letra mayúscula</span>
                       </div>
@@ -313,11 +296,7 @@ const SecuritySection = ({ user: uiUser }) => {
                         <Icon
                           name={/[0-9]/.test(passwordData?.newPassword) ? 'Check' : 'X'}
                           size={12}
-                          className={
-                            /[0-9]/.test(passwordData?.newPassword)
-                              ? 'text-success'
-                              : 'text-error'
-                          }
+                          className={/[0-9]/.test(passwordData?.newPassword) ? 'text-success' : 'text-error'}
                         />
                         <span>Un número</span>
                       </div>
@@ -330,9 +309,7 @@ const SecuritySection = ({ user: uiUser }) => {
                 label="Confirmar nueva contraseña"
                 type="password"
                 value={passwordData?.confirmPassword}
-                onChange={(e) =>
-                  handlePasswordChange('confirmPassword', e?.target?.value)
-                }
+                onChange={(e) => handlePasswordChange('confirmPassword', e?.target?.value)}
                 error={passwordErrors?.confirmPassword}
                 required
                 className={inputBaseClasses}
@@ -379,9 +356,7 @@ const SecuritySection = ({ user: uiUser }) => {
             <Icon name="Trash2" size={20} className="text-error" />
           </div>
           <div>
-            <h3 className="text-heading-sm font-semibold text-error">
-              Eliminar cuenta
-            </h3>
+            <h3 className="text-heading-sm font-semibold text-error">Eliminar cuenta</h3>
             <p className="text-body-sm text-text-secondary">
               Esta acción es permanente. Borraremos tu cuenta y (opcionalmente) tus
               datos en nuestros sistemas.

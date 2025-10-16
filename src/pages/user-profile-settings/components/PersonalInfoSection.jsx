@@ -1,4 +1,3 @@
-// src/pages/user-profile-settings/components/PersonalInfoSection.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 
@@ -209,6 +208,11 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
             iconName="Edit2"
             iconPosition="left"
             onClick={() => setIsEditing(true)}
+            className="
+              !bg-transparent !text-primary !border-2 !border-primary
+              hover:!bg-primary/10 active:!bg-primary/15
+              focus:!outline-none focus:!ring-4 focus:!ring-primary/30
+            "
           >
             Editar
           </Button>
@@ -269,7 +273,7 @@ const PersonalInfoSection = ({ user: uiUserFromParent, onUserUpdate }) => {
               Guardar Cambios
             </Button>
 
-            {/* CANCELAR — SIEMPRE visible (rojo): evita “blanco” con overrides ! */}
+            {/* Cancelar rojo con contorno claro */}
             <Button
               variant="outline"
               onClick={handleCancel}
