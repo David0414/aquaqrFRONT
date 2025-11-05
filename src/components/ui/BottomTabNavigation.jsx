@@ -15,7 +15,7 @@ const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
     },
     {
       label: 'Dispensar',
-      path: '/water-dispensing-control',
+      path: '/qr-scanner-landing',
       icon: 'Droplets',
       tooltip: 'Control de dispensado'
     },
@@ -44,8 +44,9 @@ const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
   };
 
   const isActiveTab = (path) => {
-    if (path === '/water-dispensing-control') {
-      return ['/water-dispensing-control', '/filling-progress', '/transaction-complete']?.includes(location?.pathname);
+    if (path === '/qr-scanner-landing') {
+      return ['/qr-scanner-landing', '/water-dispensing-control', '/filling-progress', '/transaction-complete']
+        .includes(location?.pathname);
     }
     return location?.pathname === path;
   };
@@ -55,7 +56,7 @@ const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
   }
 
   return (
-    <nav 
+    <nav
       className={`fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50 ${className}`}
       role="navigation"
       aria-label="Navegación principal"
@@ -63,7 +64,7 @@ const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
       <div className="flex items-center justify-around h-14 md:h-16 px-2">
         {tabs?.map((tab) => {
           const isActive = isActiveTab(tab?.path);
-          
+
           return (
             <button
               key={tab?.path}
@@ -72,8 +73,8 @@ const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
                 flex flex-col items-center justify-center min-w-0 flex-1 py-1 px-2 rounded-md
                 transition-all duration-200 ease-out-custom
                 hover:bg-muted active:scale-95
-                ${isActive 
-                  ? 'text-primary' :'text-text-secondary hover:text-text-primary'
+                ${isActive
+                  ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
                 }
               `}
               aria-label={tab?.tooltip}
@@ -83,9 +84,9 @@ const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
                 transition-transform duration-200 ease-out-custom
                 ${isActive ? 'scale-110' : 'scale-100'}
               `}>
-                <Icon 
-                  name={tab?.icon} 
-                  size={20} 
+                <Icon
+                  name={tab?.icon}
+                  size={20}
                   strokeWidth={isActive ? 2.5 : 2}
                   className="mb-1"
                 />
