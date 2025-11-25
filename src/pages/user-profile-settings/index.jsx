@@ -56,7 +56,6 @@ const SessionSection = () => {
       </div>
 
       <div className="rounded-xl border border-error/30 bg-error/5 p-4">
-        {/* ✅ En móvil: columna; en desktop: fila */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center">
@@ -70,7 +69,6 @@ const SessionSection = () => {
             </div>
           </div>
 
-          {/* ✅ Botón full width en móvil, compacto en desktop */}
           <Button
             variant="default"
             className="w-full sm:w-auto bg-error text-white hover:bg-error/90 border-error"
@@ -112,6 +110,45 @@ const UserProfileSettings = () => {
       createdAt: clerkUser.createdAt,
     };
   }, [clerkUser]);
+
+  /** 🔄 Sincronizar automáticamente email / nombre / teléfono al backend */
+  useEffect(() => {
+    const syncProfile = async () => {
+      if (!clerkLoaded || !isSignedIn || !clerkUser) return;
+      try {
+        const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+        if (!token) return;
+
+        const email =
+          clerkUser.primaryEmailAddress?.emailAddress ||
+          clerkUser.emailAddresses?.[0]?.emailAddress ||
+          '';
+
+        const name =
+          clerkUser.fullName ||
+          [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') ||
+          clerkUser.username ||
+          '';
+
+        const phone =
+          clerkUser.primaryPhoneNumber?.phoneNumber ||
+          '';
+
+        await fetch(`${API}/api/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ email, name, phone }),
+        });
+      } catch (err) {
+        console.error('Error sincronizando perfil con backend', err);
+      }
+    };
+
+    syncProfile();
+  }, [clerkLoaded, isSignedIn, clerkUser, getToken]);
 
   const loadMetrics = async () => {
     try {
@@ -301,7 +338,7 @@ const UserProfileSettings = () => {
             </div>
           </aside>
 
-          {/* Pestañas móviles (scroll con snap, sin cortes en bordes) */}
+          {/* Pestañas móviles */}
           <div className="lg:hidden mb-6">
             <div className="flex overflow-x-auto space-x-2 pb-2 -mx-1 px-1 snap-x snap-mandatory">
               {sections.map((section) => (
