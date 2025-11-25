@@ -13,7 +13,7 @@ import ScrollToTop from "components/ScrollToTop";
 import ErrorBoundary from "components/ErrorBoundary";
 import NotFound from "pages/NotFound";
 
-// 👇 nuevo: reanuda intención pendiente después de login
+// 👇 reanuda intención pendiente después de login
 import PendingDispenseWatcher from "components/PendingDispenseWatcher";
 
 import HomeDashboard from "./pages/home-dashboard";
@@ -31,7 +31,7 @@ import SelectAmount from "./pages/water-dispensing-control/screens/SelectAmount"
 import PlaceBottleDown from "./pages/water-dispensing-control/screens/PlaceBottleDown";
 import PlaceBottleUp from "./pages/water-dispensing-control/screens/PlaceBottleUp";
 
-// 👇 pública: aterrizaje desde cámara nativa
+// pública: aterrizaje desde cámara nativa
 import QRResolver from "./pages/qr-resolver";
 
 // Auth
@@ -47,6 +47,7 @@ const Protected = ({ children }) => (
   </>
 );
 
+// Header (ahora mismo no pinta nada, pero respeta tus auth-routes)
 function LayoutHeader() {
   const { pathname } = useLocation();
   const isAuthRoute =
@@ -56,6 +57,14 @@ function LayoutHeader() {
   return null;
 }
 
+// 👇 Alias para /sign-in (deep link de Clerk) -> /user-login
+//    Conserva la query string: ?redirect_url=...
+const SignInAlias = () => {
+  const location = useLocation();
+  const search = location.search || "";
+  return <Navigate to={`/user-login${search}`} replace />;
+};
+
 const Routes = () => {
   return (
     <BrowserRouter>
@@ -63,7 +72,7 @@ const Routes = () => {
         <ScrollToTop />
         <LayoutHeader />
 
-        {/* 👇 MUY IMPORTANTE: debe ir dentro del BrowserRouter */}
+        {/* MUY IMPORTANTE: va dentro del BrowserRouter */}
         <PendingDispenseWatcher />
 
         <RouterRoutes>
@@ -81,11 +90,15 @@ const Routes = () => {
             }
           />
 
-          {/* Auth */}
+          {/* ==== Auth ==== */}
+          {/* Alias para deep links tipo:
+              /sign-in?redirect_url=... (Clerk) */}
+          <Route path="/sign-in/*" element={<SignInAlias />} />
+
           <Route path="/user-login/*" element={<UserLogin />} />
           <Route path="/user-registration/*" element={<UserRegistration />} />
 
-          {/* Flujo por pantallas */}
+          {/* ==== Flujo por pantallas ==== */}
           <Route
             path="/water"
             element={
@@ -110,7 +123,7 @@ const Routes = () => {
             element={<Navigate to="/water/choose" replace />}
           />
 
-          {/* Protegidas */}
+          {/* ==== Protegidas ==== */}
           <Route
             path="/home-dashboard"
             element={
@@ -119,17 +132,18 @@ const Routes = () => {
               </Protected>
             }
           />
+
           <Route
             path="/transaction-complete"
             element={
               <Protected>
                 <FlowProvider>
-                  {/* opcional, por si quieres leer lastTx */}
                   <TransactionComplete />
                 </FlowProvider>
               </Protected>
             }
           />
+
           <Route
             path="/transaction-history"
             element={
@@ -138,6 +152,7 @@ const Routes = () => {
               </Protected>
             }
           />
+
           <Route
             path="/balance-recharge"
             element={
@@ -146,6 +161,7 @@ const Routes = () => {
               </Protected>
             }
           />
+
           <Route
             path="/user-profile-settings"
             element={
@@ -167,7 +183,7 @@ const Routes = () => {
             }
           />
 
-          {/* Públicas */}
+          {/* ==== Públicas ==== */}
           <Route path="/qr-scanner-landing" element={<QRScannerLanding />} />
           <Route path="/qr-resolver" element={<QRResolver />} />
 
