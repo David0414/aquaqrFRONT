@@ -1,8 +1,7 @@
 // src/hooks/usePwaInstallPrompt.js
 import { useEffect, useState } from "react";
 
-const DISMISS_KEY = "aquaqr_pwa_banner_dismissed_until";
-const DISMISS_DAYS = 7;
+const STORAGE_KEY = "aquaqr_pwa_dismissed";
 
 export function usePwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -13,45 +12,36 @@ export function usePwaInstallPrompt() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // ¿App ya instalada (modo standalone)?
-    const checkStandalone = () => {
-      const standalone =
-        window.matchMedia?.("(display-mode: standalone)")?.matches ||
-        window.navigator.standalone === true;
-      setIsStandalone(standalone);
-    };
+    // ¿La PWA ya está instalada?
+    const standalone =
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      window.navigator.standalone === true;
 
-    checkStandalone();
+    setIsStandalone(!!standalone);
 
-    const ua = window.navigator.userAgent || "";
-    setIsIos(/iphone|ipad|ipod/i.test(ua));
+    // ¿Es iOS?
+    const ios = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    setIsIos(ios);
 
-    // Respetar si el usuario ya lo cerró recientemente
-    const dismissedUntil = parseInt(
-      window.localStorage.getItem(DISMISS_KEY) || "0",
-      10
-    );
-    const now = Date.now();
-    if (dismissedUntil && dismissedUntil > now) {
+    // ¿El usuario ya cerró el banner alguna vez?
+    const dismissed = localStorage.getItem(STORAGE_KEY) === "1";
+
+    if (standalone || dismissed) {
       setShouldShow(false);
       return;
     }
 
-    const handleBeforeInstallPrompt = (e) => {
-      // Android: interceptamos el evento nativo
+    function handleBeforeInstallPrompt(e) {
+      // Evitamos el prompt nativo automático
       e.preventDefault();
       setDeferredPrompt(e);
-
-      // Solo mostramos si NO está ya instalada
-      if (!isStandalone) {
-        setShouldShow(true);
-      }
-    };
+      setShouldShow(true);
+    }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    // Para iOS: no hay beforeinstallprompt, mostramos banner genérico
-    if (!isStandalone && /iphone|ipad|ipod/i.test(ua)) {
+    // En iOS no hay beforeinstallprompt, así que mostramos el banner directamente
+    if (ios && !dismissed) {
       setShouldShow(true);
     }
 
@@ -61,16 +51,9 @@ export function usePwaInstallPrompt() {
         handleBeforeInstallPrompt
       );
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hideForSomeDays = () => {
-    if (typeof window === "undefined") return;
-    const until = Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1000;
-    window.localStorage.setItem(DISMISS_KEY, String(until));
-    setShouldShow(false);
-  };
-
+  // Lanza el prompt nativo (Android / desktop)
   const promptInstall = async () => {
     if (!deferredPrompt) return false;
 
@@ -79,21 +62,21 @@ export function usePwaInstallPrompt() {
     setDeferredPrompt(null);
 
     if (choice.outcome === "accepted") {
-      // Si la acepta, no volvemos a mostrar
-      hideForSomeDays();
+      // Instaló la PWA -> no volvemos a mostrar el banner
+      localStorage.setItem(STORAGE_KEY, "1");
+      setShouldShow(false);
       return true;
     }
 
-    // Si la rechaza, ocultamos por unos días
-    hideForSomeDays();
+    // Si rechaza, seguimos mostrando el banner (hasta que pulse "Ahora no")
     return false;
   };
 
-  return {
-    isStandalone,
-    isIos,
-    shouldShow,
-    promptInstall,
-    hideForSomeDays,
+  // Oculta el banner “para siempre” (hasta que borren datos del navegador)
+  const hideForSomeDays = () => {
+    localStorage.setItem(STORAGE_KEY, "1");
+    setShouldShow(false);
   };
+
+  return { isStandalone, isIos, shouldShow, promptInstall, hideForSomeDays };
 }

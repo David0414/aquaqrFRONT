@@ -15,7 +15,13 @@ const PwaInstallBanner = () => {
 
   const [isOpeningHelp, setIsOpeningHelp] = useState(false);
 
-  if (isStandalone || !shouldShow) return null;
+  // 👇 Sólo lo mostramos en el dashboard
+  const isOnDashboard =
+    typeof window !== "undefined" &&
+    window.location.pathname.startsWith("/home-dashboard");
+
+  // Si no estamos en el dashboard, ya está instalada, o no toca mostrarlo → nada
+  if (!isOnDashboard || isStandalone || !shouldShow) return null;
 
   const handleInstallClick = async () => {
     if (isIos) {
@@ -26,17 +32,18 @@ const PwaInstallBanner = () => {
 
     const ok = await promptInstall();
     if (!ok) {
-      // Si rechazó, ya lo manejamos en el hook
+      // Si rechazó el prompt, seguimos mostrando el banner
     }
   };
 
   const handleClose = () => {
+    // El usuario decidió “Ahora no” -> no seguir molestando en este dispositivo
     hideForSomeDays();
   };
 
   return (
     <>
-      {/* Banner fijo abajo */}
+      {/* Banner fijo abajo, centrado */}
       <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4 sm:pb-6 pointer-events-none">
         <div className="max-w-md mx-auto pointer-events-auto">
           <div className="bg-card border border-border shadow-soft-xl rounded-2xl p-4 flex items-start space-x-3">
