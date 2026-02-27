@@ -92,14 +92,16 @@ export default function UserRegistration() {
                     socialButtonsVariant: 'blockButton',
                   },
                   elements: {
+                    rootBox: 'w-full max-w-none',
+                    cardBox: 'w-full max-w-none',
                     card:
-                      'rounded-2xl border border-slate-200 bg-white/95 backdrop-blur shadow-xl p-4 sm:p-6',
+                      'w-full max-w-none rounded-2xl border border-slate-200 bg-white/95 backdrop-blur shadow-xl p-4 sm:p-6',
 
-                    form: 'w-full space-y-4 sm:space-y-5',
-                    formField: 'w-full',
+                    form: 'w-full min-w-0 space-y-4 sm:space-y-5',
+                    formField: 'w-full min-w-0',
                     formFieldLabel: 'text-slate-700 font-medium text-sm mb-1',
                     formFieldInput:
-                      'w-full h-11 sm:h-12 px-4 rounded-xl border border-slate-300 text-[16px] focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none',
+                      'w-full min-w-0 h-11 sm:h-12 px-4 rounded-xl border border-slate-300 text-[16px] focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none',
 
                     formButtonPrimary:
                       'w-full h-11 sm:h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition shadow-md hover:shadow-lg',
