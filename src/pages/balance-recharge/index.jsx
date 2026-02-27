@@ -1,5 +1,5 @@
 // src/pages/balance-recharge/index.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -43,7 +43,6 @@ const BalanceRecharge = () => {
   const [creatingPI, setCreatingPI] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const lastBalanceRef = useRef(0);
 
   const presetAmounts = [
     { amount: 30, bonus: 0 },
@@ -142,7 +141,6 @@ const BalanceRecharge = () => {
         throw new Error(data?.error || 'No se pudo iniciar el pago');
       }
 
-      lastBalanceRef.current = currentBalance;
       setClientSecret(data.clientSecret);
       setRechargeId(data.rechargeId || null);
       showInfoToast('Introduce los datos de pago para continuar');
@@ -156,11 +154,11 @@ const BalanceRecharge = () => {
   // --- helpers de confirmación ---
   const waitBy = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // 1) intenta vía /api/recharge/status/:id ; si 404, cae al modo 2)
-  const waitForRechargeStatusOrFallback = async (rid) => {
+  // 1) verificación rápida: evita bloquear UX por polling largo
+  const quickCheckRechargeStatus = async (rid) => {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-    const maxTries = 12;   // ~30s
-    const gapMs = 2500;
+    const maxTries = 3;    // ~3.6s
+    const gapMs = 1200;
 
     const getStatus = async () => {
       const res = await fetch(`${API}/api/recharge/status/${rid}`, {
@@ -183,7 +181,7 @@ const BalanceRecharge = () => {
       await waitBy(gapMs);
     }
 
-    // Tiempo agotado => intenta reconciliación si existe endpoint
+    // Tiempo agotado => intenta reconciliación una vez si existe endpoint
     try {
       const resRe = await fetch(`${API}/api/recharge/recheck/${rid}`, {
         method: 'POST',
@@ -199,43 +197,24 @@ const BalanceRecharge = () => {
     return { ok: false };
   };
 
-  // 2) fallback: poll del saldo
-  const pollWalletUntilIncreases = async (maxTries = 20, intervalMs = 1500) => {
-    const start = lastBalanceRef.current;
-    for (let i = 0; i < maxTries; i++) {
-      await waitBy(intervalMs);
-      try {
-        const bal = await fetchWallet();
-        if (bal > start) return true;
-      } catch {
-        // ignora fallos temporales
-      }
-    }
-    return false;
-  };
-
   // --- onSuccess del PaymentElement ---
   const onStripeSuccess = async () => {
     try {
       showInfoToast('Confirmando recarga…');
 
       if (rechargeId) {
-        const res = await waitForRechargeStatusOrFallback(rechargeId);
-        if (res?.fallback) {
-          // no hay endpoint de estado en tu backend => usa saldo
-          const credited = await pollWalletUntilIncreases(20, 1500);
-          if (!credited) throw new Error('No se pudo confirmar la recarga (saldo no cambió)');
-        } else if (!res?.ok) {
-          throw new Error('No se pudo confirmar la recarga con Stripe');
+        const res = await quickCheckRechargeStatus(rechargeId);
+        if (res?.ok) {
+          await fetchWallet();
+          showSuccessToast('Recarga aplicada');
+        } else if (res?.fallback) {
+          showInfoToast('Pago recibido. Acreditación en curso.');
+        } else {
+          showInfoToast('Pago recibido. Puede tardar unos segundos en reflejarse.');
         }
       } else {
-        // sin rechargeId (caso raro) => usa saldo igualmente
-        const credited = await pollWalletUntilIncreases(20, 1500);
-        if (!credited) throw new Error('No se pudo confirmar la recarga (saldo no cambió)');
+        showInfoToast('Pago recibido. Verificando acreditación.');
       }
-
-      await fetchWallet();
-      showSuccessToast('Recarga aplicada 🎉');
       setClientSecret('');
       setRechargeId(null);
 
