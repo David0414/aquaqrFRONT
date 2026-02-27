@@ -30,10 +30,10 @@ export default function UserLogin() {
         <Navigate to="/home-dashboard" replace />
       </SignedIn>
 
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#f0fbff] via-white to-[#eef6ff]">
+      <div className="min-h-[100dvh] overflow-x-hidden flex flex-col bg-gradient-to-b from-[#f0fbff] via-white to-[#eef6ff]">
         {/* Header */}
         <header className="w-full">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6 flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
               onClick={onBrandClick}
@@ -45,7 +45,7 @@ export default function UserLogin() {
               </div>
               <div className="leading-tight text-left">
                 <span className="block text-base sm:text-lg font-bold text-slate-900">AquaQR</span>
-                <span className="block text-xs sm:text-sm text-slate-500">Agua purificada inteligente</span>
+                <span className="hidden sm:block text-xs sm:text-sm text-slate-500">Agua purificada inteligente</span>
               </div>
             </button>
 
@@ -105,7 +105,7 @@ export default function UserLogin() {
                     formButtonPrimary:
                       'w-full h-11 sm:h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition shadow-md hover:shadow-lg',
 
-                    socialButtons: 'grid grid-cols-2 gap-3 mb-4 sm:mb-6',
+                    socialButtons: 'grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 sm:mb-6',
                     socialButtonsBlockButton:
                       'h-10 sm:h-11 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 shadow-none',
                     socialButtonsBlockButtonText: 'text-slate-800 font-medium text-sm',
@@ -123,7 +123,7 @@ export default function UserLogin() {
 
               {/* CTA alterna */}
               <div className="text-center mt-5">
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm">
+                <div className="w-full flex flex-wrap items-center justify-center gap-2 px-4 py-2.5 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm">
                   <Icon name="Sparkles" size={16} className="text-cyan-600" />
                   <p className="text-sm text-slate-600">
                     ¿No tienes cuenta?{' '}
