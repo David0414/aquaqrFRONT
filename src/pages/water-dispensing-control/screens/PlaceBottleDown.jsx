@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
@@ -9,8 +9,8 @@ import { useDispenseFlow } from '../FlowProvider';
 export default function PlaceBottleDown() {
   const nav = useNavigate();
   const { machine, sendStageCommand } = useDispenseFlow();
-  const [rinseStatus, setRinseStatus] = useState('sending');
-  const [rinseMessage, setRinseMessage] = useState('Activando enjuague...');
+  const [rinseStatus, setRinseStatus] = useState('idle');
+  const [rinseMessage, setRinseMessage] = useState('El enjuague se enviara al tocar Siguiente.');
   const [isAdvancing, setIsAdvancing] = useState(false);
 
   const triggerRinse = async () => {
@@ -25,17 +25,14 @@ export default function PlaceBottleDown() {
       setRinseStatus('error');
       setRinseMessage(message);
       showErrorToast(message);
+      throw err;
     }
   };
-
-  useEffect(() => {
-    triggerRinse();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNext = async () => {
     try {
       setIsAdvancing(true);
-      await sendStageCommand('enjuague');
+      await triggerRinse();
       nav('/water/position-up');
     } catch (err) {
       showErrorToast(err?.message || 'No se pudo reenviar el enjuague');
@@ -49,14 +46,14 @@ export default function PlaceBottleDown() {
       ? 'border-success/20 bg-success/10 text-success'
       : rinseStatus === 'error'
         ? 'border-error/20 bg-error/10 text-error'
-        : 'border-warning/20 bg-warning/10 text-warning';
+        : 'border-muted bg-muted/40 text-text-secondary';
 
   const statusIcon =
     rinseStatus === 'success'
       ? 'CheckCircle2'
       : rinseStatus === 'error'
         ? 'AlertCircle'
-        : 'Loader';
+        : 'Info';
 
   return (
     <div className="space-y-8">
@@ -93,7 +90,7 @@ export default function PlaceBottleDown() {
         <Button variant="secondary" className="flex-1" onClick={() => nav('/water/choose')}>
           <Icon name="ArrowLeft" size={18} /> Atras
         </Button>
-        <Button className="flex-1" onClick={handleNext} disabled={rinseStatus === 'sending'} loading={isAdvancing}>
+        <Button className="flex-1" onClick={handleNext} disabled={isAdvancing} loading={isAdvancing}>
           Siguiente <Icon name="ArrowRight" size={18} />
         </Button>
       </div>
