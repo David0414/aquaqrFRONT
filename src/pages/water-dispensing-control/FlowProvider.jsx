@@ -198,6 +198,21 @@ export default function FlowProvider({ children }) {
     }
   }
 
+  async function sendStageCommand(action) {
+    const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+    const res = await fetch(`${API}/api/dispense/demo/control`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.detail || data?.error || `No se pudo enviar ${action}`);
+    return data;
+  }
+
   // Cobra e inicia el dispensado
   async function startDispense() {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
@@ -259,6 +274,7 @@ export default function FlowProvider({ children }) {
     fetchConfig,
     fetchWallet,
     pollInputs,
+    sendStageCommand,
     startDispense,
   };
 

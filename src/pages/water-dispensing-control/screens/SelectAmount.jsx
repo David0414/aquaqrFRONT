@@ -63,10 +63,12 @@ export default function SelectAmount() {
     fetchWallet,
     balanceCents,
     telemetry,
+    sendStageCommand,
   } = useDispenseFlow();
   const [viewMode, setViewMode] = useState('normal');
   const [loadingAction, setLoadingAction] = useState('');
   const [demoResponse, setDemoResponse] = useState(null);
+  const [continuing, setContinuing] = useState(false);
 
   useEffect(() => {
     fetchConfig();
@@ -99,6 +101,27 @@ export default function SelectAmount() {
       showErrorToast(err?.message || 'No se pudo enviar comando demo');
     } finally {
       setLoadingAction('');
+    }
+  };
+
+  const handleContinue = async () => {
+    const litersActionMap = {
+      5: 'litros_5',
+      10: 'litros_10',
+      20: 'litros_20',
+    };
+
+    try {
+      setContinuing(true);
+      const action = litersActionMap[selectedLiters];
+      if (action) {
+        await sendStageCommand(action);
+      }
+      nav('/water/position-down');
+    } catch (err) {
+      showErrorToast(err?.message || 'No se pudo enviar el comando de litros');
+    } finally {
+      setContinuing(false);
     }
   };
 
@@ -225,7 +248,7 @@ export default function SelectAmount() {
         <Button variant="secondary" className="flex-1" onClick={() => nav('/home-dashboard')}>
           <Icon name="X" size={18} /> Cancelar
         </Button>
-        <Button className="flex-1" onClick={() => nav('/water/position-down')} disabled={!canContinue}>
+        <Button className="flex-1" onClick={handleContinue} disabled={!canContinue} loading={continuing}>
           Continuar <Icon name="ArrowRight" size={18} />
         </Button>
       </div>

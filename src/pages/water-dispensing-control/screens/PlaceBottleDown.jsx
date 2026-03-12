@@ -1,14 +1,21 @@
 // src/pages/water-dispensing-control/screens/PlaceBottleDown.jsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import { showErrorToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
 
 export default function PlaceBottleDown() {
   const nav = useNavigate();
-  const { machine } = useDispenseFlow();
+  const { machine, sendStageCommand } = useDispenseFlow();
+
+  useEffect(() => {
+    sendStageCommand('enjuague').catch((err) => {
+      showErrorToast(err?.message || 'No se pudo activar el enjuague');
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-8">

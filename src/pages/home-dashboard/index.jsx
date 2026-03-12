@@ -73,10 +73,26 @@ const HomeDashboard = () => {
 
   // Navegaciones
   const handleRecharge = () => navigate('/balance-recharge');
-  const handleDispense = () => {
-    navigate('/qr-scanner-landing', {
-      state: { fromDashboard: true, action: 'dispense', redirectAfterScan: '/water-dispensing-control' }
-    });
+  const handleDispense = async () => {
+    try {
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      const res = await fetch(`${API}/api/dispense/demo/control`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'qr_inicio' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'No se pudo iniciar QR');
+
+      navigate('/qr-scanner-landing', {
+        state: { fromDashboard: true, action: 'dispense', redirectAfterScan: '/water-dispensing-control' }
+      });
+    } catch (e) {
+      window.showToast?.(e.message || 'No se pudo preparar la maquina para escanear', 'error');
+    }
   };
   const handleViewAllTransactions = () => navigate('/transaction-history');
 
