@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { showErrorToast } from '../../components/ui/NotificationToast';
 
@@ -60,12 +61,32 @@ export const useDispenseFlow = () => useContext(Ctx);
 
 export default function FlowProvider({ children }) {
   const { getToken } = useAuth();
+  const location = useLocation();
 
-  const [machine] = useState({
-    id: 'AQ-2024-001',
-    location: 'Centro Comercial Plaza Norte, Local 15',
-    hardwareId: '01',
-  });
+  const machineFromRoute = useMemo(() => {
+    const state = location.state || {};
+    const fallbackId = 'AQ-2024-001';
+    const machineId = String(state.machineId || fallbackId).trim();
+    const machineLocation = String(
+      state.machineLocation || 'Centro Comercial Plaza Norte, Local 15'
+    ).trim();
+
+    // Cuando el ID es una trama tipo E2-01-01-...-E3, el segundo byte suele ser
+    // el identificador de hardware que usa la telemetria.
+    const frameBytes = machineId.toUpperCase().match(/[0-9A-F]{2}/g) || [];
+    const inferredHardwareId =
+      frameBytes.length >= 3 && frameBytes[0] === 'E2' && frameBytes[frameBytes.length - 1] === 'E3'
+        ? frameBytes[1]
+        : null;
+
+    return {
+      id: machineId,
+      location: machineLocation,
+      hardwareId: inferredHardwareId || String(state.hardwareId || '01').trim(),
+    };
+  }, [location.state]);
+
+  const [machine, setMachine] = useState(machineFromRoute);
 
   const [connectionStatus, setConnectionStatus] = useState('connecting'); // connecting | connected | disconnected
   const [isVerified, setIsVerified] = useState(false);
@@ -95,6 +116,10 @@ export default function FlowProvider({ children }) {
     error: '',
   });
   const pollingRef = useRef(false);
+
+  useEffect(() => {
+    setMachine(machineFromRoute);
+  }, [machineFromRoute]);
 
   // Simula conexión y verificación breve
   useEffect(() => {

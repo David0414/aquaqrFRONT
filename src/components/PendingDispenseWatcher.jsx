@@ -4,7 +4,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 
 /**
- * Reanuda el flujo hacia /water-dispensing-control si el usuario
+ * Reanuda el flujo hacia /water/choose si el usuario
  * se acaba de loguear y existe una intención guardada en localStorage.
  */
 export default function PendingDispenseWatcher() {
@@ -21,7 +21,7 @@ export default function PendingDispenseWatcher() {
     try {
       const { machineId, machineLocation } = JSON.parse(raw);
       if (machineId) {
-        navigate('/water-dispensing-control', {
+        navigate('/water/choose', {
           state: {
             machineId,
             machineLocation: machineLocation || 'Desconocida',

@@ -88,7 +88,7 @@ const HomeDashboard = () => {
       if (!res.ok) throw new Error(data?.detail || data?.error || 'No se pudo iniciar QR');
 
       navigate('/qr-scanner-landing', {
-        state: { fromDashboard: true, action: 'dispense', redirectAfterScan: '/water-dispensing-control' }
+        state: { fromDashboard: true, action: 'dispense', redirectAfterScan: '/water/choose' }
       });
     } catch (e) {
       window.showToast?.(e.message || 'No se pudo preparar la maquina para escanear', 'error');

@@ -61,7 +61,7 @@ const QRResolver = () => {
     }
 
     // Logueado -> manda al control
-    nav('/water-dispensing-control', {
+    nav('/water/choose', {
       state: { machineId: state.machineId, machineLocation: state.machineLocation, fromQR: true },
       replace: true
     });

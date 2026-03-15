@@ -19,7 +19,7 @@ const QRScannerLanding = () => {
     }
 
     // Si venías del dashboard con intención de dispensar, respétalo
-    const redirectAfter = location?.state?.redirectAfterScan || '/water-dispensing-control';
+    const redirectAfter = location?.state?.redirectAfterScan || '/water/choose';
 
     // 🔐 Si el QR ya trae firma (formato nuevo del sticker/deeplink), valida con el backend
     if (parsed.sig) {
