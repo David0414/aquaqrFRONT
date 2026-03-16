@@ -185,10 +185,11 @@ export default function FlowProvider({ children }) {
       if (!res.ok) throw new Error(data?.error || 'No se pudo obtener config');
 
       setPricePerLiterCents(data.pricePerLiterCents ?? 175);
-      setAllowedLiters(data.allowedLiters ?? [5, 10, 20]);
+      const nextAllowedLiters = data.allowedLiters ?? data.optionsLiters ?? [5, 10, 20];
+      setAllowedLiters(nextAllowedLiters);
 
-      if (!(data.allowedLiters ?? [5, 10, 20]).includes(selectedLiters)) {
-        setSelectedLiters((data.allowedLiters ?? [5, 10, 20])[0]);
+      if (!nextAllowedLiters.includes(selectedLiters)) {
+        setSelectedLiters(nextAllowedLiters[0]);
       }
     } catch (e) {
       showErrorToast(e.message || 'Error cargando configuración');

@@ -23,10 +23,9 @@ export default function PlaceBottleDown() {
     try {
       setRinseStatus('sending');
       setRinseMessage('Activando enjuague por 3 segundos...');
-      await sendStageCommand('valvula_enjuague_on');
+      await sendStageCommand('enjuague');
       setRinseMessage('Enjuagando...');
       await delay(RINSE_DURATION_MS);
-      await sendStageCommand('valvula_enjuague_off');
       setRinseStatus('success');
       setRinseMessage('Enjuague completado. Ya puedes continuar.');
     } catch (err) {
