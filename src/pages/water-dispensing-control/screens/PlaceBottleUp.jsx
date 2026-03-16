@@ -9,12 +9,13 @@ import { useDispenseFlow } from '../FlowProvider';
 
 export default function PlaceBottleUp() {
   const navigate = useNavigate();
-  const { startDispense, selectedLiters } = useDispenseFlow();
+  const { startDispense, selectedLiters, sendStageCommand } = useDispenseFlow();
   const [loading, setLoading] = useState(false);
 
   const handleStart = async () => {
     try {
       setLoading(true);
+      await sendStageCommand('inicio_dispensado');
       const tx = await startDispense(); // cobra del saldo y arranca
       showSuccessToast('Dispensado iniciado');
       navigate('/filling-progress', { state: { tx } });
