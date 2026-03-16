@@ -296,10 +296,6 @@ export default function FlowProvider({ children }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.detail || data?.error || `No se pudo enviar ${action}`);
-
-      window.setTimeout(() => {
-        pollInputs({ force: true }).catch(() => {});
-      }, INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS);
       return data;
     } catch (error) {
       if (previousTelemetry) {

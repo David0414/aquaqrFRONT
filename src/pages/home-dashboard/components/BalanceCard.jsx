@@ -3,7 +3,7 @@ import React from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 
-const BalanceCard = ({ balance, onRecharge, onDispense }) => {
+const BalanceCard = ({ balance, onRecharge, onDispense, dispenseLoading = false }) => {
   return (
     <div className="bg-gradient-to-br from-primary/5 to-accent/10 rounded-2xl p-6 border border-primary/10">
       <div className="flex items-center justify-between mb-4">
@@ -39,6 +39,8 @@ const BalanceCard = ({ balance, onRecharge, onDispense }) => {
           iconName="Droplets"
           iconPosition="left"
           onClick={onDispense}
+          loading={dispenseLoading}
+          disabled={dispenseLoading}
           className="
             flex-1
             bg-accent text-white border-accent

@@ -36,6 +36,7 @@ const HomeDashboard = () => {
   // Saldo real
   const [walletBalanceCents, setWalletBalanceCents] = useState(0);
   const [walletLoading, setWalletLoading] = useState(true);
+  const [dispenseLoading, setDispenseLoading] = useState(false);
 
   // Traer saldo real
   const fetchWallet = async () => {
@@ -74,7 +75,9 @@ const HomeDashboard = () => {
   // Navegaciones
   const handleRecharge = () => navigate('/balance-recharge');
   const handleDispense = async () => {
+    if (dispenseLoading) return;
     try {
+      setDispenseLoading(true);
       const token = await getToken({ template: CLERK_JWT_TEMPLATE });
       const res = await fetch(`${API}/api/dispense/demo/control`, {
         method: 'POST',
@@ -92,6 +95,8 @@ const HomeDashboard = () => {
       });
     } catch (e) {
       window.showToast?.(e.message || 'No se pudo preparar la maquina para escanear', 'error');
+    } finally {
+      setDispenseLoading(false);
     }
   };
   const handleViewAllTransactions = () => navigate('/transaction-history');
@@ -145,6 +150,7 @@ const HomeDashboard = () => {
               balance={balanceMXN}
               onRecharge={handleRecharge}
               onDispense={handleDispense}
+              dispenseLoading={dispenseLoading}
             />
             <WaterDropAvatar title="Tu gota AquaQR" />
           </div>
