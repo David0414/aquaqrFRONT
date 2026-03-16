@@ -9,6 +9,7 @@ const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 // Caudal por defecto: 20L en 10s -> 120 L/min
 const DEFAULT_FLOW_LPM = (20 / 10) * 60; // 120
 const INPUT_POLL_INTERVAL_MS = 1000;
+const INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS = 1500;
 
 function normalizeHexPair(value) {
   const clean = String(value || '').trim().toUpperCase().replace(/[^0-9A-F]/g, '');
@@ -160,6 +161,7 @@ export default function FlowProvider({ children }) {
     error: '',
   });
   const pollingRef = useRef(false);
+  const pollingCooldownUntilRef = useRef(0);
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
 
   useEffect(() => {
@@ -208,6 +210,7 @@ export default function FlowProvider({ children }) {
 
   async function pollInputs() {
     if (!isDocumentVisible()) return;
+    if (Date.now() < pollingCooldownUntilRef.current) return;
     if (pollingRef.current) return;
     pollingRef.current = true;
 
@@ -277,6 +280,7 @@ export default function FlowProvider({ children }) {
 
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
     try {
+      pollingCooldownUntilRef.current = Date.now() + INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS;
       const res = await fetch(`${API}/api/dispense/demo/control`, {
         method: 'POST',
         headers: {
@@ -288,8 +292,9 @@ export default function FlowProvider({ children }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.detail || data?.error || `No se pudo enviar ${action}`);
 
-      // Sincroniza la UI con la lectura real en cuanto el comando termina.
-      pollInputs().catch(() => {});
+      window.setTimeout(() => {
+        pollInputs().catch(() => {});
+      }, INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS);
       return data;
     } catch (error) {
       if (previousTelemetry) {
