@@ -160,6 +160,7 @@ export default function FlowProvider({ children }) {
     error: '',
   });
   const pollingRef = useRef(false);
+  const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
 
   useEffect(() => {
     setMachine(machineFromRoute);
@@ -206,6 +207,7 @@ export default function FlowProvider({ children }) {
   }
 
   async function pollInputs() {
+    if (!isDocumentVisible()) return;
     if (pollingRef.current) return;
     pollingRef.current = true;
 
@@ -231,7 +233,6 @@ export default function FlowProvider({ children }) {
           status: 'error',
           rawResponse,
           error: 'No se pudo interpretar la trama del sensor',
-          machineOnline: false,
         }));
         return;
       }
@@ -259,7 +260,6 @@ export default function FlowProvider({ children }) {
       setTelemetry((prev) => ({
         ...prev,
         status: 'error',
-        machineOnline: false,
         error: e.message || 'Error leyendo inputs',
       }));
     } finally {
@@ -370,22 +370,34 @@ export default function FlowProvider({ children }) {
 
     const startPolling = async () => {
       try {
-        await pollInputs();
+        if (isDocumentVisible()) {
+          await pollInputs();
+        }
       } catch {
         // pollInputs already persists errors in state.
       }
 
       if (cancelled) return;
       intervalId = window.setInterval(() => {
-        pollInputs();
+        if (isDocumentVisible()) {
+          pollInputs();
+        }
       }, INPUT_POLL_INTERVAL_MS);
     };
 
+    const handleVisibilityChange = () => {
+      if (isDocumentVisible()) {
+        pollInputs().catch(() => {});
+      }
+    };
+
     startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
