@@ -23,6 +23,7 @@ import BalanceRecharge from "./pages/balance-recharge";
 import QRScannerLanding from "./pages/qr-scanner-landing";
 import UserProfileSettings from "./pages/user-profile-settings";
 import FillingProgress from "./pages/filling-progress";
+import WaterMonitor from "./pages/water-monitor";
 
 // Flujo por pantallas
 import FlowProvider from "./pages/water-dispensing-control/FlowProvider";
@@ -158,6 +159,17 @@ const Routes = () => {
             element={
               <Protected>
                 <BalanceRecharge />
+              </Protected>
+            }
+          />
+
+          <Route
+            path="/water-monitor"
+            element={
+              <Protected>
+                <FlowProvider>
+                  <WaterMonitor />
+                </FlowProvider>
               </Protected>
             }
           />

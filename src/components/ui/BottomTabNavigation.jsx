@@ -26,6 +26,12 @@ const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
       tooltip: 'Recargar saldo'
     },
     {
+      label: 'Monitor',
+      path: '/water-monitor',
+      icon: 'Activity',
+      tooltip: 'Monitoreo y control manual'
+    },
+    {
       label: 'Historial',
       path: '/transaction-history',
       icon: 'History',
@@ -45,7 +51,7 @@ const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
 
   const isActiveTab = (path) => {
     if (path === '/qr-scanner-landing') {
-      return ['/qr-scanner-landing', '/water-dispensing-control', '/filling-progress', '/transaction-complete']
+      return ['/qr-scanner-landing', '/water-dispensing-control', '/filling-progress', '/transaction-complete', '/water/choose', '/water/position-down', '/water/position-up']
         .includes(location?.pathname);
     }
     return location?.pathname === path;

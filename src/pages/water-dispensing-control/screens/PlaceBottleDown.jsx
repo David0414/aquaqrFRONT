@@ -81,7 +81,7 @@ export default function PlaceBottleDown() {
         </motion.div>
 
         <h3 className="mb-2 text-2xl font-bold text-text-primary">
-          Coloca el garrafon <span className="text-primary">boca abajo</span>
+          garrafon <span className="text-primary">boca abajo</span>
         </h3>
         <p className="mx-auto max-w-md text-text-secondary">
           Al tocar siguiente se prende el enjuague 3 segundos y luego se apaga automaticamente.
