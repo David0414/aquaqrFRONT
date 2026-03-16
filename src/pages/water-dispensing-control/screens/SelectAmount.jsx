@@ -58,6 +58,7 @@ export default function SelectAmount() {
     fetchWallet,
     balanceCents,
     telemetry,
+    setTelemetryEnabled,
     sendStageCommand,
   } = useDispenseFlow();
   const [viewMode, setViewMode] = useState('normal');
@@ -69,6 +70,15 @@ export default function SelectAmount() {
     fetchConfig();
     fetchWallet();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const shouldEnableTelemetry = viewMode === 'demo';
+    setTelemetryEnabled(shouldEnableTelemetry);
+
+    return () => {
+      setTelemetryEnabled(false);
+    };
+  }, [setTelemetryEnabled, viewMode]);
 
   const canContinue = useMemo(() => viewMode === 'normal', [viewMode]);
   const machineConnectionStatus = telemetry.lastSeenAt

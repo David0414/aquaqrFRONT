@@ -160,6 +160,7 @@ export default function FlowProvider({ children }) {
     lastSeenAt: null,
     error: '',
   });
+  const [telemetryEnabled, setTelemetryEnabled] = useState(false);
   const pollingRef = useRef(false);
   const pollingCooldownUntilRef = useRef(0);
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
@@ -209,6 +210,7 @@ export default function FlowProvider({ children }) {
   }
 
   async function pollInputs() {
+    if (!telemetryEnabled) return;
     if (!isDocumentVisible()) return;
     if (Date.now() < pollingCooldownUntilRef.current) return;
     if (pollingRef.current) return;
@@ -362,6 +364,8 @@ export default function FlowProvider({ children }) {
     balanceCents,
     lastTx,
     telemetry,
+    telemetryEnabled,
+    setTelemetryEnabled,
     fetchConfig,
     fetchWallet,
     pollInputs,
@@ -374,6 +378,7 @@ export default function FlowProvider({ children }) {
     let cancelled = false;
 
     const startPolling = async () => {
+      if (!telemetryEnabled) return;
       try {
         if (isDocumentVisible()) {
           await pollInputs();
@@ -391,7 +396,7 @@ export default function FlowProvider({ children }) {
     };
 
     const handleVisibilityChange = () => {
-      if (isDocumentVisible()) {
+      if (telemetryEnabled && isDocumentVisible()) {
         pollInputs().catch(() => {});
       }
     };
@@ -404,7 +409,7 @@ export default function FlowProvider({ children }) {
       if (intervalId) window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [telemetryEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

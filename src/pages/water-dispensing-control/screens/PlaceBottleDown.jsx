@@ -6,6 +6,8 @@ import Button from '../../../components/ui/Button';
 import { showErrorToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
 
+const RINSE_DURATION_MS = 3000;
+
 export default function PlaceBottleDown() {
   const nav = useNavigate();
   const { machine, sendStageCommand } = useDispenseFlow();
@@ -13,13 +15,20 @@ export default function PlaceBottleDown() {
   const [rinseMessage, setRinseMessage] = useState('El enjuague se enviara al tocar Siguiente.');
   const [isAdvancing, setIsAdvancing] = useState(false);
 
+  const delay = (ms) => new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
   const triggerRinse = async () => {
     try {
       setRinseStatus('sending');
-      setRinseMessage('Activando enjuague...');
-      await sendStageCommand('enjuague');
+      setRinseMessage('Activando enjuague por 3 segundos...');
+      await sendStageCommand('valvula_enjuague_on');
+      setRinseMessage('Enjuagando...');
+      await delay(RINSE_DURATION_MS);
+      await sendStageCommand('valvula_enjuague_off');
       setRinseStatus('success');
-      setRinseMessage('Enjuague activado. Mantelo boca abajo hasta que la luz cambie.');
+      setRinseMessage('Enjuague completado. Ya puedes continuar.');
     } catch (err) {
       const message = err?.message || 'No se pudo activar el enjuague';
       setRinseStatus('error');
@@ -75,7 +84,7 @@ export default function PlaceBottleDown() {
           Coloca el garrafon <span className="text-primary">boca abajo</span>
         </h3>
         <p className="mx-auto max-w-md text-text-secondary">
-          Para enjuagar y sanitizar el cuello del garrafon. Mantenlo asi hasta que la luz cambie.
+          Al tocar siguiente se prende el enjuague 3 segundos y luego se apaga automaticamente.
         </p>
 
         <div className={`mx-auto mt-6 max-w-lg rounded-xl border px-4 py-3 text-sm ${statusClasses}`}>
