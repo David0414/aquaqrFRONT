@@ -221,16 +221,13 @@ export default function FlowProvider({ children }) {
 
     try {
       const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-      const res = await fetch(`${API}/api/dispense/demo/control`, {
-        method: 'POST',
+      const res = await fetch(`${API}/api/dispense/demo/monitor`, {
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ action: 'inputs' }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.detail || data?.error || 'No se pudo leer inputs');
+      if (!res.ok) throw new Error(data?.detail || data?.error || 'No se pudo leer monitor');
 
       const rawResponse = [data?.response, ...(data?.lines || [])].filter(Boolean).join(' ');
       const parsed = parseTelemetryPayload(rawResponse);
