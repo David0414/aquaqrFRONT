@@ -209,10 +209,12 @@ export default function FlowProvider({ children }) {
     }
   }
 
-  async function pollInputs() {
-    if (!telemetryEnabled) return;
+  async function pollInputs(options = {}) {
+    const force = options?.force === true;
+
+    if (!force && !telemetryEnabled) return;
     if (!isDocumentVisible()) return;
-    if (Date.now() < pollingCooldownUntilRef.current) return;
+    if (!force && Date.now() < pollingCooldownUntilRef.current) return;
     if (pollingRef.current) return;
     pollingRef.current = true;
 
@@ -295,7 +297,7 @@ export default function FlowProvider({ children }) {
       if (!res.ok) throw new Error(data?.detail || data?.error || `No se pudo enviar ${action}`);
 
       window.setTimeout(() => {
-        pollInputs().catch(() => {});
+        pollInputs({ force: true }).catch(() => {});
       }, INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS);
       return data;
     } catch (error) {
