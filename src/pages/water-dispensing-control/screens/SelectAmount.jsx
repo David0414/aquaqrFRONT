@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -9,9 +8,6 @@ import BottleSizeSelector from '../components/BottleSizeSelector';
 import PricingCalculator from '../components/PricingCalculator';
 import { showErrorToast, showSuccessToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
-
-const API = import.meta.env.VITE_API_URL;
-const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 
 const DEMO_ACTIONS = [
   { key: 'bomba_on', label: 'Bomba ON', variant: 'success' },
@@ -50,7 +46,6 @@ function ValveIndicator({ label, isOn }) {
 
 export default function SelectAmount() {
   const nav = useNavigate();
-  const { getToken } = useAuth();
   const {
     machine,
     connectionStatus,
@@ -83,18 +78,7 @@ export default function SelectAmount() {
   const handleDemoAction = async (action) => {
     try {
       setLoadingAction(action);
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-      const res = await fetch(`${API}/api/dispense/demo/control`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ action }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.detail || data?.error || 'Error enviando comando demo');
-
+      const data = await sendStageCommand(action);
       setDemoResponse(data);
       showSuccessToast(`Comando "${action}" enviado`);
     } catch (err) {

@@ -8,7 +8,7 @@ const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 
 // Caudal por defecto: 20L en 10s -> 120 L/min
 const DEFAULT_FLOW_LPM = (20 / 10) * 60; // 120
-const INPUT_POLL_INTERVAL_MS = 5000;
+const INPUT_POLL_INTERVAL_MS = 1000;
 
 function normalizeHexPair(value) {
   const clean = String(value || '').trim().toUpperCase().replace(/[^0-9A-F]/g, '');
@@ -61,6 +61,43 @@ function parseTelemetryPayload(payload) {
     rinseValveOn: isActiveHexByte(rinseValveByte),
     receivedAt: Date.now(),
   };
+}
+
+function applyTelemetryActionSnapshot(currentTelemetry, action) {
+  const nextSeenAt = Date.now();
+
+  switch (action) {
+    case 'valvula_llenado_on':
+      return {
+        ...currentTelemetry,
+        fillValveOn: true,
+        lastSeenAt: nextSeenAt,
+        error: '',
+      };
+    case 'valvula_llenado_off':
+      return {
+        ...currentTelemetry,
+        fillValveOn: false,
+        lastSeenAt: nextSeenAt,
+        error: '',
+      };
+    case 'valvula_enjuague_on':
+      return {
+        ...currentTelemetry,
+        rinseValveOn: true,
+        lastSeenAt: nextSeenAt,
+        error: '',
+      };
+    case 'valvula_enjuague_off':
+      return {
+        ...currentTelemetry,
+        rinseValveOn: false,
+        lastSeenAt: nextSeenAt,
+        error: '',
+      };
+    default:
+      return currentTelemetry;
+  }
 }
 
 const Ctx = createContext(null);
@@ -231,18 +268,35 @@ export default function FlowProvider({ children }) {
   }
 
   async function sendStageCommand(action) {
-    const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-    const res = await fetch(`${API}/api/dispense/demo/control`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ action }),
+    let previousTelemetry = null;
+
+    setTelemetry((currentTelemetry) => {
+      previousTelemetry = currentTelemetry;
+      return applyTelemetryActionSnapshot(currentTelemetry, action);
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.detail || data?.error || `No se pudo enviar ${action}`);
-    return data;
+
+    const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+    try {
+      const res = await fetch(`${API}/api/dispense/demo/control`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || data?.error || `No se pudo enviar ${action}`);
+
+      // Sincroniza la UI con la lectura real en cuanto el comando termina.
+      pollInputs().catch(() => {});
+      return data;
+    } catch (error) {
+      if (previousTelemetry) {
+        setTelemetry(previousTelemetry);
+      }
+      throw error;
+    }
   }
 
   // Cobra e inicia el dispensado
