@@ -16,6 +16,12 @@ function normalizeHexPair(value) {
   return clean.padStart(2, '0').slice(-2);
 }
 
+function isActiveHexByte(value) {
+  const normalized = normalizeHexPair(value);
+  if (!normalized) return false;
+  return normalized !== '00';
+}
+
 function extractTelemetryBytes(payload) {
   const matches = String(payload || '').toUpperCase().match(/[0-9A-F]{2}/g) || [];
   for (let index = 0; index <= matches.length - 9; index += 1) {
@@ -51,8 +57,8 @@ function parseTelemetryPayload(payload) {
     phDecimal,
     solidsDecimal,
     phVoltage,
-    fillValveOn: fillValveByte === '01',
-    rinseValveOn: rinseValveByte === '01',
+    fillValveOn: isActiveHexByte(fillValveByte),
+    rinseValveOn: isActiveHexByte(rinseValveByte),
     receivedAt: Date.now(),
   };
 }
