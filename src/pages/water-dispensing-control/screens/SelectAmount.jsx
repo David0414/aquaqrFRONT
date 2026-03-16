@@ -209,6 +209,7 @@ export default function SelectAmount() {
             <Input label="Voltaje pH" value={telemetry.phVoltage ?? ''} readOnly placeholder="Esperando lectura" />
             <Input label="Hex pH" value={telemetry.phHex} readOnly placeholder="--" />
             <Input label="Sensor solidos decimal" value={telemetry.solidsDecimal ?? ''} readOnly placeholder="Esperando lectura" />
+            <Input label="Hex solidos" value={telemetry.solidsHex} readOnly placeholder="--" />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

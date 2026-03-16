@@ -37,9 +37,8 @@ function parseTelemetryPayload(payload) {
   const fillValveByte = bytes[6];
   const rinseValveByte = bytes[7];
 
-  // PLC shared formula uses the low byte as the ADC reading.
-  const phDecimal = Number.parseInt(phLow, 16);
-  const solidsDecimal = Number.parseInt(solidsLow, 16);
+  const phDecimal = (Number.parseInt(phHigh, 16) << 8) | Number.parseInt(phLow, 16);
+  const solidsDecimal = (Number.parseInt(solidsHigh, 16) << 8) | Number.parseInt(solidsLow, 16);
   const phVoltage = Number(((phDecimal * 5) / 1023).toFixed(3));
 
   return {
