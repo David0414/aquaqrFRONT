@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
@@ -48,18 +48,10 @@ export default function WaterMonitor() {
     connectionStatus,
     telemetry,
     pricePerLiterCents,
-    setTelemetryEnabled,
     sendStageCommand,
   } = useDispenseFlow();
   const [loadingAction, setLoadingAction] = useState('');
   const [demoResponse, setDemoResponse] = useState(null);
-
-  useEffect(() => {
-    setTelemetryEnabled(true);
-    return () => {
-      setTelemetryEnabled(false);
-    };
-  }, [setTelemetryEnabled]);
 
   const machineConnectionStatus = telemetry.lastSeenAt
     ? (telemetry.machineOnline ? 'connected' : 'disconnected')
@@ -94,7 +86,7 @@ export default function WaterMonitor() {
             <div>
               <h1 className="text-lg font-semibold text-text-primary">Monitor de Maquina</h1>
               <p className="text-sm text-text-secondary">
-                Usa esta pantalla aparte para monitoreo y pruebas manuales sin mezclarlo con el flujo normal.
+                Esta vista es pasiva: no hace polling ni envia comandos por si sola. Solo escucha el ultimo estado disponible.
               </p>
             </div>
 
