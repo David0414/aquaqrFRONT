@@ -41,6 +41,8 @@ function parseTelemetryPayload(payload) {
   const solidsDecimal = (Number.parseInt(solidsHigh, 16) << 8) | Number.parseInt(solidsLow, 16);
   const phVoltage = Number(((phDecimal * 5) / 1023).toFixed(3));
 
+
+  
   return {
     rawFrame: bytes.join('-'),
     machineHardwareId,
