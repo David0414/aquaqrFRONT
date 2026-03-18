@@ -96,6 +96,14 @@ function applyTelemetryActionSnapshot(currentTelemetry, action) {
         lastSeenAt: nextSeenAt,
         error: '',
       };
+    case 'apagar_valvulas_forzado':
+      return {
+        ...currentTelemetry,
+        fillValveOn: false,
+        rinseValveOn: false,
+        lastSeenAt: nextSeenAt,
+        error: '',
+      };
     default:
       return currentTelemetry;
   }

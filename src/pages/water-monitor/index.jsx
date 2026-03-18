@@ -14,6 +14,8 @@ const DEMO_ACTIONS = [
   { key: 'valvula_enjuague_off', label: 'Enjuague OFF', variant: 'secondary' },
   { key: 'valvula_llenado_on', label: 'Llenado ON', variant: 'success' },
   { key: 'valvula_llenado_off', label: 'Llenado OFF', variant: 'secondary' },
+  { key: 'apagar_valvulas_forzado', label: 'Forzar apagado', variant: 'warning' },
+  { key: 'reiniciar_sistema', label: 'Reiniciar sistema', variant: 'danger' },
 ];
 
 function formatSeenAt(value) {
@@ -157,6 +159,16 @@ export default function WaterMonitor() {
               ) : (
                 <p className="mt-2 text-text-secondary">Sin comandos enviados aun.</p>
               )}
+            </div>
+
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-text-primary">
+              <p className="font-medium">Nota</p>
+              <p className="mt-1 text-text-secondary">
+                "Forzar apagado" envia el comando <span className="mx-1 font-mono">FF</span>
+                para transmitir <span className="mx-1 font-mono">AA-FF</span>. "Reiniciar sistema" envia
+                <span className="mx-1 font-mono">5A</span>
+                para transmitir <span className="mx-1 font-mono">AA-5A</span>.
+              </p>
             </div>
           </div>
         </div>
