@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button';
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import MachineInfoCard from '../water-dispensing-control/components/MachineInfoCard';
+import TelemetryStatusCard from '../water-dispensing-control/components/TelemetryStatusCard';
 import { showErrorToast, showSuccessToast } from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
@@ -25,23 +26,6 @@ function formatSeenAt(value) {
     minute: '2-digit',
     second: '2-digit',
   }).format(new Date(value));
-}
-
-function ValveIndicator({ label, isOn }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
-      <div>
-        <p className="text-sm font-medium text-text-primary">{label}</p>
-        <p className="text-xs text-text-secondary">{isOn ? 'Encendida' : 'Apagada'}</p>
-      </div>
-      <span
-        className={`h-4 w-4 rounded-full border ${
-          isOn ? 'border-green-600 bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.45)]' : 'border-slate-300 bg-slate-300'
-        }`}
-        aria-label={`${label} ${isOn ? 'encendida' : 'apagada'}`}
-      />
-    </div>
-  );
 }
 
 export default function WaterMonitor() {
@@ -130,10 +114,7 @@ export default function WaterMonitor() {
               <Input label="Hex solidos" value={telemetry.solidsHex} readOnly placeholder="--" />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ValveIndicator label="Valvula de llenado" isOn={telemetry.fillValveOn} />
-              <ValveIndicator label="Valvula de enjuague" isOn={telemetry.rinseValveOn} />
-            </div>
+            <TelemetryStatusCard telemetry={telemetry} title="Estado actual de la maquina" />
 
             <div className="grid grid-cols-2 gap-2">
               {DEMO_ACTIONS.map((item) => (

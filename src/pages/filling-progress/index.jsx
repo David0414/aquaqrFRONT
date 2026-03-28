@@ -10,6 +10,7 @@ import CancelConfirmationModal from "./components/CancelConfirmationModal";
 import BottomTabNavigation from "../../components/ui/BottomTabNavigation";
 import { showSuccessToast, showErrorToast, showWarningToast } from "../../components/ui/NotificationToast";
 import { useDispenseFlow } from "../water-dispensing-control/FlowProvider";
+import TelemetryStatusCard from "../water-dispensing-control/components/TelemetryStatusCard";
 
 function money(n){return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2}).format(n);}
 
@@ -17,9 +18,11 @@ export default function FillingProgress() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔧 el contexto puede ser null si no estás dentro del Provider
+  // Ã°Å¸â€Â§ el contexto puede ser null si no estÃƒÂ¡s dentro del Provider
   const flow = useDispenseFlow();
   const lastTx = flow?.lastTx;
+  const telemetry = flow?.telemetry;
+  const setTelemetryEnabled = flow?.setTelemetryEnabled;
 
   // Usa la tx que llega por state; si no, cae a la del contexto
   const tx = location.state?.tx || lastTx;
@@ -44,6 +47,11 @@ export default function FillingProgress() {
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isDispensing, setIsDispensing] = useState(true);
+
+  useEffect(() => {
+    setTelemetryEnabled?.(true);
+    return () => setTelemetryEnabled?.(false);
+  }, [setTelemetryEnabled]);
 
   useEffect(() => {
     if (!isDispensing) return;
@@ -93,6 +101,7 @@ export default function FillingProgress() {
       <div className="px-4 py-6 pb-20 space-y-8">
         <div className="text-center"><WaterAnimation isActive={isDispensing} /></div>
         <ProgressIndicator progress={progress} remainingTime={remainingTime} flowRate={flowRate} isActive={isDispensing}/>
+        {telemetry ? <TelemetryStatusCard telemetry={telemetry} title="Telemetria del dispensado" compact /> : null}
         <TransactionDetails
           selectedLiters={liters}
           pricePerLiter={pricePerLiter}
@@ -102,7 +111,7 @@ export default function FillingProgress() {
         />
         <div className="text-center">
           <button onClick={() => setIsHelpModalOpen(true)} className="inline-flex items-center space-x-2 px-6 py-3 bg-muted rounded-full hover:bg-muted/80 transition-colors duration-200">
-            <span className="text-body-sm font-medium text-text-primary">¿Necesitas ayuda?</span>
+            <span className="text-body-sm font-medium text-text-primary">Ã‚Â¿Necesitas ayuda?</span>
           </button>
         </div>
       </div>

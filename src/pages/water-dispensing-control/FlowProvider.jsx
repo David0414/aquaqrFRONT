@@ -2,6 +2,14 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { showErrorToast } from '../../components/ui/NotificationToast';
+import {
+  getCoinLabel,
+  getTelemetryStageLabel,
+  hexPairToDecimal,
+  hexWordToDecimal,
+  isActiveHexByte,
+  normalizeHexPair,
+} from './telemetry';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -11,23 +19,11 @@ const DEFAULT_FLOW_LPM = (20 / 10) * 60; // 120
 const INPUT_POLL_INTERVAL_MS = 5000;
 const INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS = 1500;
 
-function normalizeHexPair(value) {
-  const clean = String(value || '').trim().toUpperCase().replace(/[^0-9A-F]/g, '');
-  if (!clean) return null;
-  return clean.padStart(2, '0').slice(-2);
-}
-
-function isActiveHexByte(value) {
-  const normalized = normalizeHexPair(value);
-  if (!normalized) return false;
-  return normalized !== '00';
-}
-
 function extractTelemetryBytes(payload) {
   const matches = String(payload || '').toUpperCase().match(/[0-9A-F]{2}/g) || [];
-  for (let index = 0; index <= matches.length - 9; index += 1) {
-    const chunk = matches.slice(index, index + 9);
-    if (chunk[0] === 'E2' && chunk[8] === 'E3') return chunk;
+  for (let index = 0; index <= matches.length - 15; index += 1) {
+    const chunk = matches.slice(index, index + 15);
+    if (chunk[0] === 'E2' && chunk[14] === 'E3') return chunk;
   }
   return null;
 }
@@ -43,13 +39,20 @@ function parseTelemetryPayload(payload) {
   const solidsLow = bytes[5];
   const fillValveByte = bytes[6];
   const rinseValveByte = bytes[7];
+  const pumpByte = bytes[8];
+  const stageByte = bytes[9];
+  const flowmeterHigh = bytes[10];
+  const flowmeterLow = bytes[11];
+  const coinByte = bytes[12];
+  const accumulatedMoneyByte = bytes[13];
 
-  const phDecimal = (Number.parseInt(phHigh, 16) << 8) | Number.parseInt(phLow, 16);
-  const solidsDecimal = (Number.parseInt(solidsHigh, 16) << 8) | Number.parseInt(solidsLow, 16);
+  const phDecimal = hexWordToDecimal(phHigh, phLow);
+  const solidsDecimal = hexWordToDecimal(solidsHigh, solidsLow);
+  const flowmeterPulses = hexWordToDecimal(flowmeterHigh, flowmeterLow);
+  const insertedCoinAmount = hexPairToDecimal(coinByte);
+  const accumulatedMoney = hexPairToDecimal(accumulatedMoneyByte);
   const phVoltage = Number(((phDecimal * 5) / 1023).toFixed(3));
 
-
-  
   return {
     rawFrame: bytes.join('-'),
     machineHardwareId,
@@ -60,6 +63,17 @@ function parseTelemetryPayload(payload) {
     phVoltage,
     fillValveOn: isActiveHexByte(fillValveByte),
     rinseValveOn: isActiveHexByte(rinseValveByte),
+    pumpOn: isActiveHexByte(pumpByte),
+    pumpHex: normalizeHexPair(pumpByte) || '00',
+    currentStageCode: normalizeHexPair(stageByte) || '00',
+    currentStageLabel: getTelemetryStageLabel(stageByte),
+    flowmeterHex: `${flowmeterHigh}-${flowmeterLow}`,
+    flowmeterPulses,
+    coinHex: normalizeHexPair(coinByte) || '00',
+    insertedCoinAmount,
+    insertedCoinLabel: getCoinLabel(coinByte),
+    accumulatedMoneyHex: normalizeHexPair(accumulatedMoneyByte) || '00',
+    accumulatedMoney,
     receivedAt: Date.now(),
   };
 }
@@ -71,6 +85,7 @@ function applyTelemetryActionSnapshot(currentTelemetry, action) {
     case 'valvula_llenado_on':
       return {
         ...currentTelemetry,
+        pumpOn: true,
         fillValveOn: true,
         lastSeenAt: nextSeenAt,
         error: '',
@@ -78,6 +93,7 @@ function applyTelemetryActionSnapshot(currentTelemetry, action) {
     case 'valvula_llenado_off':
       return {
         ...currentTelemetry,
+        pumpOn: false,
         fillValveOn: false,
         lastSeenAt: nextSeenAt,
         error: '',
@@ -96,9 +112,24 @@ function applyTelemetryActionSnapshot(currentTelemetry, action) {
         lastSeenAt: nextSeenAt,
         error: '',
       };
+    case 'bomba_on':
+      return {
+        ...currentTelemetry,
+        pumpOn: true,
+        lastSeenAt: nextSeenAt,
+        error: '',
+      };
+    case 'bomba_off':
+      return {
+        ...currentTelemetry,
+        pumpOn: false,
+        lastSeenAt: nextSeenAt,
+        error: '',
+      };
     case 'apagar_valvulas_forzado':
       return {
         ...currentTelemetry,
+        pumpOn: false,
         fillValveOn: false,
         rinseValveOn: false,
         lastSeenAt: nextSeenAt,
@@ -164,6 +195,17 @@ export default function FlowProvider({ children }) {
     phVoltage: null,
     fillValveOn: false,
     rinseValveOn: false,
+    pumpOn: false,
+    pumpHex: '00',
+    currentStageCode: '00',
+    currentStageLabel: 'Sin etapa',
+    flowmeterHex: '',
+    flowmeterPulses: null,
+    coinHex: '00',
+    insertedCoinAmount: 0,
+    insertedCoinLabel: 'Sin moneda',
+    accumulatedMoneyHex: '00',
+    accumulatedMoney: 0,
     machineOnline: false,
     lastSeenAt: null,
     error: '',
@@ -265,6 +307,17 @@ export default function FlowProvider({ children }) {
         phVoltage: parsed.phVoltage,
         fillValveOn: parsed.fillValveOn,
         rinseValveOn: parsed.rinseValveOn,
+        pumpOn: parsed.pumpOn,
+        pumpHex: parsed.pumpHex,
+        currentStageCode: parsed.currentStageCode,
+        currentStageLabel: parsed.currentStageLabel,
+        flowmeterHex: parsed.flowmeterHex,
+        flowmeterPulses: parsed.flowmeterPulses,
+        coinHex: parsed.coinHex,
+        insertedCoinAmount: parsed.insertedCoinAmount,
+        insertedCoinLabel: parsed.insertedCoinLabel,
+        accumulatedMoneyHex: parsed.accumulatedMoneyHex,
+        accumulatedMoney: parsed.accumulatedMoney,
         machineOnline,
         lastSeenAt: parsed.receivedAt,
         error: '',

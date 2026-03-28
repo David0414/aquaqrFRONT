@@ -5,15 +5,21 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { showErrorToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
+import TelemetryStatusCard from '../components/TelemetryStatusCard';
 
 const RINSE_DURATION_MS = 3000;
 
 export default function PlaceBottleDown() {
   const nav = useNavigate();
-  const { machine, sendStageCommand } = useDispenseFlow();
+  const { machine, telemetry, setTelemetryEnabled, sendStageCommand } = useDispenseFlow();
   const [rinseStatus, setRinseStatus] = useState('idle');
   const [rinseMessage, setRinseMessage] = useState('El enjuague se enviara al tocar Siguiente.');
   const [isAdvancing, setIsAdvancing] = useState(false);
+
+  React.useEffect(() => {
+    setTelemetryEnabled(true);
+    return () => setTelemetryEnabled(false);
+  }, [setTelemetryEnabled]);
 
   const delay = (ms) => new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -93,6 +99,8 @@ export default function PlaceBottleDown() {
           </div>
         </div>
       </div>
+
+      <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
 
       <div className="flex gap-3">
         <Button variant="secondary" className="flex-1" onClick={() => nav('/water/choose')}>

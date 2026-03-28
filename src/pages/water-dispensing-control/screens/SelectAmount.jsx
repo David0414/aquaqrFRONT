@@ -5,6 +5,7 @@ import Button from '../../../components/ui/Button';
 import MachineInfoCard from '../components/MachineInfoCard';
 import BottleSizeSelector from '../components/BottleSizeSelector';
 import PricingCalculator from '../components/PricingCalculator';
+import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import { showErrorToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
 
@@ -21,6 +22,8 @@ export default function SelectAmount() {
     fetchConfig,
     fetchWallet,
     balanceCents,
+    telemetry,
+    setTelemetryEnabled,
     sendStageCommand,
   } = useDispenseFlow();
   const [continuing, setContinuing] = useState(false);
@@ -28,6 +31,8 @@ export default function SelectAmount() {
   useEffect(() => {
     fetchConfig();
     fetchWallet();
+    setTelemetryEnabled(true);
+    return () => setTelemetryEnabled(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleContinue = async () => {
@@ -73,6 +78,8 @@ export default function SelectAmount() {
         pricePerLiter={pricePerLiter}
         currentBalance={(balanceCents ?? 0) / 100}
       />
+
+      <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
 
       <div className="flex gap-3">
         <Button variant="secondary" className="flex-1" onClick={() => nav('/home-dashboard')}>

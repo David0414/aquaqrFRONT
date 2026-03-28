@@ -6,11 +6,17 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { showErrorToast, showSuccessToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
+import TelemetryStatusCard from '../components/TelemetryStatusCard';
 
 export default function PlaceBottleUp() {
   const navigate = useNavigate();
-  const { startDispense, selectedLiters } = useDispenseFlow();
+  const { startDispense, selectedLiters, telemetry, setTelemetryEnabled } = useDispenseFlow();
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    setTelemetryEnabled(true);
+    return () => setTelemetryEnabled(false);
+  }, [setTelemetryEnabled]);
 
   const handleStart = async () => {
     try {
@@ -38,7 +44,7 @@ export default function PlaceBottleUp() {
 
   return (
     <div className="space-y-8">
-      <h2 className="text-xl font-semibold text-text-primary">Acomodar Garrafón</h2>
+      <h2 className="text-xl font-semibold text-text-primary">Acomodar GarrafÃƒÂ³n</h2>
 
       <div className="bg-card border border-border rounded-2xl p-8 flex flex-col items-center text-center">
         <motion.div
@@ -49,16 +55,18 @@ export default function PlaceBottleUp() {
           <Icon name="Target" size={44} className="text-success" />
         </motion.div>
         <h3 className="text-2xl font-bold text-text-primary mb-2">
-          Colócalo <span className="text-success">boca arriba y centrado</span>
+          ColÃƒÂ³calo <span className="text-success">boca arriba y centrado</span>
         </h3>
         <p className="text-text-secondary max-w-md">
-          Asegúrate de que el cuello quede firme en el centro para evitar derrames.
+          AsegÃƒÂºrate de que el cuello quede firme en el centro para evitar derrames.
         </p>
       </div>
 
+      <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
+
       <div className="flex gap-3">
         <Button variant="secondary" className="flex-1" onClick={() => navigate('/water/position-down')}>
-          <Icon name="ArrowLeft" size={18} /> Atrás
+          <Icon name="ArrowLeft" size={18} /> AtrÃƒÂ¡s
         </Button>
         <Button className="flex-1" onClick={handleStart} loading={loading}>
           <Icon name="Play" size={18} /> Iniciar dispensado
