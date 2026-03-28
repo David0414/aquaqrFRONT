@@ -365,17 +365,20 @@ export default function FlowProvider({ children }) {
   }
 
   async function syncTelemetryCredit(nextTelemetry) {
+    const insertedAmount = Number.parseInt(nextTelemetry?.insertedCoinAmount, 10);
     const accumulatedAmount = Number.parseInt(nextTelemetry?.accumulatedMoney, 10);
-    if (!Number.isFinite(accumulatedAmount) || accumulatedAmount < 0) return;
-
     const pulseCount = Number.parseInt(nextTelemetry?.flowmeterPulses, 10);
+    const rawFrame = String(nextTelemetry?.rawFrame || '').trim();
+
+    if (!rawFrame) return;
+    if (!Number.isFinite(insertedAmount) || insertedAmount < 0) return;
 
     const machineId =
       normalizeHexPair(nextTelemetry?.machineHardwareId) ||
       normalizeHexPair(machine?.hardwareId) ||
       String(machine?.id || 'UNKNOWN').trim().toUpperCase();
 
-    const syncKey = `${machineId}:${accumulatedAmount}`;
+    const syncKey = `${machineId}:${rawFrame}`;
     if (telemetryCreditSyncRef.current === syncKey) return;
     telemetryCreditSyncRef.current = syncKey;
 
@@ -389,9 +392,10 @@ export default function FlowProvider({ children }) {
         },
         body: JSON.stringify({
           machineId,
+          insertedAmount,
           accumulatedAmount,
           pulseCount,
-          rawFrame: nextTelemetry?.rawFrame || '',
+          rawFrame,
         }),
       });
       const data = await res.json();
