@@ -213,6 +213,7 @@ export default function FlowProvider({ children }) {
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
   const pollingRef = useRef(false);
   const pollingCooldownUntilRef = useRef(0);
+  const telemetryCreditSyncRef = useRef('');
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
 
   useEffect(() => {
@@ -363,6 +364,47 @@ export default function FlowProvider({ children }) {
     }
   }
 
+  async function syncTelemetryCredit(nextTelemetry) {
+    const pulseCount = Number.parseInt(nextTelemetry?.flowmeterPulses, 10);
+    if (!Number.isFinite(pulseCount) || pulseCount < 0) return;
+
+    const machineId =
+      normalizeHexPair(nextTelemetry?.machineHardwareId) ||
+      normalizeHexPair(machine?.hardwareId) ||
+      String(machine?.id || 'UNKNOWN').trim().toUpperCase();
+
+    const syncKey = `${machineId}:${pulseCount}`;
+    if (telemetryCreditSyncRef.current === syncKey) return;
+    telemetryCreditSyncRef.current = syncKey;
+
+    try {
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      const res = await fetch(`${API}/api/recharge/telemetry-credit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          machineId,
+          pulseCount,
+          rawFrame: nextTelemetry?.rawFrame || '',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.detail || data?.error || 'No se pudo sincronizar la recarga por telemetria');
+      }
+
+      if (typeof data?.balanceCents === 'number') {
+        setBalanceCents(data.balanceCents);
+      }
+    } catch (error) {
+      telemetryCreditSyncRef.current = '';
+      console.error('syncTelemetryCredit error', error);
+    }
+  }
+
   // Cobra e inicia el dispensado
   async function startDispense() {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
@@ -467,6 +509,14 @@ export default function FlowProvider({ children }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [telemetryEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!telemetryEnabled) return;
+    if (!telemetry?.machineOnline) return;
+    if (!telemetry?.rawFrame) return;
+
+    syncTelemetryCredit(telemetry).catch(() => {});
+  }, [telemetryEnabled, telemetry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
