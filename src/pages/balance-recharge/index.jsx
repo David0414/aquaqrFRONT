@@ -361,16 +361,29 @@ const BalanceRecharge = () => {
                     <p className="mt-1 text-sm text-text-secondary">
                       Inserta monedas en la maquina. El saldo se actualiza con el dinero acumulado recibido en la telemetria.
                     </p>
-                    <p className="mt-2 text-sm font-medium text-text-primary">
-                      Estado actual: {telemetry.currentStageLabel || 'Sin etapa'}
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-text-primary">
-                      Moneda detectada: {telemetry.insertedCoinLabel || 'Sin moneda'}
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-success">
-                      Dinero acumulado detectado: ${Number(telemetry.accumulatedMoney || 0).toFixed(2)} MXN
-                    </p>
                   </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <p className="text-xs uppercase tracking-wide text-text-secondary">Dinero insertado</p>
+                  <p className="mt-2 text-2xl font-bold text-text-primary">
+                    {telemetry.insertedCoinLabel || 'Sin moneda'}
+                  </p>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Ultima moneda detectada
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-success/20 bg-success/5 p-4">
+                  <p className="text-xs uppercase tracking-wide text-success">Dinero acumulado</p>
+                  <p className="mt-2 text-2xl font-bold text-success">
+                    ${Number(telemetry.accumulatedMoney || 0).toFixed(2)} MXN
+                  </p>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Total acumulado reportado por la maquina
+                  </p>
                 </div>
               </div>
 
