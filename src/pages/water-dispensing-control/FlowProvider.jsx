@@ -365,15 +365,17 @@ export default function FlowProvider({ children }) {
   }
 
   async function syncTelemetryCredit(nextTelemetry) {
+    const accumulatedAmount = Number.parseInt(nextTelemetry?.accumulatedMoney, 10);
+    if (!Number.isFinite(accumulatedAmount) || accumulatedAmount < 0) return;
+
     const pulseCount = Number.parseInt(nextTelemetry?.flowmeterPulses, 10);
-    if (!Number.isFinite(pulseCount) || pulseCount < 0) return;
 
     const machineId =
       normalizeHexPair(nextTelemetry?.machineHardwareId) ||
       normalizeHexPair(machine?.hardwareId) ||
       String(machine?.id || 'UNKNOWN').trim().toUpperCase();
 
-    const syncKey = `${machineId}:${pulseCount}`;
+    const syncKey = `${machineId}:${accumulatedAmount}`;
     if (telemetryCreditSyncRef.current === syncKey) return;
     telemetryCreditSyncRef.current = syncKey;
 
@@ -387,6 +389,7 @@ export default function FlowProvider({ children }) {
         },
         body: JSON.stringify({
           machineId,
+          accumulatedAmount,
           pulseCount,
           rawFrame: nextTelemetry?.rawFrame || '',
         }),
@@ -398,6 +401,13 @@ export default function FlowProvider({ children }) {
 
       if (typeof data?.balanceCents === 'number') {
         setBalanceCents(data.balanceCents);
+        window.dispatchEvent(new CustomEvent('wallet:updated', {
+          detail: {
+            balanceCents: data.balanceCents,
+            source: 'telemetry',
+            machineId,
+          },
+        }));
       }
     } catch (error) {
       telemetryCreditSyncRef.current = '';

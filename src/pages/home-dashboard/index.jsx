@@ -67,8 +67,22 @@ const HomeDashboard = () => {
 
   useEffect(() => {
     const onFocus = () => fetchWallet();
+    const onWalletUpdated = (event) => {
+      const nextBalanceCents = Number(event?.detail?.balanceCents);
+      if (Number.isFinite(nextBalanceCents)) {
+        setWalletBalanceCents(nextBalanceCents);
+        setWalletLoading(false);
+        return;
+      }
+      fetchWallet();
+    };
+
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    window.addEventListener('wallet:updated', onWalletUpdated);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('wallet:updated', onWalletUpdated);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClerkLoaded, isSignedIn]);
 
