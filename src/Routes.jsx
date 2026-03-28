@@ -158,7 +158,9 @@ const Routes = () => {
             path="/balance-recharge"
             element={
               <Protected>
-                <BalanceRecharge />
+                <FlowProvider>
+                  <BalanceRecharge />
+                </FlowProvider>
               </Protected>
             }
           />

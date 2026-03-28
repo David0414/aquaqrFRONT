@@ -29,7 +29,7 @@ const TELEMETRY_STAGE_LABELS = {
   '02': 'Seleccionando tamano',
   '03': 'Colocando garrafon boca abajo',
   '04': 'Enjuagando',
-  '05': 'Listo para dispensar',
+  '05': 'Recarga con monedas',
   '06': 'Dispensando agua',
   '07': 'Proceso completado',
   '08': 'Cancelado',

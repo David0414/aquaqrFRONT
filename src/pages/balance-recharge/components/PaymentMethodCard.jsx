@@ -9,6 +9,12 @@ const PaymentMethodCard = ({
   className = '' 
 }) => {
   const paymentMethods = {
+    coins: {
+      name: 'Recarga con Monedas',
+      iconName: 'Coins',
+      description: 'Inserta monedas en la maquina para abonar saldo',
+      features: ['Moneda de 1, 5 y 10', 'Saldo en vivo']
+    },
     mercadopago: {
       name: 'Mercado Pago',
       logo: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=100&h=60&fit=crop',
@@ -39,11 +45,15 @@ const PaymentMethodCard = ({
     >
       <div className="flex items-center space-x-4">
         <div className="w-16 h-10 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-          <Image 
-            src={methodData?.logo} 
-            alt={methodData?.name}
-            className="w-full h-full object-cover"
-          />
+          {methodData?.logo ? (
+            <Image 
+              src={methodData?.logo} 
+              alt={methodData?.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Icon name={methodData?.iconName || 'Wallet'} size={22} className="text-primary" />
+          )}
         </div>
         
         <div className="flex-1">
