@@ -20,7 +20,6 @@ import PaymentMethodCard from './components/PaymentMethodCard';
 import PromotionalBanner from './components/PromotionalBanner';
 import TransactionSummary from './components/TransactionSummary';
 import StripePaymentElement from '../../components/payments/StripePaymentElement';
-import TelemetryStatusCard from '../water-dispensing-control/components/TelemetryStatusCard';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
 const API = import.meta.env.VITE_API_URL;
@@ -34,7 +33,7 @@ const BalanceRecharge = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { getToken } = useAuth();
-  const { telemetry, setTelemetryEnabled } = useDispenseFlow();
+  const { telemetry, setTelemetryEnabled, sendStageCommand } = useDispenseFlow();
 
   const [currentBalance, setCurrentBalance] = useState(0);
   const [selectedAmount, setSelectedAmount] = useState(0);
@@ -101,6 +100,30 @@ const BalanceRecharge = () => {
     setTelemetryEnabled(true);
     return () => setTelemetryEnabled(false);
   }, [selectedPaymentMethod, setTelemetryEnabled]);
+
+  useEffect(() => {
+    if (selectedPaymentMethod !== 'coins') return undefined;
+
+    let cancelled = false;
+
+    const enableCoinRechargeMode = async () => {
+      try {
+        await sendStageCommand('recarga_monedas');
+        if (!cancelled) {
+          showInfoToast('Modo recarga con monedas activado');
+        }
+      } catch (e) {
+        if (!cancelled) {
+          showErrorToast(e?.message || 'No se pudo activar el modo recarga con monedas');
+        }
+      }
+    };
+
+    enableCoinRechargeMode();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPaymentMethod, sendStageCommand]);
 
   const handlePresetAmountSelect = (amount) => {
     setSelectedAmount(amount);
@@ -351,7 +374,6 @@ const BalanceRecharge = () => {
                 </div>
               </div>
 
-              <TelemetryStatusCard telemetry={telemetry} title="Monitor de recarga con monedas" compact />
             </section>
           ) : null}
 
@@ -396,25 +418,23 @@ const BalanceRecharge = () => {
             </div>
           ) : null}
 
-          <div className="bg-muted/50 rounded-lg p-4 border border-border/50">
-            <div className="flex items-start space-x-3">
-              <Icon
-                name={isCoinMode ? 'Coins' : 'Shield'}
-                size={20}
-                className={`${isCoinMode ? 'text-success' : 'text-primary'} mt-0.5`}
-              />
-              <div>
-                <h3 className="font-medium text-text-primary mb-1">
-                  {isCoinMode ? 'Recarga por Monedero' : 'Pago Seguro'}
-                </h3>
-                <p className="text-text-secondary text-body-sm">
-                  {isCoinMode
-                    ? 'Cuando la maquina reporte mas dinero acumulado, tu saldo se abona automaticamente.'
-                    : 'Procesado por Stripe. No almacenamos datos de tarjeta.'}
-                </p>
+          {!isCoinMode ? (
+            <div className="bg-muted/50 rounded-lg p-4 border border-border/50">
+              <div className="flex items-start space-x-3">
+                <Icon
+                  name="Shield"
+                  size={20}
+                  className="text-primary mt-0.5"
+                />
+                <div>
+                  <h3 className="font-medium text-text-primary mb-1">Pago Seguro</h3>
+                  <p className="text-text-secondary text-body-sm">
+                    Procesado por Stripe. No almacenamos datos de tarjeta.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </main>
 
