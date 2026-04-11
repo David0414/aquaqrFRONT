@@ -4,6 +4,8 @@ export function normalizeHexPair(value) {
   return clean.padStart(2, '0').slice(-2);
 }
 
+export const DEFAULT_PULSES_PER_LITER = 360;
+
 export function isActiveHexByte(value) {
   const normalized = normalizeHexPair(value);
   if (!normalized) return false;
@@ -56,4 +58,17 @@ export function formatMoneyAmount(value) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+export function sanitizePulsesPerLiter(value, fallback = DEFAULT_PULSES_PER_LITER) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+export function pulsesToLiters(pulses, pulsesPerLiter = DEFAULT_PULSES_PER_LITER) {
+  const safePulses = Number.parseInt(pulses, 10);
+  const safePulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiter);
+  if (!Number.isFinite(safePulses) || safePulses <= 0) return 0;
+  return safePulses / safePulsesPerLiter;
 }

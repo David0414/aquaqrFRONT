@@ -5,8 +5,13 @@ const ProgressIndicator = ({
   remainingTime = 0,
   flowRate = 0,
   isActive = true,
+  dispensedLiters = 0,
+  targetLiters = 0,
+  dispensedPulseCount = 0,
+  pulsesPerLiter = 0,
 }) => {
   const formatTime = (seconds) => {
+    if (!Number.isFinite(seconds)) return '--:--';
     const mins = Math.floor(Number(seconds) / 60);
     const secs = Math.max(0, Number(seconds) % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -56,6 +61,9 @@ const ProgressIndicator = ({
           <span className="text-body-sm text-text-secondary mt-1">
             Completado
           </span>
+          <span className="text-xs text-text-secondary mt-1">
+            {Number(dispensedLiters).toFixed(2)} / {Number(targetLiters).toFixed(2)} L
+          </span>
         </div>
       </div>
 
@@ -75,7 +83,25 @@ const ProgressIndicator = ({
             Flujo actual
           </div>
           <div className="text-heading-xs font-semibold text-text-primary">
-            {Number(flowRate).toFixed(1)} L/min
+            {Number.isFinite(flowRate) && flowRate > 0 ? `${Number(flowRate).toFixed(2)} L/min` : '--'}
+          </div>
+        </div>
+
+        <div className="text-center p-3 bg-muted rounded-lg">
+          <div className="text-body-xs text-text-secondary mb-1">
+            Pulsos medidos
+          </div>
+          <div className="text-heading-xs font-semibold text-text-primary">
+            {dispensedPulseCount}
+          </div>
+        </div>
+
+        <div className="text-center p-3 bg-muted rounded-lg">
+          <div className="text-body-xs text-text-secondary mb-1">
+            Calibracion
+          </div>
+          <div className="text-heading-xs font-semibold text-text-primary">
+            {pulsesPerLiter} p/L
           </div>
         </div>
       </div>

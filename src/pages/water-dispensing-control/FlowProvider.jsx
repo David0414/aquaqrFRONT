@@ -3,12 +3,14 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { showErrorToast } from '../../components/ui/NotificationToast';
 import {
+  DEFAULT_PULSES_PER_LITER,
   getCoinLabel,
   getTelemetryStageLabel,
   hexPairToDecimal,
   hexWordToDecimal,
   isActiveHexByte,
   normalizeHexPair,
+  sanitizePulsesPerLiter,
 } from './telemetry';
 
 const API = import.meta.env.VITE_API_URL;
@@ -18,6 +20,7 @@ const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 const DEFAULT_FLOW_LPM = (20 / 10) * 60; // 120
 const INPUT_POLL_INTERVAL_MS = 2000;
 const INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS = 1500;
+const FLOWMETER_PULSES_PER_LITER_KEY = 'flowmeterPulsesPerLiter';
 
 function extractTelemetryBytes(payload) {
   const matches = String(payload || '').toUpperCase().match(/[0-9A-F]{2}/g) || [];
@@ -181,6 +184,10 @@ export default function FlowProvider({ children }) {
 
   const [selectedLiters, setSelectedLiters] = useState(20);
   const [balanceCents, setBalanceCents] = useState(0);
+  const [pulsesPerLiter, setPulsesPerLiterState] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_PULSES_PER_LITER;
+    return sanitizePulsesPerLiter(window.localStorage.getItem(FLOWMETER_PULSES_PER_LITER_KEY));
+  });
 
   const [lastTx, setLastTx] = useState(null);
   const [telemetry, setTelemetry] = useState({
@@ -215,6 +222,15 @@ export default function FlowProvider({ children }) {
   const pollingCooldownUntilRef = useRef(0);
   const telemetryCreditSyncRef = useRef('');
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
+
+  const setPulsesPerLiter = (value) => {
+    const nextValue = sanitizePulsesPerLiter(value);
+    setPulsesPerLiterState(nextValue);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(FLOWMETER_PULSES_PER_LITER_KEY, String(nextValue));
+    }
+    return nextValue;
+  };
 
   useEffect(() => {
     setMachine(machineFromRoute);
@@ -455,6 +471,8 @@ export default function FlowProvider({ children }) {
       newBalanceCents,
       machineId: machine.id,
       location: machine.location,
+      startPulseCount: Number.parseInt(telemetry?.flowmeterPulses, 10) || 0,
+      pulsesPerLiter,
       // ⬇️ Caudal real si viene del backend o 120 L/min por defecto
       flowRateLpm: data.flowRateLpm ?? DEFAULT_FLOW_LPM,
       txId: data.txId,
@@ -475,6 +493,8 @@ export default function FlowProvider({ children }) {
     selectedLiters,
     setSelectedLiters,
     balanceCents,
+    pulsesPerLiter,
+    setPulsesPerLiter,
     lastTx,
     telemetry,
     telemetryEnabled,

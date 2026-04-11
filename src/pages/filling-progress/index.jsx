@@ -1,5 +1,4 @@
-// src/pages/filling-progress/index.jsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ProgressHeader from "./components/ProgressHeader";
 import WaterAnimation from "./components/WaterAnimation";
@@ -8,85 +7,149 @@ import TransactionDetails from "./components/TransactionDetails";
 import HelpModal from "./components/HelpModal";
 import CancelConfirmationModal from "./components/CancelConfirmationModal";
 import BottomTabNavigation from "../../components/ui/BottomTabNavigation";
-import { showSuccessToast, showErrorToast, showWarningToast } from "../../components/ui/NotificationToast";
+import { showWarningToast } from "../../components/ui/NotificationToast";
 import { useDispenseFlow } from "../water-dispensing-control/FlowProvider";
 import TelemetryStatusCard from "../water-dispensing-control/components/TelemetryStatusCard";
+import {
+  DEFAULT_PULSES_PER_LITER,
+  pulsesToLiters,
+  sanitizePulsesPerLiter,
+} from "../water-dispensing-control/telemetry";
 
-function money(n){return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2}).format(n);}
+function money(n) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 2,
+  }).format(n);
+}
 
 export default function FillingProgress() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Ã°Å¸â€Â§ el contexto puede ser null si no estÃƒÂ¡s dentro del Provider
   const flow = useDispenseFlow();
   const lastTx = flow?.lastTx;
   const telemetry = flow?.telemetry;
   const setTelemetryEnabled = flow?.setTelemetryEnabled;
+  const currentPulsesPerLiter = flow?.pulsesPerLiter;
 
-  // Usa la tx que llega por state; si no, cae a la del contexto
   const tx = location.state?.tx || lastTx;
 
   useEffect(() => {
-    if (!tx) navigate('/water/choose', { replace: true });
+    if (!tx) navigate("/water/choose", { replace: true });
   }, [tx, navigate]);
+
   if (!tx) return null;
 
-  const liters = tx.liters;
-  const pricePerLiter = tx.pricePerLiter;
+  const liters = Number(tx.liters) || 0;
+  const pricePerLiter = Number(tx.pricePerLiter) || 0;
   const totalCost = (tx.amountCents ?? Math.round(liters * pricePerLiter * 100)) / 100;
   const prevBalance = (tx.prevBalanceCents ?? 0) / 100;
   const newBalance = (tx.newBalanceCents ?? 0) / 100;
-  const flowRateLpm = tx.flowRateLpm ?? 1.3;
-  const totalSeconds = useMemo(() => Math.max(1, Math.round((liters / flowRateLpm) * 60)), [liters, flowRateLpm]);
+  const startPulseCount = Number.parseInt(tx.startPulseCount, 10) || 0;
+  const pulsesPerLiter = sanitizePulsesPerLiter(
+    tx.pulsesPerLiter ?? currentPulsesPerLiter,
+    DEFAULT_PULSES_PER_LITER,
+  );
 
-  const [progress, setProgress] = useState(0);
-  const [connectionStatus, setConnectionStatus] = useState('connected');
-  const [remainingTime, setRemainingTime] = useState(totalSeconds);
-  const [flowRate, setFlowRate] = useState(flowRateLpm);
+  const [flowRate, setFlowRate] = useState(0);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isDispensing, setIsDispensing] = useState(true);
+  const lastTelemetrySampleRef = useRef(null);
 
   useEffect(() => {
     setTelemetryEnabled?.(true);
     return () => setTelemetryEnabled?.(false);
   }, [setTelemetryEnabled]);
 
+  const currentPulseCount = Number.parseInt(telemetry?.flowmeterPulses, 10);
+  const dispensedPulseCount = useMemo(() => {
+    if (!Number.isFinite(currentPulseCount) || currentPulseCount < 0) return 0;
+    if (currentPulseCount >= startPulseCount) return currentPulseCount - startPulseCount;
+    return currentPulseCount;
+  }, [currentPulseCount, startPulseCount]);
+
+  const dispensedLiters = useMemo(
+    () => Math.min(liters, pulsesToLiters(dispensedPulseCount, pulsesPerLiter)),
+    [dispensedPulseCount, liters, pulsesPerLiter],
+  );
+
+  const progress = useMemo(() => {
+    if (!liters) return 0;
+    return Math.min(100, (dispensedLiters / liters) * 100);
+  }, [dispensedLiters, liters]);
+
+  const remainingTime = useMemo(() => {
+    if (flowRate <= 0) return null;
+    return Math.max(0, Math.ceil(((liters - dispensedLiters) / flowRate) * 60));
+  }, [dispensedLiters, flowRate, liters]);
+
   useEffect(() => {
     if (!isDispensing) return;
-    const start = Date.now();
-    let raf = 0;
-    const tick = () => {
-      const elapsedS = Math.floor((Date.now() - start) / 1000);
-      const pct = Math.min(100, Math.round((elapsedS / totalSeconds) * 100));
-      setProgress(pct);
-      setRemainingTime(Math.max(0, totalSeconds - elapsedS));
-      setFlowRate(Math.max(0.6, flowRateLpm + (Math.random() - 0.5) * 0.2));
-      if (pct >= 100) {
-        setIsDispensing(false);
-        setTimeout(() => navigate('/transaction-complete', { state: { tx } }), 700);
-      } else {
-        raf = requestAnimationFrame(tick);
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [isDispensing, totalSeconds, flowRateLpm, navigate, tx]);
+    if (!Number.isFinite(currentPulseCount) || currentPulseCount < 0) return;
 
-  const donationAmount = Number((totalCost * 0.05).toFixed(2));
+    const now = Date.now();
+    const previous = lastTelemetrySampleRef.current;
+
+    if (
+      previous
+      && currentPulseCount >= previous.pulseCount
+      && now > previous.seenAt
+    ) {
+      const deltaPulses = currentPulseCount - previous.pulseCount;
+      const deltaSeconds = (now - previous.seenAt) / 1000;
+      if (deltaPulses > 0 && deltaSeconds > 0) {
+        const deltaLiters = pulsesToLiters(deltaPulses, pulsesPerLiter);
+        const nextFlowRate = (deltaLiters / deltaSeconds) * 60;
+        setFlowRate(Number(nextFlowRate.toFixed(2)));
+      }
+    }
+
+    lastTelemetrySampleRef.current = {
+      pulseCount: currentPulseCount,
+      seenAt: now,
+    };
+  }, [currentPulseCount, isDispensing, pulsesPerLiter]);
+
+  useEffect(() => {
+    if (!isDispensing) return;
+    if (progress < 100) return;
+
+    setIsDispensing(false);
+    const timeoutId = window.setTimeout(() => {
+      navigate("/transaction-complete", {
+        state: {
+          tx,
+          dispensedLiters,
+          dispensedPulseCount,
+          pulsesPerLiter,
+        },
+      });
+    }, 700);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [dispensedLiters, dispensedPulseCount, isDispensing, navigate, progress, pulsesPerLiter, tx]);
+
   const refundAmount = Number((totalCost * (1 - progress / 100)).toFixed(2));
+  const machineConnectionStatus = telemetry?.lastSeenAt
+    ? (telemetry.machineOnline ? "connected" : "disconnected")
+    : "connecting";
 
   const handleCancelClick = useCallback(() => {
     if (progress > 0 && progress < 100) setIsCancelModalOpen(true);
-    else navigate('/water/choose');
+    else navigate("/water/choose");
   }, [progress, navigate]);
 
   const handleConfirmCancel = useCallback(() => {
     setIsDispensing(false);
-    setConnectionStatus('disconnected');
     showWarningToast(`Dispensado cancelado. Reembolso de ${money(refundAmount)} procesado.`);
-    setTimeout(() => navigate('/home-dashboard', { state: { refundAmount, cancelledAt: new Date().toISOString() } }), 900);
+    window.setTimeout(() => {
+      navigate("/home-dashboard", {
+        state: { refundAmount, cancelledAt: new Date().toISOString() },
+      });
+    }, 900);
   }, [refundAmount, navigate]);
 
   return (
@@ -94,14 +157,30 @@ export default function FillingProgress() {
       <ProgressHeader
         machineId={tx.machineId}
         location={tx.location}
-        connectionStatus={connectionStatus}
+        connectionStatus={machineConnectionStatus}
         onCancel={handleCancelClick}
       />
 
       <div className="px-4 py-6 pb-20 space-y-8">
-        <div className="text-center"><WaterAnimation isActive={isDispensing} /></div>
-        <ProgressIndicator progress={progress} remainingTime={remainingTime} flowRate={flowRate} isActive={isDispensing}/>
-        {telemetry ? <TelemetryStatusCard telemetry={telemetry} title="Telemetria del dispensado" compact /> : null}
+        <div className="text-center">
+          <WaterAnimation isActive={isDispensing} />
+        </div>
+
+        <ProgressIndicator
+          progress={progress}
+          remainingTime={remainingTime}
+          flowRate={flowRate}
+          isActive={isDispensing}
+          dispensedLiters={dispensedLiters}
+          targetLiters={liters}
+          dispensedPulseCount={dispensedPulseCount}
+          pulsesPerLiter={pulsesPerLiter}
+        />
+
+        {telemetry ? (
+          <TelemetryStatusCard telemetry={telemetry} title="Telemetria del dispensado" compact />
+        ) : null}
+
         <TransactionDetails
           selectedLiters={liters}
           pricePerLiter={pricePerLiter}
@@ -109,9 +188,32 @@ export default function FillingProgress() {
           currentBalance={prevBalance}
           remainingBalance={newBalance}
         />
+
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-background px-3 py-2">
+              <p className="text-xs uppercase tracking-wide text-text-secondary">Litros reales</p>
+              <p className="mt-1 text-lg font-semibold text-text-primary">
+                {dispensedLiters.toFixed(2)} / {liters.toFixed(2)} L
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-background px-3 py-2">
+              <p className="text-xs uppercase tracking-wide text-text-secondary">Pulsos usados</p>
+              <p className="mt-1 text-lg font-semibold text-text-primary">{dispensedPulseCount}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-background px-3 py-2">
+              <p className="text-xs uppercase tracking-wide text-text-secondary">Calibracion</p>
+              <p className="mt-1 text-lg font-semibold text-text-primary">{pulsesPerLiter} pulsos/L</p>
+            </div>
+          </div>
+        </div>
+
         <div className="text-center">
-          <button onClick={() => setIsHelpModalOpen(true)} className="inline-flex items-center space-x-2 px-6 py-3 bg-muted rounded-full hover:bg-muted/80 transition-colors duration-200">
-            <span className="text-body-sm font-medium text-text-primary">Ã‚Â¿Necesitas ayuda?</span>
+          <button
+            onClick={() => setIsHelpModalOpen(true)}
+            className="inline-flex items-center space-x-2 px-6 py-3 bg-muted rounded-full hover:bg-muted/80 transition-colors duration-200"
+          >
+            <span className="text-body-sm font-medium text-text-primary">¿Necesitas ayuda?</span>
           </button>
         </div>
       </div>

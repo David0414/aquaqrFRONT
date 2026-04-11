@@ -7,6 +7,7 @@ import MachineInfoCard from '../water-dispensing-control/components/MachineInfoC
 import TelemetryStatusCard from '../water-dispensing-control/components/TelemetryStatusCard';
 import { showErrorToast, showSuccessToast } from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
+import { pulsesToLiters, sanitizePulsesPerLiter } from '../water-dispensing-control/telemetry';
 
 const DEMO_ACTIONS = [
   { key: 'bomba_on', label: 'Bomba ON', variant: 'success' },
@@ -34,11 +35,14 @@ export default function WaterMonitor() {
     connectionStatus,
     telemetry,
     pricePerLiterCents,
+    pulsesPerLiter,
+    setPulsesPerLiter,
     setTelemetryEnabled,
     sendStageCommand,
   } = useDispenseFlow();
   const [loadingAction, setLoadingAction] = useState('');
   const [demoResponse, setDemoResponse] = useState(null);
+  const [pulsesPerLiterInput, setPulsesPerLiterInput] = useState(String(pulsesPerLiter || 360));
 
   useEffect(() => {
     setTelemetryEnabled(true);
@@ -46,6 +50,10 @@ export default function WaterMonitor() {
       setTelemetryEnabled(false);
     };
   }, [setTelemetryEnabled]);
+
+  useEffect(() => {
+    setPulsesPerLiterInput(String(pulsesPerLiter || 360));
+  }, [pulsesPerLiter]);
 
   const machineConnectionStatus = telemetry.lastSeenAt
     ? (telemetry.machineOnline ? 'connected' : 'disconnected')
@@ -63,6 +71,15 @@ export default function WaterMonitor() {
       setLoadingAction('');
     }
   };
+
+  const handleSavePulsesPerLiter = () => {
+    const nextValue = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
+    setPulsesPerLiter(nextValue);
+    setPulsesPerLiterInput(String(nextValue));
+    showSuccessToast(`Calibracion guardada: ${nextValue} pulsos por litro`);
+  };
+
+  const flowmeterLiters = pulsesToLiters(telemetry.flowmeterPulses, pulsesPerLiter);
 
   return (
     <div className="min-h-screen bg-background">
@@ -115,6 +132,40 @@ export default function WaterMonitor() {
             </div>
 
             <TelemetryStatusCard telemetry={telemetry} title="Estado actual de la maquina" />
+
+            <div className="rounded-xl border border-border bg-background p-4">
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                <Input
+                  label="Pulsos por litro"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={pulsesPerLiterInput}
+                  onChange={(event) => setPulsesPerLiterInput(event.target.value)}
+                  description="Usa aqui tu constante del caudalimetro. Ejemplo: 360 pulsos = 1 litro."
+                />
+                <Button onClick={handleSavePulsesPerLiter}>
+                  Guardar calibracion
+                </Button>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-border bg-card px-3 py-2">
+                  <p className="text-xs uppercase tracking-wide text-text-secondary">Litros estimados por pulsos</p>
+                  <p className="mt-1 text-lg font-semibold text-text-primary">{flowmeterLiters.toFixed(3)} L</p>
+                  <p className="mt-1 text-xs text-text-secondary">
+                    {telemetry.flowmeterPulses ?? 0} pulsos / {pulsesPerLiter} pulsos por litro
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-card px-3 py-2">
+                  <p className="text-xs uppercase tracking-wide text-text-secondary">Formula usada</p>
+                  <p className="mt-1 text-lg font-semibold text-text-primary">litros = pulsos / constante</p>
+                  <p className="mt-1 text-xs text-text-secondary">
+                    Ajusta este valor hasta que el volumen real coincida con lo que sale de la maquina.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-2">
               {DEMO_ACTIONS.map((item) => (
