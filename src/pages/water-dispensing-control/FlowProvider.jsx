@@ -18,7 +18,7 @@ const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 
 // Caudal por defecto: 20L en 10s -> 120 L/min
 const DEFAULT_FLOW_LPM = (20 / 10) * 60; // 120
-const INPUT_POLL_INTERVAL_MS = 2000;
+const INPUT_POLL_INTERVAL_MS = 1000;
 const INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS = 1500;
 const FLOWMETER_PULSES_PER_LITER_KEY = 'flowmeterPulsesPerLiter';
 
