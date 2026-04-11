@@ -134,6 +134,8 @@ export default function WaterMonitor() {
             <TelemetryStatusCard
               telemetry={telemetry}
               title="Estado actual de la maquina"
+              showStageMetric
+              showFlowmeterMetric
               showCoinMetrics
             />
 

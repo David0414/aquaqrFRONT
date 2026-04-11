@@ -57,12 +57,28 @@ export default function FillingProgress() {
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isDispensing, setIsDispensing] = useState(true);
+  const [displayTelemetry, setDisplayTelemetry] = useState(telemetry || null);
   const lastTelemetrySampleRef = useRef(null);
+  const completionScheduledRef = useRef(false);
 
   useEffect(() => {
     setTelemetryEnabled?.(true);
     return () => setTelemetryEnabled?.(false);
   }, [setTelemetryEnabled]);
+
+  useEffect(() => {
+    if (!telemetry) return;
+
+    const isDispensingTelemetry =
+      telemetry.currentStageCode === "06"
+      || telemetry.pumpOn
+      || telemetry.fillValveOn
+      || (Number.parseInt(telemetry.flowmeterPulses, 10) || 0) > startPulseCount;
+
+    if (isDispensing || progress < 100 || isDispensingTelemetry) {
+      setDisplayTelemetry(telemetry);
+    }
+  }, [isDispensing, progress, startPulseCount, telemetry]);
 
   const currentPulseCount = Number.parseInt(telemetry?.flowmeterPulses, 10);
   const dispensedPulseCount = useMemo(() => {
@@ -114,9 +130,10 @@ export default function FillingProgress() {
   }, [currentPulseCount, isDispensing, pulsesPerLiter]);
 
   useEffect(() => {
-    if (!isDispensing) return;
     if (progress < 100) return;
+    if (completionScheduledRef.current) return;
 
+    completionScheduledRef.current = true;
     setIsDispensing(false);
     const timeoutId = window.setTimeout(() => {
       navigate("/transaction-complete", {
@@ -130,11 +147,11 @@ export default function FillingProgress() {
     }, 700);
 
     return () => window.clearTimeout(timeoutId);
-  }, [dispensedLiters, dispensedPulseCount, isDispensing, navigate, progress, pulsesPerLiter, tx]);
+  }, [dispensedLiters, dispensedPulseCount, navigate, progress, pulsesPerLiter, tx]);
 
   const refundAmount = Number((totalCost * (1 - progress / 100)).toFixed(2));
-  const machineConnectionStatus = telemetry?.lastSeenAt
-    ? (telemetry.machineOnline ? "connected" : "disconnected")
+  const machineConnectionStatus = displayTelemetry?.lastSeenAt
+    ? (displayTelemetry.machineOnline ? "connected" : "disconnected")
     : "connecting";
 
   const handleCancelClick = useCallback(() => {
@@ -177,8 +194,8 @@ export default function FillingProgress() {
           pulsesPerLiter={pulsesPerLiter}
         />
 
-        {telemetry ? (
-          <TelemetryStatusCard telemetry={telemetry} title="Telemetria del dispensado" compact />
+        {displayTelemetry ? (
+          <TelemetryStatusCard telemetry={displayTelemetry} title="Telemetria del dispensado" compact />
         ) : null}
 
         <TransactionDetails

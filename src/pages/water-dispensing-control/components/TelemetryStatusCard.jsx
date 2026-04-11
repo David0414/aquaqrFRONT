@@ -25,23 +25,30 @@ export default function TelemetryStatusCard({
   title = 'Estado actual',
   compact = false,
   showCoinMetrics = false,
+  showStageMetric = false,
+  showFlowmeterMetric = false,
 }) {
   const wrapperClassName = compact
     ? 'space-y-3 rounded-2xl border border-border bg-card p-4'
     : 'space-y-4 rounded-2xl border border-border bg-card p-4';
 
-  const metrics = [
-    {
+  const metrics = [];
+
+  if (showStageMetric) {
+    metrics.push({
       label: 'Paso actual',
       value: telemetry.currentStageLabel || 'Sin etapa',
       hint: `Byte ${telemetry.currentStageCode || '--'}`,
-    },
-    {
+    });
+  }
+
+  if (showFlowmeterMetric) {
+    metrics.push({
       label: 'Caudalimetro',
       value: `${telemetry.flowmeterPulses ?? 0} pulsos`,
       hint: `Hex ${telemetry.flowmeterHex || '--'}`,
-    },
-  ];
+    });
+  }
 
   if (showCoinMetrics) {
     metrics.push(
@@ -110,16 +117,18 @@ export default function TelemetryStatusCard({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <MetricItem
-            key={metric.label}
-            label={metric.label}
-            value={metric.value}
-            hint={metric.hint}
-          />
-        ))}
-      </div>
+      {metrics.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {metrics.map((metric) => (
+            <MetricItem
+              key={metric.label}
+              label={metric.label}
+              value={metric.value}
+              hint={metric.hint}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
