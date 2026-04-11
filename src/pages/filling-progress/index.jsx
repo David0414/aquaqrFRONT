@@ -66,20 +66,6 @@ export default function FillingProgress() {
     return () => setTelemetryEnabled?.(false);
   }, [setTelemetryEnabled]);
 
-  useEffect(() => {
-    if (!telemetry) return;
-
-    const isDispensingTelemetry =
-      telemetry.currentStageCode === "06"
-      || telemetry.pumpOn
-      || telemetry.fillValveOn
-      || (Number.parseInt(telemetry.flowmeterPulses, 10) || 0) > startPulseCount;
-
-    if (isDispensing || progress < 100 || isDispensingTelemetry) {
-      setDisplayTelemetry(telemetry);
-    }
-  }, [isDispensing, progress, startPulseCount, telemetry]);
-
   const currentPulseCount = Number.parseInt(telemetry?.flowmeterPulses, 10);
   const dispensedPulseCount = useMemo(() => {
     if (!Number.isFinite(currentPulseCount) || currentPulseCount < 0) return 0;
@@ -96,6 +82,20 @@ export default function FillingProgress() {
     if (!liters) return 0;
     return Math.min(100, (dispensedLiters / liters) * 100);
   }, [dispensedLiters, liters]);
+
+  useEffect(() => {
+    if (!telemetry) return;
+
+    const isDispensingTelemetry =
+      telemetry.currentStageCode === "06"
+      || telemetry.pumpOn
+      || telemetry.fillValveOn
+      || (Number.parseInt(telemetry.flowmeterPulses, 10) || 0) > startPulseCount;
+
+    if (isDispensing || progress < 100 || isDispensingTelemetry) {
+      setDisplayTelemetry(telemetry);
+    }
+  }, [isDispensing, progress, startPulseCount, telemetry]);
 
   const remainingTime = useMemo(() => {
     if (flowRate <= 0) return null;
