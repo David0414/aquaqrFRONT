@@ -131,7 +131,11 @@ export default function WaterMonitor() {
               <Input label="Hex solidos" value={telemetry.solidsHex} readOnly placeholder="--" />
             </div>
 
-            <TelemetryStatusCard telemetry={telemetry} title="Estado actual de la maquina" />
+            <TelemetryStatusCard
+              telemetry={telemetry}
+              title="Estado actual de la maquina"
+              showCoinMetrics
+            />
 
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">

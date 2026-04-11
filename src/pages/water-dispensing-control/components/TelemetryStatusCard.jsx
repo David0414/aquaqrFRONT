@@ -20,10 +20,43 @@ function MetricItem({ label, value, hint }) {
   );
 }
 
-export default function TelemetryStatusCard({ telemetry, title = 'Estado actual', compact = false }) {
+export default function TelemetryStatusCard({
+  telemetry,
+  title = 'Estado actual',
+  compact = false,
+  showCoinMetrics = false,
+}) {
   const wrapperClassName = compact
     ? 'space-y-3 rounded-2xl border border-border bg-card p-4'
     : 'space-y-4 rounded-2xl border border-border bg-card p-4';
+
+  const metrics = [
+    {
+      label: 'Paso actual',
+      value: telemetry.currentStageLabel || 'Sin etapa',
+      hint: `Byte ${telemetry.currentStageCode || '--'}`,
+    },
+    {
+      label: 'Caudalimetro',
+      value: `${telemetry.flowmeterPulses ?? 0} pulsos`,
+      hint: `Hex ${telemetry.flowmeterHex || '--'}`,
+    },
+  ];
+
+  if (showCoinMetrics) {
+    metrics.push(
+      {
+        label: 'Moneda insertada',
+        value: telemetry.insertedCoinLabel || 'Sin moneda',
+        hint: `Hex ${telemetry.coinHex || '--'}`,
+      },
+      {
+        label: 'Dinero acumulado',
+        value: formatMoneyAmount(telemetry.accumulatedMoney),
+        hint: `Hex ${telemetry.accumulatedMoneyHex || '--'}`,
+      },
+    );
+  }
 
   return (
     <div className={wrapperClassName}>
@@ -78,26 +111,14 @@ export default function TelemetryStatusCard({ telemetry, title = 'Estado actual'
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricItem
-          label="Paso actual"
-          value={telemetry.currentStageLabel || 'Sin etapa'}
-          hint={`Byte ${telemetry.currentStageCode || '--'}`}
-        />
-        <MetricItem
-          label="Caudalimetro"
-          value={`${telemetry.flowmeterPulses ?? 0} pulsos`}
-          hint={`Hex ${telemetry.flowmeterHex || '--'}`}
-        />
-        <MetricItem
-          label="Moneda insertada"
-          value={telemetry.insertedCoinLabel || 'Sin moneda'}
-          hint={`Hex ${telemetry.coinHex || '--'}`}
-        />
-        <MetricItem
-          label="Dinero acumulado"
-          value={formatMoneyAmount(telemetry.accumulatedMoney)}
-          hint={`Hex ${telemetry.accumulatedMoneyHex || '--'}`}
-        />
+        {metrics.map((metric) => (
+          <MetricItem
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+            hint={metric.hint}
+          />
+        ))}
       </div>
     </div>
   );

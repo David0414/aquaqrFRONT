@@ -189,7 +189,7 @@ const Routes = () => {
 
           {/* Envuelve filling-progress con Provider para no perder contexto */}
           <Route
-            path="/filling-s"
+            path="/filling-progress"
             element={
               <Protected>
                 <FlowProvider>
