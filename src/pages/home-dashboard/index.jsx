@@ -8,8 +8,8 @@ import NotificationToast from '../../components/ui/NotificationToast';
 import BalanceCard from './components/BalanceCard';
 import PromotionalBanner from './components/PromotionalBanner';
 import WaterDropAvatar from './components/WaterDropAvatar';
+import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
-import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 
 const API = import.meta.env.VITE_API_URL;
@@ -21,6 +21,7 @@ const HomeDashboard = () => {
   // Clerk
   const { isLoaded: isClerkLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
+  const { setTelemetryEnabled, pollInputs } = useDispenseFlow();
 
   const displayName = useMemo(() => {
     if (!user) return 'AquaQR';
@@ -66,7 +67,23 @@ const HomeDashboard = () => {
   }, [isClerkLoaded, isSignedIn]);
 
   useEffect(() => {
-    const onFocus = () => fetchWallet();
+    if (!isClerkLoaded || !isSignedIn) return undefined;
+
+    setTelemetryEnabled(true);
+    pollInputs({ force: true }).catch(() => {});
+
+    return () => {
+      setTelemetryEnabled(false);
+    };
+  }, [isClerkLoaded, isSignedIn, pollInputs, setTelemetryEnabled]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      fetchWallet();
+      if (isClerkLoaded && isSignedIn) {
+        pollInputs({ force: true }).catch(() => {});
+      }
+    };
     const onWalletUpdated = (event) => {
       const nextBalanceCents = Number(event?.detail?.balanceCents);
       if (Number.isFinite(nextBalanceCents)) {
@@ -84,7 +101,7 @@ const HomeDashboard = () => {
       window.removeEventListener('wallet:updated', onWalletUpdated);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClerkLoaded, isSignedIn]);
+  }, [isClerkLoaded, isSignedIn, pollInputs]);
 
   // Navegaciones
   const handleRecharge = () => navigate('/balance-recharge');

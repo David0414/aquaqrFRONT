@@ -129,7 +129,9 @@ const Routes = () => {
             path="/home-dashboard"
             element={
               <Protected>
-                <HomeDashboard />
+                <FlowProvider>
+                  <HomeDashboard />
+                </FlowProvider>
               </Protected>
             }
           />
