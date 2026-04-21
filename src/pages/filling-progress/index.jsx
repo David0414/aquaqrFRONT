@@ -59,8 +59,20 @@ export default function FillingProgress() {
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isDispensing, setIsDispensing] = useState(true);
   const [displayTelemetry, setDisplayTelemetry] = useState(telemetry || null);
+  const [progressSnapshot, setProgressSnapshot] = useState({
+    progress: 0,
+    dispensedLiters: 0,
+    dispensedPulseCount: 0,
+  });
   const lastTelemetrySampleRef = useRef(null);
   const completionScheduledRef = useRef(false);
+  const completionSnapshotRef = useRef({
+    sawFilling: false,
+    sawComplete: false,
+    progress: 0,
+    dispensedLiters: 0,
+    dispensedPulseCount: 0,
+  });
 
   useEffect(() => {
     setTelemetryEnabled?.(true);
@@ -83,7 +95,57 @@ export default function FillingProgress() {
     if (!liters) return 0;
     return Math.min(100, (dispensedLiters / liters) * 100);
   }, [dispensedLiters, liters]);
-  const isTelemetryComplete = telemetry?.currentStageCode === "07";
+  const currentStageCode = telemetry?.currentStageCode || "";
+  const isTelemetryComplete = currentStageCode === "07";
+
+  useEffect(() => {
+    const snapshot = completionSnapshotRef.current;
+    const isFillingTelemetry =
+      currentStageCode === "06"
+      || telemetry?.pumpOn
+      || telemetry?.fillValveOn
+      || progress > 0
+      || dispensedPulseCount > 0;
+
+    if (isFillingTelemetry) {
+      snapshot.sawFilling = true;
+    }
+
+    if (isTelemetryComplete) {
+      snapshot.sawComplete = true;
+      snapshot.sawFilling = true;
+    }
+
+    const nextProgress = isTelemetryComplete ? 100 : Math.max(snapshot.progress, progress);
+    const nextDispensedLiters = isTelemetryComplete
+      ? Math.max(snapshot.dispensedLiters, dispensedLiters, liters)
+      : Math.max(snapshot.dispensedLiters, dispensedLiters);
+    const nextDispensedPulseCount = Math.max(snapshot.dispensedPulseCount, dispensedPulseCount);
+
+    if (
+      nextProgress !== snapshot.progress
+      || nextDispensedLiters !== snapshot.dispensedLiters
+      || nextDispensedPulseCount !== snapshot.dispensedPulseCount
+    ) {
+      snapshot.progress = nextProgress;
+      snapshot.dispensedLiters = nextDispensedLiters;
+      snapshot.dispensedPulseCount = nextDispensedPulseCount;
+      setProgressSnapshot({
+        progress: nextProgress,
+        dispensedLiters: nextDispensedLiters,
+        dispensedPulseCount: nextDispensedPulseCount,
+      });
+    }
+  }, [
+    currentStageCode,
+    dispensedLiters,
+    dispensedPulseCount,
+    isTelemetryComplete,
+    liters,
+    progress,
+    telemetry?.fillValveOn,
+    telemetry?.pumpOn,
+  ]);
 
   useEffect(() => {
     if (!telemetry) return;
@@ -132,7 +194,13 @@ export default function FillingProgress() {
   }, [currentPulseCount, isDispensing, pulsesPerLiter]);
 
   useEffect(() => {
-    if (!isTelemetryComplete) return;
+    const snapshot = completionSnapshotRef.current;
+    const completedByResetToIdle =
+      currentStageCode === "00"
+      && snapshot.sawFilling
+      && snapshot.progress >= 99.5;
+
+    if (!isTelemetryComplete && !completedByResetToIdle) return;
     if (completionScheduledRef.current) return;
 
     completionScheduledRef.current = true;
@@ -142,8 +210,8 @@ export default function FillingProgress() {
     const finishAndCharge = async () => {
       try {
         const completedTx = await completeDispense(tx, {
-          dispensedLiters,
-          dispensedPulseCount,
+          dispensedLiters: snapshot.dispensedLiters || dispensedLiters,
+          dispensedPulseCount: snapshot.dispensedPulseCount || dispensedPulseCount,
           pulsesPerLiter,
         });
         if (cancelled) return;
@@ -151,8 +219,8 @@ export default function FillingProgress() {
         navigate("/transaction-complete", {
           state: {
             tx: completedTx,
-            dispensedLiters,
-            dispensedPulseCount,
+            dispensedLiters: snapshot.dispensedLiters || dispensedLiters,
+            dispensedPulseCount: snapshot.dispensedPulseCount || dispensedPulseCount,
             pulsesPerLiter,
           },
         });
@@ -166,8 +234,8 @@ export default function FillingProgress() {
               returnTo: "/transaction-complete",
               requiredAmount: error.requiredAmount,
               tx,
-              dispensedLiters,
-              dispensedPulseCount,
+              dispensedLiters: snapshot.dispensedLiters || dispensedLiters,
+              dispensedPulseCount: snapshot.dispensedPulseCount || dispensedPulseCount,
               pulsesPerLiter,
               fromInsufficientBalance: true,
             },
@@ -184,17 +252,20 @@ export default function FillingProgress() {
     return () => {
       cancelled = true;
     };
-  }, [completeDispense, dispensedLiters, dispensedPulseCount, isTelemetryComplete, navigate, pulsesPerLiter, tx]);
+  }, [completeDispense, currentStageCode, dispensedLiters, dispensedPulseCount, isTelemetryComplete, navigate, pulsesPerLiter, tx]);
 
-  const refundAmount = Number((totalCost * (1 - progress / 100)).toFixed(2));
+  const displayProgress = Math.max(progress, progressSnapshot.progress);
+  const displayDispensedLiters = Math.max(dispensedLiters, progressSnapshot.dispensedLiters);
+  const displayDispensedPulseCount = Math.max(dispensedPulseCount, progressSnapshot.dispensedPulseCount);
+  const refundAmount = Number((totalCost * (1 - displayProgress / 100)).toFixed(2));
   const machineConnectionStatus = displayTelemetry?.lastSeenAt
     ? (displayTelemetry.machineOnline ? "connected" : "disconnected")
     : "connecting";
 
   const handleCancelClick = useCallback(() => {
-    if (progress > 0 && progress < 100) setIsCancelModalOpen(true);
+    if (displayProgress > 0 && displayProgress < 100) setIsCancelModalOpen(true);
     else navigate("/water/choose");
-  }, [progress, navigate]);
+  }, [displayProgress, navigate]);
 
   const handleConfirmCancel = useCallback(() => {
     setIsDispensing(false);
@@ -221,13 +292,13 @@ export default function FillingProgress() {
         </div>
 
         <ProgressIndicator
-          progress={progress}
+          progress={displayProgress}
           remainingTime={remainingTime}
           flowRate={flowRate}
           isActive={isDispensing}
-          dispensedLiters={dispensedLiters}
+          dispensedLiters={displayDispensedLiters}
           targetLiters={liters}
-          dispensedPulseCount={dispensedPulseCount}
+          dispensedPulseCount={displayDispensedPulseCount}
           pulsesPerLiter={pulsesPerLiter}
         />
 
@@ -248,12 +319,12 @@ export default function FillingProgress() {
             <div className="rounded-xl border border-border bg-background px-3 py-2">
               <p className="text-xs uppercase tracking-wide text-text-secondary">Litros reales</p>
               <p className="mt-1 text-lg font-semibold text-text-primary">
-                {dispensedLiters.toFixed(2)} / {liters.toFixed(2)} L
+                {displayDispensedLiters.toFixed(2)} / {liters.toFixed(2)} L
               </p>
             </div>
             <div className="rounded-xl border border-border bg-background px-3 py-2">
               <p className="text-xs uppercase tracking-wide text-text-secondary">Pulsos usados</p>
-              <p className="mt-1 text-lg font-semibold text-text-primary">{dispensedPulseCount}</p>
+              <p className="mt-1 text-lg font-semibold text-text-primary">{displayDispensedPulseCount}</p>
             </div>
             <div className="rounded-xl border border-border bg-background px-3 py-2">
               <p className="text-xs uppercase tracking-wide text-text-secondary">Calibracion</p>
@@ -277,7 +348,7 @@ export default function FillingProgress() {
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}
         onConfirm={handleConfirmCancel}
-        progress={progress}
+        progress={displayProgress}
         totalCost={totalCost}
         refundAmount={refundAmount}
       />
