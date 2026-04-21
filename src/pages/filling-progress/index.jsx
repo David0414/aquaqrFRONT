@@ -7,7 +7,7 @@ import TransactionDetails from "./components/TransactionDetails";
 import HelpModal from "./components/HelpModal";
 import CancelConfirmationModal from "./components/CancelConfirmationModal";
 import BottomTabNavigation from "../../components/ui/BottomTabNavigation";
-import { showWarningToast } from "../../components/ui/NotificationToast";
+import { showErrorToast, showWarningToast } from "../../components/ui/NotificationToast";
 import { useDispenseFlow } from "../water-dispensing-control/FlowProvider";
 import TelemetryStatusCard from "../water-dispensing-control/components/TelemetryStatusCard";
 import {
@@ -33,6 +33,7 @@ export default function FillingProgress() {
   const telemetry = flow?.telemetry;
   const setTelemetryEnabled = flow?.setTelemetryEnabled;
   const currentPulsesPerLiter = flow?.pulsesPerLiter;
+  const completeDispense = flow?.completeDispense;
 
   const tx = location.state?.tx || lastTx;
 
@@ -82,6 +83,7 @@ export default function FillingProgress() {
     if (!liters) return 0;
     return Math.min(100, (dispensedLiters / liters) * 100);
   }, [dispensedLiters, liters]);
+  const isTelemetryComplete = telemetry?.currentStageCode === "07";
 
   useEffect(() => {
     if (!telemetry) return;
@@ -130,24 +132,59 @@ export default function FillingProgress() {
   }, [currentPulseCount, isDispensing, pulsesPerLiter]);
 
   useEffect(() => {
-    if (progress < 100) return;
+    if (!isTelemetryComplete) return;
     if (completionScheduledRef.current) return;
 
     completionScheduledRef.current = true;
     setIsDispensing(false);
-    const timeoutId = window.setTimeout(() => {
-      navigate("/transaction-complete", {
-        state: {
-          tx,
+
+    let cancelled = false;
+    const finishAndCharge = async () => {
+      try {
+        const completedTx = await completeDispense(tx, {
           dispensedLiters,
           dispensedPulseCount,
           pulsesPerLiter,
-        },
-      });
-    }, 700);
+        });
+        if (cancelled) return;
 
-    return () => window.clearTimeout(timeoutId);
-  }, [dispensedLiters, dispensedPulseCount, navigate, progress, pulsesPerLiter, tx]);
+        navigate("/transaction-complete", {
+          state: {
+            tx: completedTx,
+            dispensedLiters,
+            dispensedPulseCount,
+            pulsesPerLiter,
+          },
+        });
+      } catch (error) {
+        completionScheduledRef.current = false;
+        if (cancelled) return;
+
+        if (error?.code === "INSUFFICIENT_FUNDS") {
+          navigate("/balance-recharge", {
+            state: {
+              returnTo: "/transaction-complete",
+              requiredAmount: error.requiredAmount,
+              tx,
+              dispensedLiters,
+              dispensedPulseCount,
+              pulsesPerLiter,
+              fromInsufficientBalance: true,
+            },
+          });
+          return;
+        }
+
+        showErrorToast(error?.message || "No se pudo cobrar el dispensado finalizado");
+      }
+    };
+
+    finishAndCharge();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [completeDispense, dispensedLiters, dispensedPulseCount, isTelemetryComplete, navigate, pulsesPerLiter, tx]);
 
   const refundAmount = Number((totalCost * (1 - progress / 100)).toFixed(2));
   const machineConnectionStatus = displayTelemetry?.lastSeenAt

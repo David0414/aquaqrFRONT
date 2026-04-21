@@ -10,7 +10,7 @@ import TelemetryStatusCard from '../components/TelemetryStatusCard';
 
 export default function PlaceBottleUp() {
   const navigate = useNavigate();
-  const { startDispense, selectedLiters, telemetry, setTelemetryEnabled } = useDispenseFlow();
+  const { startDispense, selectedLiters, telemetry, setTelemetryEnabled, pollInputs } = useDispenseFlow();
   const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
@@ -18,10 +18,19 @@ export default function PlaceBottleUp() {
     return () => setTelemetryEnabled(false);
   }, [setTelemetryEnabled]);
 
+  const currentStageCode = telemetry.currentStageCode || '00';
+  const canStartFilling = currentStageCode === '05';
+
   const handleStart = async () => {
     try {
+      if (!canStartFilling) {
+        showErrorToast(`Espera el paso 05 para iniciar llenado. Paso actual: ${currentStageCode}.`);
+        return;
+      }
+
       setLoading(true);
-      const tx = await startDispense(); // cobra del saldo y arranca
+      const tx = await startDispense(); // arranca llenado; el cobro se hace al finalizar
+      await pollInputs({ force: true }).catch(() => {});
       showSuccessToast('Dispensado iniciado');
       navigate('/filling-progress', { state: { tx } });
     } catch (err) {
@@ -68,7 +77,12 @@ export default function PlaceBottleUp() {
         <Button variant="secondary" className="flex-1" onClick={() => navigate('/water/position-down')}>
           <Icon name="ArrowLeft" size={18} /> AtrÃƒÂ¡s
         </Button>
-        <Button className="flex-1" onClick={handleStart} loading={loading}>
+        <Button
+          className="flex-1"
+          onClick={handleStart}
+          loading={loading}
+          disabled={!canStartFilling || loading}
+        >
           <Icon name="Play" size={18} /> Iniciar dispensado
         </Button>
       </div>

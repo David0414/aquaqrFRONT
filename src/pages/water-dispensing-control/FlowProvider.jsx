@@ -6,6 +6,7 @@ import {
   DEFAULT_PULSES_PER_LITER,
   getCoinLabel,
   getTelemetryStageLabel,
+  getTelemetryStepInfo,
   hexPairToDecimal,
   hexWordToDecimal,
   isActiveHexByte,
@@ -55,6 +56,8 @@ function parseTelemetryPayload(payload) {
   const insertedCoinAmount = hexPairToDecimal(coinByte);
   const accumulatedMoney = hexPairToDecimal(accumulatedMoneyByte);
   const phVoltage = Number(((phDecimal * 5) / 1023).toFixed(3));
+  const currentStageCode = normalizeHexPair(stageByte) || '00';
+  const currentStepInfo = getTelemetryStepInfo(currentStageCode);
 
   return {
     rawFrame: bytes.join('-'),
@@ -68,8 +71,9 @@ function parseTelemetryPayload(payload) {
     rinseValveOn: isActiveHexByte(rinseValveByte),
     pumpOn: isActiveHexByte(pumpByte),
     pumpHex: normalizeHexPair(pumpByte) || '00',
-    currentStageCode: normalizeHexPair(stageByte) || '00',
-    currentStageLabel: getTelemetryStageLabel(stageByte),
+    currentStageCode,
+    currentStageLabel: currentStepInfo.label,
+    currentStageInstruction: currentStepInfo.instruction,
     flowmeterHex: `${flowmeterHigh}-${flowmeterLow}`,
     flowmeterPulses,
     coinHex: normalizeHexPair(coinByte) || '00',
@@ -83,16 +87,42 @@ function parseTelemetryPayload(payload) {
 
 function applyTelemetryActionSnapshot(currentTelemetry, action) {
   const nextSeenAt = Date.now();
+  const withStage = (nextTelemetry, stageCode) => {
+    const stepInfo = getTelemetryStepInfo(stageCode);
+    return {
+      ...nextTelemetry,
+      currentStageCode: stepInfo.code,
+      currentStageLabel: stepInfo.label,
+      currentStageInstruction: stepInfo.instruction,
+      lastSeenAt: nextSeenAt,
+      error: '',
+    };
+  };
 
   switch (action) {
-    case 'valvula_llenado_on':
-      return {
+    case 'qr_inicio':
+      return withStage(currentTelemetry, '01');
+    case 'litros_5':
+    case 'litros_10':
+    case 'litros_20':
+      return withStage(currentTelemetry, '03');
+    case 'enjuague':
+      return withStage({
+        ...currentTelemetry,
+        rinseValveOn: true,
+      }, '04');
+    case 'inicio_dispensado':
+      return withStage({
         ...currentTelemetry,
         pumpOn: true,
         fillValveOn: true,
-        lastSeenAt: nextSeenAt,
-        error: '',
-      };
+      }, '06');
+    case 'valvula_llenado_on':
+      return withStage({
+        ...currentTelemetry,
+        pumpOn: true,
+        fillValveOn: true,
+      }, '06');
     case 'valvula_llenado_off':
       return {
         ...currentTelemetry,
@@ -102,12 +132,10 @@ function applyTelemetryActionSnapshot(currentTelemetry, action) {
         error: '',
       };
     case 'valvula_enjuague_on':
-      return {
+      return withStage({
         ...currentTelemetry,
         rinseValveOn: true,
-        lastSeenAt: nextSeenAt,
-        error: '',
-      };
+      }, '04');
     case 'valvula_enjuague_off':
       return {
         ...currentTelemetry,
@@ -205,7 +233,8 @@ export default function FlowProvider({ children }) {
     pumpOn: false,
     pumpHex: '00',
     currentStageCode: '00',
-    currentStageLabel: 'Sin etapa',
+    currentStageLabel: getTelemetryStageLabel('00'),
+    currentStageInstruction: getTelemetryStepInfo('00').instruction,
     flowmeterHex: '',
     flowmeterPulses: null,
     coinHex: '00',
@@ -328,6 +357,7 @@ export default function FlowProvider({ children }) {
         pumpHex: parsed.pumpHex,
         currentStageCode: parsed.currentStageCode,
         currentStageLabel: parsed.currentStageLabel,
+        currentStageInstruction: parsed.currentStageInstruction,
         flowmeterHex: parsed.flowmeterHex,
         flowmeterPulses: parsed.flowmeterPulses,
         coinHex: parsed.coinHex,
@@ -435,7 +465,7 @@ export default function FlowProvider({ children }) {
     }
   }
 
-  // Cobra e inicia el dispensado
+  // Inicia el llenado en la maquina. El cobro se confirma al finalizar.
   async function startDispense() {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
     const res = await fetch(`${API}/api/dispense`, {
@@ -459,7 +489,7 @@ export default function FlowProvider({ children }) {
     if (!res.ok) throw new Error(data?.error || 'No se pudo iniciar el dispensado');
 
     const amountCents = data.amountCents ?? Math.round(selectedLiters * pricePerLiter * 100);
-    const newBalanceCents = data.newBalanceCents ?? data.balanceCents ?? 0;
+    const newBalanceCents = data.newBalanceCents ?? data.balanceCents ?? balanceCents;
     const prevBalanceCents = data.prevBalanceCents ?? balanceCents;
 
     const tx = {
@@ -478,9 +508,60 @@ export default function FlowProvider({ children }) {
       txId: data.txId,
     };
 
-    setBalanceCents(newBalanceCents);
     setLastTx(tx);
+    setTelemetry((currentTelemetry) => applyTelemetryActionSnapshot(currentTelemetry, 'inicio_dispensado'));
     return tx;
+  }
+
+  async function completeDispense(tx, completion = {}) {
+    const txId = tx?.txId;
+    if (!txId) throw new Error('No se encontro la transaccion de dispensado');
+
+    const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+    const res = await fetch(`${API}/api/dispense/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        txId,
+        dispensedLiters: completion.dispensedLiters,
+        dispensedPulseCount: completion.dispensedPulseCount,
+        pulsesPerLiter: completion.pulsesPerLiter,
+      }),
+    });
+    const data = await res.json();
+
+    if (res.status === 400 && data?.error === 'INSUFFICIENT_FUNDS') {
+      const requiredAmount = Math.max(0, (data.totalCents - data.balanceCents) / 100);
+      const err = new Error('INSUFFICIENT_FUNDS');
+      err.code = 'INSUFFICIENT_FUNDS';
+      err.requiredAmount = requiredAmount;
+      throw err;
+    }
+    if (!res.ok) throw new Error(data?.error || 'No se pudo completar el cobro');
+
+    const completedTx = {
+      ...tx,
+      completedAt: Date.now(),
+      amountCents: data.amountCents ?? tx.amountCents,
+      newBalanceCents: data.newBalanceCents ?? tx.newBalanceCents,
+      status: data.status || 'COMPLETED',
+      ledgerId: data.ledgerId,
+      ...completion,
+    };
+
+    if (typeof data?.newBalanceCents === 'number') {
+      setBalanceCents(data.newBalanceCents);
+      window.dispatchEvent(new CustomEvent('wallet:updated', {
+        detail: {
+          balanceCents: data.newBalanceCents,
+          source: 'dispense',
+          machineId: machine.id,
+        },
+      }));
+    }
+
+    setLastTx(completedTx);
+    return completedTx;
   }
 
   const value = {
@@ -504,6 +585,7 @@ export default function FlowProvider({ children }) {
     pollInputs,
     sendStageCommand,
     startDispense,
+    completeDispense,
   };
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatMoneyAmount } from '../telemetry';
+import { formatMoneyAmount, getTelemetryStepInfo } from '../telemetry';
 
 function StatusDot({ active, activeClassName, inactiveClassName }) {
   return (
@@ -28,6 +28,7 @@ export default function TelemetryStatusCard({
   showStageMetric = false,
   showFlowmeterMetric = false,
 }) {
+  const stepInfo = getTelemetryStepInfo(telemetry.currentStageCode);
   const wrapperClassName = compact
     ? 'space-y-3 rounded-2xl border border-border bg-card p-4'
     : 'space-y-4 rounded-2xl border border-border bg-card p-4';
@@ -37,8 +38,8 @@ export default function TelemetryStatusCard({
   if (showStageMetric) {
     metrics.push({
       label: 'Paso actual',
-      value: telemetry.currentStageLabel || 'Sin etapa',
-      hint: `Byte ${telemetry.currentStageCode || '--'}`,
+      value: stepInfo.label || 'Sin etapa',
+      hint: `Byte 9: ${stepInfo.code || '--'}`,
     });
   }
 
@@ -71,12 +72,19 @@ export default function TelemetryStatusCard({
         <div>
           <h3 className="text-base font-semibold text-text-primary">{title}</h3>
           <p className="text-sm text-text-secondary">
-            Paso {telemetry.currentStageCode || '--'}: {telemetry.currentStageLabel || 'Sin etapa'}
+            Paso {stepInfo.code || '--'}: {stepInfo.label || 'Sin etapa'}
           </p>
         </div>
         <div className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-text-secondary">
           Monitor en vivo
         </div>
+      </div>
+
+      <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-text-primary">
+        <span className="font-medium">Indicacion:</span>{' '}
+        <span className="text-text-secondary">
+          {telemetry.currentStageInstruction || stepInfo.instruction}
+        </span>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">

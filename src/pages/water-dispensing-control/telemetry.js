@@ -25,23 +25,90 @@ export function hexWordToDecimal(high, low) {
   return (Number.parseInt(normalizedHigh, 16) << 8) | Number.parseInt(normalizedLow, 16);
 }
 
-const TELEMETRY_STAGE_LABELS = {
-  '00': 'En espera',
-  '01': 'Escaneando QR',
-  '02': 'Seleccionando tamano',
-  '03': 'Colocando garrafon boca abajo',
-  '04': 'Enjuagando',
-  '05': 'Recarga con monedas',
-  '06': 'Dispensando agua',
-  '07': 'Proceso completado',
-  '08': 'Cancelado',
-  '09': 'Error',
+export const TELEMETRY_PROCESS_STEPS = {
+  '00': {
+    code: '00',
+    label: 'Esperando inicio',
+    shortLabel: 'Espera',
+    instruction: 'Presiona Iniciar dispensado para comenzar.',
+  },
+  '01': {
+    code: '01',
+    label: 'Iniciar dispensado',
+    shortLabel: 'Inicio',
+    instruction: 'Inicio recibido. Ahora elige el tamano de la botella.',
+  },
+  '02': {
+    code: '02',
+    label: 'Elegir la botella',
+    shortLabel: 'Botella',
+    instruction: 'Selecciona el tamano de botella y continua.',
+  },
+  '03': {
+    code: '03',
+    label: 'Esperando comando de enjuague',
+    shortLabel: 'Enjuague pendiente',
+    instruction: 'La maquina espera el comando de enjuague. El boton Enjuagar ya puede usarse.',
+  },
+  '04': {
+    code: '04',
+    label: 'Boton enjuagar activado',
+    shortLabel: 'Enjuagando',
+    instruction: 'Enjuague activado. Espera a que termine antes de llenar.',
+  },
+  '05': {
+    code: '05',
+    label: 'Esperando comando llenado',
+    shortLabel: 'Llenado pendiente',
+    instruction: 'La maquina espera el comando de llenado. Ya puedes iniciar el llenado.',
+  },
+  '06': {
+    code: '06',
+    label: 'Boton llenando activado',
+    shortLabel: 'Llenando',
+    instruction: 'Llenado activo. Monitorea el avance del caudalimetro.',
+  },
+  '07': {
+    code: '07',
+    label: 'Proceso finalizado',
+    shortLabel: 'Finalizado',
+    instruction: 'Proceso finalizado. La maquina regresara a espera de inicio.',
+  },
+  '08': {
+    code: '08',
+    label: 'Cancelado',
+    shortLabel: 'Cancelado',
+    instruction: 'El proceso fue cancelado.',
+  },
+  '09': {
+    code: '09',
+    label: 'Error',
+    shortLabel: 'Error',
+    instruction: 'La maquina reporto un error. Revisa el monitor antes de continuar.',
+  },
 };
 
-export function getTelemetryStageLabel(stageCode) {
+export function getTelemetryStepInfo(stageCode) {
   const normalized = normalizeHexPair(stageCode);
-  if (!normalized) return 'Sin etapa';
-  return TELEMETRY_STAGE_LABELS[normalized] || `Paso ${hexPairToDecimal(normalized) ?? normalized}`;
+  if (!normalized) {
+    return {
+      code: '--',
+      label: 'Sin etapa',
+      shortLabel: 'Sin etapa',
+      instruction: 'Esperando lectura de estado desde la maquina.',
+    };
+  }
+
+  return TELEMETRY_PROCESS_STEPS[normalized] || {
+    code: normalized,
+    label: `Paso ${hexPairToDecimal(normalized) ?? normalized}`,
+    shortLabel: `Paso ${normalized}`,
+    instruction: 'Estado no definido en el flujo configurado.',
+  };
+}
+
+export function getTelemetryStageLabel(stageCode) {
+  return getTelemetryStepInfo(stageCode).label;
 }
 
 export function getCoinLabel(coinByte) {

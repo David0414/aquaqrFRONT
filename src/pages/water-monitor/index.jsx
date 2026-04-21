@@ -7,9 +7,11 @@ import MachineInfoCard from '../water-dispensing-control/components/MachineInfoC
 import TelemetryStatusCard from '../water-dispensing-control/components/TelemetryStatusCard';
 import { showErrorToast, showSuccessToast } from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
-import { pulsesToLiters, sanitizePulsesPerLiter } from '../water-dispensing-control/telemetry';
+import { getTelemetryStepInfo, pulsesToLiters, sanitizePulsesPerLiter } from '../water-dispensing-control/telemetry';
 
 const DEMO_ACTIONS = [
+  { key: 'qr_inicio', label: 'Inicio flujo', variant: 'default' },
+  { key: 'inicio_dispensado', label: 'Iniciar llenado', variant: 'default' },
   { key: 'bomba_on', label: 'Bomba ON', variant: 'success' },
   { key: 'bomba_off', label: 'Bomba OFF', variant: 'secondary' },
   { key: 'valvula_enjuague_on', label: 'Enjuague ON', variant: 'success' },
@@ -58,6 +60,7 @@ export default function WaterMonitor() {
   const machineConnectionStatus = telemetry.lastSeenAt
     ? (telemetry.machineOnline ? 'connected' : 'disconnected')
     : connectionStatus;
+  const currentStep = getTelemetryStepInfo(telemetry.currentStageCode);
 
   const handleDemoAction = async (action) => {
     try {
@@ -111,6 +114,13 @@ export default function WaterMonitor() {
               <div>
                 <p className="text-xs uppercase tracking-wide text-text-secondary">Ultima lectura</p>
                 <p className="text-sm font-semibold text-text-primary">{formatSeenAt(telemetry.lastSeenAt)}</p>
+              </div>
+              <div className="sm:col-span-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                <p className="text-xs uppercase tracking-wide text-text-secondary">Estado del proceso byte 9</p>
+                <p className="mt-1 text-sm font-semibold text-text-primary">
+                  Paso {currentStep.code}: {currentStep.label}
+                </p>
+                <p className="mt-1 text-sm text-text-secondary">{currentStep.instruction}</p>
               </div>
               <div className="sm:col-span-2">
                 <p className="text-xs uppercase tracking-wide text-text-secondary">Trama recibida</p>

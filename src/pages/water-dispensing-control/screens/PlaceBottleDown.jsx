@@ -11,15 +11,21 @@ const RINSE_DURATION_MS = 3000;
 
 export default function PlaceBottleDown() {
   const nav = useNavigate();
-  const { machine, telemetry, setTelemetryEnabled, sendStageCommand } = useDispenseFlow();
+  const { machine, telemetry, setTelemetryEnabled, sendStageCommand, pollInputs } = useDispenseFlow();
   const [rinseStatus, setRinseStatus] = useState('idle');
-  const [rinseMessage, setRinseMessage] = useState('El enjuague se enviara al tocar Siguiente.');
+  const [rinseMessage, setRinseMessage] = useState('El enjuague se habilita cuando el paso sea 03.');
   const [isAdvancing, setIsAdvancing] = useState(false);
 
   React.useEffect(() => {
     setTelemetryEnabled(true);
     return () => setTelemetryEnabled(false);
   }, [setTelemetryEnabled]);
+
+  const currentStageCode = telemetry.currentStageCode || '00';
+  const canTriggerRinse = currentStageCode === '03';
+  const canAdvanceToFill = currentStageCode === '05' || currentStageCode === '06';
+  const canUseNext = canTriggerRinse || canAdvanceToFill;
+  const nextButtonLabel = canAdvanceToFill ? 'Ir a llenado' : 'Enjuagar';
 
   const delay = (ms) => new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -30,8 +36,10 @@ export default function PlaceBottleDown() {
       setRinseStatus('sending');
       setRinseMessage('Activando enjuague por 3 segundos...');
       await sendStageCommand('enjuague');
+      await pollInputs({ force: true }).catch(() => {});
       setRinseMessage('Enjuagando...');
       await delay(RINSE_DURATION_MS);
+      await pollInputs({ force: true }).catch(() => {});
       setRinseStatus('success');
       setRinseMessage('Enjuague completado. Ya puedes continuar.');
     } catch (err) {
@@ -46,6 +54,17 @@ export default function PlaceBottleDown() {
   const handleNext = async () => {
     try {
       setIsAdvancing(true);
+
+      if (canAdvanceToFill) {
+        nav('/water/position-up');
+        return;
+      }
+
+      if (!canTriggerRinse) {
+        showErrorToast(`Espera el paso 03 para activar enjuague. Paso actual: ${currentStageCode}.`);
+        return;
+      }
+
       await triggerRinse();
       nav('/water/position-up');
     } catch (err) {
@@ -67,7 +86,7 @@ export default function PlaceBottleDown() {
       ? 'CheckCircle2'
       : rinseStatus === 'error'
         ? 'AlertCircle'
-        : 'Info';
+      : 'Info';
 
   return (
     <div className="space-y-8">
@@ -89,7 +108,7 @@ export default function PlaceBottleDown() {
           garrafon <span className="text-primary">boca abajo</span>
         </h3>
         <p className="mx-auto max-w-md text-text-secondary">
-          Al tocar siguiente se prende el enjuague 3 segundos y luego se apaga automaticamente.
+          Al tocar Enjuagar se prende el enjuague 3 segundos y luego se apaga automaticamente.
         </p>
 
         <div className={`mx-auto mt-6 max-w-lg rounded-xl border px-4 py-3 text-sm ${statusClasses}`}>
@@ -106,13 +125,18 @@ export default function PlaceBottleDown() {
         <Button variant="secondary" className="flex-1" onClick={() => nav('/water/choose')}>
           <Icon name="ArrowLeft" size={18} /> Atras
         </Button>
-        <Button className="flex-1" onClick={handleNext} disabled={isAdvancing} loading={isAdvancing}>
-          Siguiente <Icon name="ArrowRight" size={18} />
+        <Button
+          className="flex-1"
+          onClick={handleNext}
+          disabled={!canUseNext || isAdvancing}
+          loading={isAdvancing}
+        >
+          {nextButtonLabel} <Icon name="ArrowRight" size={18} />
         </Button>
       </div>
 
       {rinseStatus === 'error' ? (
-        <Button variant="outline" onClick={triggerRinse}>
+        <Button variant="outline" onClick={triggerRinse} disabled={!canTriggerRinse}>
           Reintentar enjuague
         </Button>
       ) : null}
