@@ -75,11 +75,21 @@ export default function WaterMonitor() {
     }
   };
 
-  const handleSavePulsesPerLiter = () => {
+  const handleSavePulsesPerLiter = async () => {
     const nextValue = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
     setPulsesPerLiter(nextValue);
     setPulsesPerLiterInput(String(nextValue));
-    showSuccessToast(`Calibracion guardada: ${nextValue} pulsos por litro`);
+
+    try {
+      setLoadingAction('calibracion');
+      const data = await sendStageCommand('inputs', { pulsesPerLiter: nextValue });
+      setDemoResponse(data);
+      showSuccessToast(`Calibracion enviada: ${nextValue} pulsos por litro`);
+    } catch (err) {
+      showErrorToast(err?.message || 'Calibracion guardada en app, pero no se pudo enviar a la maquina');
+    } finally {
+      setLoadingAction('');
+    }
   };
 
   const flowmeterLiters = pulsesToLiters(telemetry.flowmeterPulses, pulsesPerLiter);
@@ -160,7 +170,7 @@ export default function WaterMonitor() {
                   onChange={(event) => setPulsesPerLiterInput(event.target.value)}
                   description="Usa aqui tu constante del caudalimetro. Ejemplo: 360 pulsos = 1 litro."
                 />
-                <Button onClick={handleSavePulsesPerLiter}>
+                <Button onClick={handleSavePulsesPerLiter} loading={loadingAction === 'calibracion'}>
                   Guardar calibracion
                 </Button>
               </div>
@@ -201,7 +211,8 @@ export default function WaterMonitor() {
               {demoResponse ? (
                 <div className="mt-2 space-y-1 text-text-secondary">
                   <p>Accion: <span className="font-medium text-text-primary">{demoResponse.action}</span></p>
-                  <p>Comando: <span className="font-medium text-text-primary">{demoResponse.command}</span></p>
+                  <p>Comando: <span className="font-medium text-text-primary">{demoResponse.commandLine || demoResponse.command}</span></p>
+                  <p>Pulsos enviados: <span className="font-medium text-text-primary">{demoResponse.pulsesPerLiter || pulsesPerLiter}</span></p>
                   <p>Server: <span className="font-medium text-text-primary">{demoResponse.response || '-'}</span></p>
                 </div>
               ) : (
@@ -212,10 +223,11 @@ export default function WaterMonitor() {
             <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-text-primary">
               <p className="font-medium">Nota</p>
               <p className="mt-1 text-text-secondary">
-                "Forzar apagado" envia el comando <span className="mx-1 font-mono">FF</span>
-                para transmitir <span className="mx-1 font-mono">AA-FF</span>. "Reiniciar sistema" envia
+                Los comandos se envian con pulsos: <span className="mx-1 font-mono">COMANDO PULSOS</span>.
+                Ejemplo: <span className="mx-1 font-mono">13 360</span> transmite
+                <span className="mx-1 font-mono">AA-13-01-68</span>. "Reiniciar sistema" envia
                 <span className="mx-1 font-mono">5A</span>
-                para transmitir <span className="mx-1 font-mono">AA-5A</span>.
+                con la misma calibracion activa.
               </p>
             </div>
           </div>

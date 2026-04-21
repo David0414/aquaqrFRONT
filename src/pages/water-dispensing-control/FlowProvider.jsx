@@ -380,7 +380,7 @@ export default function FlowProvider({ children }) {
     }
   }
 
-  async function sendStageCommand(action) {
+  async function sendStageCommand(action, options = {}) {
     let previousTelemetry = null;
 
     setTelemetry((currentTelemetry) => {
@@ -390,6 +390,10 @@ export default function FlowProvider({ children }) {
 
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
     try {
+      const commandPulsesPerLiter = sanitizePulsesPerLiter(
+        options?.pulsesPerLiter ?? pulsesPerLiter,
+        pulsesPerLiter,
+      );
       pollingCooldownUntilRef.current = Date.now() + INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS;
       const res = await fetch(`${API}/api/dispense/demo/control`, {
         method: 'POST',
@@ -397,7 +401,10 @@ export default function FlowProvider({ children }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          pulsesPerLiter: commandPulsesPerLiter,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.detail || data?.error || `No se pudo enviar ${action}`);
@@ -475,6 +482,7 @@ export default function FlowProvider({ children }) {
         liters: selectedLiters,
         machineId: machine.id,
         location: machine.location,
+        pulsesPerLiter,
       }),
     });
     const data = await res.json();
