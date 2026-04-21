@@ -61,13 +61,18 @@ export default function WaterMonitor() {
     ? (telemetry.machineOnline ? 'connected' : 'disconnected')
     : connectionStatus;
   const currentStep = getTelemetryStepInfo(telemetry.currentStageCode);
+  const configuredPulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
 
   const handleDemoAction = async (action) => {
+    const commandPulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
+
     try {
+      setPulsesPerLiter(commandPulsesPerLiter);
+      setPulsesPerLiterInput(String(commandPulsesPerLiter));
       setLoadingAction(action);
-      const data = await sendStageCommand(action);
+      const data = await sendStageCommand(action, { pulsesPerLiter: commandPulsesPerLiter });
       setDemoResponse(data);
-      showSuccessToast(`Comando "${action}" enviado`);
+      showSuccessToast(`Comando "${action}" enviado con ${commandPulsesPerLiter} pulsos/L`);
     } catch (err) {
       showErrorToast(err?.message || 'No se pudo enviar comando demo');
     } finally {
@@ -92,7 +97,7 @@ export default function WaterMonitor() {
     }
   };
 
-  const flowmeterLiters = pulsesToLiters(telemetry.flowmeterPulses, pulsesPerLiter);
+  const flowmeterLiters = pulsesToLiters(telemetry.flowmeterPulses, configuredPulsesPerLiter);
 
   return (
     <div className="min-h-screen bg-background">
@@ -180,7 +185,7 @@ export default function WaterMonitor() {
                   <p className="text-xs uppercase tracking-wide text-text-secondary">Litros estimados por pulsos</p>
                   <p className="mt-1 text-lg font-semibold text-text-primary">{flowmeterLiters.toFixed(3)} L</p>
                   <p className="mt-1 text-xs text-text-secondary">
-                    {telemetry.flowmeterPulses ?? 0} pulsos / {pulsesPerLiter} pulsos por litro
+                    {telemetry.flowmeterPulses ?? 0} pulsos / {configuredPulsesPerLiter} pulsos por litro
                   </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card px-3 py-2">
@@ -212,7 +217,7 @@ export default function WaterMonitor() {
                 <div className="mt-2 space-y-1 text-text-secondary">
                   <p>Accion: <span className="font-medium text-text-primary">{demoResponse.action}</span></p>
                   <p>Comando: <span className="font-medium text-text-primary">{demoResponse.commandLine || demoResponse.command}</span></p>
-                  <p>Pulsos enviados: <span className="font-medium text-text-primary">{demoResponse.pulsesPerLiter || pulsesPerLiter}</span></p>
+                  <p>Pulsos enviados: <span className="font-medium text-text-primary">{demoResponse.pulsesPerLiter || configuredPulsesPerLiter}</span></p>
                   <p>Server: <span className="font-medium text-text-primary">{demoResponse.response || '-'}</span></p>
                 </div>
               ) : (
