@@ -7,7 +7,12 @@ import MachineInfoCard from '../water-dispensing-control/components/MachineInfoC
 import TelemetryStatusCard from '../water-dispensing-control/components/TelemetryStatusCard';
 import { showErrorToast, showSuccessToast } from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
-import { getTelemetryStepInfo, pulsesToLiters, sanitizePulsesPerLiter } from '../water-dispensing-control/telemetry';
+import {
+  getTargetPulseCount,
+  getTelemetryStepInfo,
+  pulsesToLiters,
+  sanitizePulsesPerLiter,
+} from '../water-dispensing-control/telemetry';
 
 const DEMO_ACTIONS = [
   { key: 'qr_inicio', label: 'Inicio flujo', variant: 'default' },
@@ -62,6 +67,10 @@ export default function WaterMonitor() {
     : connectionStatus;
   const currentStep = getTelemetryStepInfo(telemetry.currentStageCode);
   const configuredPulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
+  const targetPulseOptions = [5, 10, 20].map((liters) => ({
+    liters,
+    pulses: getTargetPulseCount(liters, configuredPulsesPerLiter),
+  }));
 
   const handleDemoAction = async (action) => {
     const commandPulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
@@ -195,6 +204,15 @@ export default function WaterMonitor() {
                     Ajusta este valor hasta que el volumen real coincida con lo que sale de la maquina.
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {targetPulseOptions.map((option) => (
+                  <div key={option.liters} className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
+                    <p className="text-xs uppercase tracking-wide text-text-secondary">Meta {option.liters} L</p>
+                    <p className="mt-1 text-base font-semibold text-text-primary">{option.pulses} pulsos</p>
+                  </div>
+                ))}
               </div>
             </div>
 

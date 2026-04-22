@@ -12,7 +12,9 @@ import { useDispenseFlow } from "../water-dispensing-control/FlowProvider";
 import TelemetryStatusCard from "../water-dispensing-control/components/TelemetryStatusCard";
 import {
   DEFAULT_PULSES_PER_LITER,
+  getTargetPulseCount,
   pulsesToLiters,
+  pulsesToProgress,
   sanitizePulsesPerLiter,
 } from "../water-dispensing-control/telemetry";
 
@@ -53,6 +55,7 @@ export default function FillingProgress() {
     tx.pulsesPerLiter ?? currentPulsesPerLiter,
     DEFAULT_PULSES_PER_LITER,
   );
+  const targetPulseCount = getTargetPulseCount(liters, pulsesPerLiter);
 
   const [flowRate, setFlowRate] = useState(0);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
@@ -92,9 +95,8 @@ export default function FillingProgress() {
   );
 
   const progress = useMemo(() => {
-    if (!liters) return 0;
-    return Math.min(100, (dispensedLiters / liters) * 100);
-  }, [dispensedLiters, liters]);
+    return pulsesToProgress(dispensedPulseCount, targetPulseCount);
+  }, [dispensedPulseCount, targetPulseCount]);
   const currentStageCode = telemetry?.currentStageCode || "";
   const isTelemetryComplete = currentStageCode === "07";
 
@@ -299,6 +301,7 @@ export default function FillingProgress() {
           dispensedLiters={displayDispensedLiters}
           targetLiters={liters}
           dispensedPulseCount={displayDispensedPulseCount}
+          targetPulseCount={targetPulseCount}
           pulsesPerLiter={pulsesPerLiter}
         />
 
@@ -324,7 +327,9 @@ export default function FillingProgress() {
             </div>
             <div className="rounded-xl border border-border bg-background px-3 py-2">
               <p className="text-xs uppercase tracking-wide text-text-secondary">Pulsos usados</p>
-              <p className="mt-1 text-lg font-semibold text-text-primary">{displayDispensedPulseCount}</p>
+              <p className="mt-1 text-lg font-semibold text-text-primary">
+                {displayDispensedPulseCount} / {targetPulseCount}
+              </p>
             </div>
             <div className="rounded-xl border border-border bg-background px-3 py-2">
               <p className="text-xs uppercase tracking-wide text-text-secondary">Calibracion</p>

@@ -8,6 +8,7 @@ const ProgressIndicator = ({
   dispensedLiters = 0,
   targetLiters = 0,
   dispensedPulseCount = 0,
+  targetPulseCount = 0,
   pulsesPerLiter = 0,
 }) => {
   const formatTime = (seconds) => {
@@ -18,8 +19,8 @@ const ProgressIndicator = ({
   };
 
   const R = 45;
-  const CIRC = 2 * Math.PI * R;
-  const dashOffset = CIRC * (1 - Math.min(100, Math.max(0, progress)) / 100);
+  const pct = Math.min(100, Math.max(0, Number(progress) || 0));
+  const dashOffset = 100 - pct;
 
   return (
     <div className="space-y-6">
@@ -44,9 +45,10 @@ const ProgressIndicator = ({
             stroke="currentColor"
             strokeWidth="4"
             fill="none"
-            strokeDasharray={CIRC}
+            pathLength="100"
+            strokeDasharray="100"
             strokeDashoffset={dashOffset}
-            className={`text-primary transition-all duration-500 ease-out ${
+            className={`text-primary transition-[stroke-dashoffset] duration-700 ease-linear ${
               isActive ? 'drop-shadow-lg' : ''
             }`}
             strokeLinecap="round"
@@ -92,7 +94,7 @@ const ProgressIndicator = ({
             Pulsos medidos
           </div>
           <div className="text-heading-xs font-semibold text-text-primary">
-            {dispensedPulseCount}
+            {dispensedPulseCount} / {targetPulseCount}
           </div>
         </div>
 

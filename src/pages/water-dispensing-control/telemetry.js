@@ -139,3 +139,18 @@ export function pulsesToLiters(pulses, pulsesPerLiter = DEFAULT_PULSES_PER_LITER
   if (!Number.isFinite(safePulses) || safePulses <= 0) return 0;
   return safePulses / safePulsesPerLiter;
 }
+
+export function getTargetPulseCount(liters, pulsesPerLiter = DEFAULT_PULSES_PER_LITER) {
+  const safeLiters = Number(liters);
+  const safePulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiter);
+  if (!Number.isFinite(safeLiters) || safeLiters <= 0) return 0;
+  return Math.max(1, Math.round(safeLiters * safePulsesPerLiter));
+}
+
+export function pulsesToProgress(pulses, targetPulseCount) {
+  const safePulses = Number.parseInt(pulses, 10);
+  const safeTarget = Number.parseInt(targetPulseCount, 10);
+  if (!Number.isFinite(safePulses) || safePulses <= 0) return 0;
+  if (!Number.isFinite(safeTarget) || safeTarget <= 0) return 0;
+  return Math.min(100, (safePulses / safeTarget) * 100);
+}
