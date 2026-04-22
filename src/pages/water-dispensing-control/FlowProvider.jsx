@@ -250,6 +250,8 @@ export default function FlowProvider({ children }) {
   const pollingRef = useRef(false);
   const pollingCooldownUntilRef = useRef(0);
   const telemetryCreditSyncRef = useRef('');
+  const commandInFlightRef = useRef(false);
+  const startDispenseInFlightRef = useRef(false);
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
 
   const setPulsesPerLiter = (value) => {
@@ -381,6 +383,11 @@ export default function FlowProvider({ children }) {
   }
 
   async function sendStageCommand(action, options = {}) {
+    if (commandInFlightRef.current) {
+      throw new Error('Espera a que termine el comando anterior');
+    }
+
+    commandInFlightRef.current = true;
     let previousTelemetry = null;
 
     setTelemetry((currentTelemetry) => {
@@ -414,6 +421,8 @@ export default function FlowProvider({ children }) {
         setTelemetry(previousTelemetry);
       }
       throw error;
+    } finally {
+      commandInFlightRef.current = false;
     }
   }
 
@@ -474,6 +483,12 @@ export default function FlowProvider({ children }) {
 
   // Inicia el llenado en la maquina. El cobro se confirma al finalizar.
   async function startDispense() {
+    if (startDispenseInFlightRef.current) {
+      throw new Error('El llenado ya se esta iniciando');
+    }
+
+    startDispenseInFlightRef.current = true;
+    try {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
     const res = await fetch(`${API}/api/dispense`, {
       method: 'POST',
@@ -519,6 +534,9 @@ export default function FlowProvider({ children }) {
     setLastTx(tx);
     setTelemetry((currentTelemetry) => applyTelemetryActionSnapshot(currentTelemetry, 'inicio_dispensado'));
     return tx;
+    } finally {
+      startDispenseInFlightRef.current = false;
+    }
   }
 
   async function completeDispense(tx, completion = {}) {

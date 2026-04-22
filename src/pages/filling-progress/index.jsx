@@ -26,6 +26,8 @@ function money(n) {
   }).format(n);
 }
 
+const PULSE_COMPLETION_PROGRESS = 99;
+
 export default function FillingProgress() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -201,19 +203,24 @@ export default function FillingProgress() {
       currentStageCode === "00"
       && snapshot.sawFilling
       && snapshot.progress >= 99.5;
+    const completedByPulses =
+      snapshot.sawFilling
+      && snapshot.progress >= PULSE_COMPLETION_PROGRESS;
 
-    if (!isTelemetryComplete && !completedByResetToIdle) return;
+    if (!isTelemetryComplete && !completedByResetToIdle && !completedByPulses) return;
     if (completionScheduledRef.current) return;
 
     completionScheduledRef.current = true;
     setIsDispensing(false);
+    const finalDispensedLiters = Math.max(snapshot.dispensedLiters, dispensedLiters, liters);
+    const finalDispensedPulseCount = Math.max(snapshot.dispensedPulseCount, dispensedPulseCount, targetPulseCount);
 
     let cancelled = false;
     const finishAndCharge = async () => {
       try {
         const completedTx = await completeDispense(tx, {
-          dispensedLiters: snapshot.dispensedLiters || dispensedLiters,
-          dispensedPulseCount: snapshot.dispensedPulseCount || dispensedPulseCount,
+          dispensedLiters: finalDispensedLiters,
+          dispensedPulseCount: finalDispensedPulseCount,
           pulsesPerLiter,
         });
         if (cancelled) return;
@@ -221,8 +228,8 @@ export default function FillingProgress() {
         navigate("/transaction-complete", {
           state: {
             tx: completedTx,
-            dispensedLiters: snapshot.dispensedLiters || dispensedLiters,
-            dispensedPulseCount: snapshot.dispensedPulseCount || dispensedPulseCount,
+            dispensedLiters: finalDispensedLiters,
+            dispensedPulseCount: finalDispensedPulseCount,
             pulsesPerLiter,
           },
         });
@@ -236,8 +243,8 @@ export default function FillingProgress() {
               returnTo: "/transaction-complete",
               requiredAmount: error.requiredAmount,
               tx,
-              dispensedLiters: snapshot.dispensedLiters || dispensedLiters,
-              dispensedPulseCount: snapshot.dispensedPulseCount || dispensedPulseCount,
+              dispensedLiters: finalDispensedLiters,
+              dispensedPulseCount: finalDispensedPulseCount,
               pulsesPerLiter,
               fromInsufficientBalance: true,
             },
@@ -254,7 +261,7 @@ export default function FillingProgress() {
     return () => {
       cancelled = true;
     };
-  }, [completeDispense, currentStageCode, dispensedLiters, dispensedPulseCount, isTelemetryComplete, navigate, pulsesPerLiter, tx]);
+  }, [completeDispense, currentStageCode, dispensedLiters, dispensedPulseCount, isTelemetryComplete, liters, navigate, pulsesPerLiter, targetPulseCount, tx]);
 
   const displayProgress = Math.max(progress, progressSnapshot.progress);
   const displayDispensedLiters = Math.max(dispensedLiters, progressSnapshot.dispensedLiters);
