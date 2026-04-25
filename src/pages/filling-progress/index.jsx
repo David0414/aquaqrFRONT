@@ -27,6 +27,7 @@ function money(n) {
 }
 
 const PULSE_COMPLETION_PROGRESS = 99;
+const RESET_COMPLETION_PROGRESS = 99.5;
 
 export default function FillingProgress() {
   const navigate = useNavigate();
@@ -63,6 +64,7 @@ export default function FillingProgress() {
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isDispensing, setIsDispensing] = useState(true);
+  const [completionStatus, setCompletionStatus] = useState("");
   const [displayTelemetry, setDisplayTelemetry] = useState(telemetry || null);
   const [progressSnapshot, setProgressSnapshot] = useState({
     progress: 0,
@@ -112,24 +114,29 @@ export default function FillingProgress() {
 
   useEffect(() => {
     const snapshot = completionSnapshotRef.current;
+    const reachedTargetPulses =
+      targetPulseCount > 0 && dispensedPulseCount >= targetPulseCount;
     const isFillingTelemetry =
       currentStageCode === "06"
       || telemetry?.pumpOn
       || telemetry?.fillValveOn
       || progress > 0
-      || dispensedPulseCount > 0;
+      || dispensedPulseCount > 0
+      || reachedTargetPulses;
 
     if (isFillingTelemetry) {
       snapshot.sawFilling = true;
     }
 
-    if (isTelemetryComplete) {
+    if (isTelemetryComplete || reachedTargetPulses) {
       snapshot.sawComplete = true;
       snapshot.sawFilling = true;
     }
 
-    const nextProgress = isTelemetryComplete ? 100 : Math.max(snapshot.progress, progress);
-    const nextDispensedLiters = isTelemetryComplete
+    const nextProgress = (isTelemetryComplete || reachedTargetPulses)
+      ? 100
+      : Math.max(snapshot.progress, progress);
+    const nextDispensedLiters = (isTelemetryComplete || reachedTargetPulses)
       ? Math.max(snapshot.dispensedLiters, dispensedLiters, liters)
       : Math.max(snapshot.dispensedLiters, dispensedLiters);
     const nextDispensedPulseCount = Math.max(snapshot.dispensedPulseCount, dispensedPulseCount);
@@ -155,6 +162,7 @@ export default function FillingProgress() {
     isTelemetryComplete,
     liters,
     progress,
+    targetPulseCount,
     telemetry?.fillValveOn,
     telemetry?.pumpOn,
   ]);
@@ -207,21 +215,34 @@ export default function FillingProgress() {
 
   useEffect(() => {
     const snapshot = completionSnapshotRef.current;
+    const liveProgress = Math.max(snapshot.progress, progress);
+    const liveDispensedPulseCount = Math.max(snapshot.dispensedPulseCount, dispensedPulseCount);
+    const hasTargetPulseCount = targetPulseCount > 0;
+    const sawFilling =
+      snapshot.sawFilling
+      || currentStageCode === "06"
+      || liveProgress > 0
+      || liveDispensedPulseCount > 0;
+    const reachedTargetPulses =
+      hasTargetPulseCount && liveDispensedPulseCount >= targetPulseCount;
     const completedByResetToIdle =
       currentStageCode === "00"
-      && snapshot.sawFilling
-      && snapshot.progress >= 99.5;
+      && sawFilling
+      && (liveProgress >= RESET_COMPLETION_PROGRESS || reachedTargetPulses);
     const completedByPulses =
-      snapshot.sawFilling
-      && snapshot.progress >= PULSE_COMPLETION_PROGRESS;
+      sawFilling
+      && (liveProgress >= PULSE_COMPLETION_PROGRESS || reachedTargetPulses);
+    const completedByStage = isTelemetryComplete || snapshot.sawComplete;
 
-    if (!isTelemetryComplete && !completedByResetToIdle && !completedByPulses) return;
+    if (!completedByStage && !completedByResetToIdle && !completedByPulses) return;
     if (completionScheduledRef.current) return;
+    if (typeof completeDispense !== "function") return;
 
     completionScheduledRef.current = true;
     setIsDispensing(false);
+    setCompletionStatus("Generando ticket...");
     const finalDispensedLiters = Math.max(snapshot.dispensedLiters, dispensedLiters, liters);
-    const finalDispensedPulseCount = Math.max(snapshot.dispensedPulseCount, dispensedPulseCount, targetPulseCount);
+    const finalDispensedPulseCount = Math.max(liveDispensedPulseCount, targetPulseCount);
 
     const finishAndCharge = async () => {
       try {
@@ -243,6 +264,7 @@ export default function FillingProgress() {
       } catch (error) {
         if (!mountedRef.current) return;
         completionScheduledRef.current = false;
+        setCompletionStatus("");
 
         if (error?.code === "INSUFFICIENT_FUNDS") {
           navigate("/balance-recharge", {
@@ -264,7 +286,7 @@ export default function FillingProgress() {
     };
 
     finishAndCharge();
-  }, [completeDispense, currentStageCode, dispensedLiters, dispensedPulseCount, isTelemetryComplete, liters, navigate, pulsesPerLiter, targetPulseCount, tx]);
+  }, [completeDispense, currentStageCode, dispensedLiters, dispensedPulseCount, isTelemetryComplete, liters, navigate, progress, pulsesPerLiter, targetPulseCount, tx]);
 
   const displayProgress = Math.max(progress, progressSnapshot.progress);
   const displayDispensedLiters = Math.max(dispensedLiters, progressSnapshot.dispensedLiters);
@@ -314,6 +336,12 @@ export default function FillingProgress() {
           targetPulseCount={targetPulseCount}
           pulsesPerLiter={pulsesPerLiter}
         />
+
+        {completionStatus ? (
+          <div className="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-center text-sm font-medium text-success">
+            {completionStatus}
+          </div>
+        ) : null}
 
         {displayTelemetry ? (
           <TelemetryStatusCard telemetry={displayTelemetry} title="Telemetria del dispensado" compact />
