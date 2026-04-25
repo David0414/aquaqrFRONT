@@ -431,9 +431,11 @@ export default function FlowProvider({ children }) {
     const accumulatedAmount = Number.parseInt(nextTelemetry?.accumulatedMoney, 10);
     const pulseCount = Number.parseInt(nextTelemetry?.flowmeterPulses, 10);
     const rawFrame = String(nextTelemetry?.rawFrame || '').trim();
+    const hasInsertedAmount = Number.isFinite(insertedAmount) && insertedAmount >= 0;
+    const hasAccumulatedAmount = Number.isFinite(accumulatedAmount) && accumulatedAmount >= 0;
 
     if (!rawFrame) return;
-    if (!Number.isFinite(insertedAmount) || insertedAmount < 0) return;
+    if (!hasInsertedAmount && !hasAccumulatedAmount) return;
 
     const machineId =
       normalizeHexPair(nextTelemetry?.machineHardwareId) ||
@@ -454,8 +456,8 @@ export default function FlowProvider({ children }) {
         },
         body: JSON.stringify({
           machineId,
-          insertedAmount,
-          accumulatedAmount,
+          insertedAmount: hasInsertedAmount ? insertedAmount : 0,
+          accumulatedAmount: hasAccumulatedAmount ? accumulatedAmount : undefined,
           pulseCount,
           rawFrame,
         }),

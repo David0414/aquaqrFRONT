@@ -33,7 +33,7 @@ const BalanceRecharge = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { getToken } = useAuth();
-  const { telemetry, setTelemetryEnabled, sendStageCommand } = useDispenseFlow();
+  const { telemetry, balanceCents, setTelemetryEnabled, sendStageCommand } = useDispenseFlow();
 
   const [currentBalance, setCurrentBalance] = useState(0);
   const [selectedAmount, setSelectedAmount] = useState(0);
@@ -72,6 +72,11 @@ const BalanceRecharge = () => {
   useEffect(() => {
     fetchWallet().catch((e) => showErrorToast(e.message || 'Error cargando saldo'));
   }, [fetchWallet]);
+
+  useEffect(() => {
+    if (!Number.isFinite(balanceCents)) return;
+    setCurrentBalance(balanceCents / 100);
+  }, [balanceCents]);
 
   useEffect(() => {
     const onWalletUpdated = (event) => {

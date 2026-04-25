@@ -21,7 +21,7 @@ const HomeDashboard = () => {
   // Clerk
   const { isLoaded: isClerkLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
-  const { setTelemetryEnabled, pollInputs } = useDispenseFlow();
+  const { balanceCents, setTelemetryEnabled, pollInputs } = useDispenseFlow();
 
   const displayName = useMemo(() => {
     if (!user) return 'AquaQR';
@@ -65,6 +65,12 @@ const HomeDashboard = () => {
     if (isClerkLoaded && isSignedIn) fetchWallet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClerkLoaded, isSignedIn]);
+
+  useEffect(() => {
+    if (!Number.isFinite(balanceCents)) return;
+    setWalletBalanceCents(balanceCents);
+    setWalletLoading(false);
+  }, [balanceCents]);
 
   useEffect(() => {
     if (!isClerkLoaded || !isSignedIn) return undefined;

@@ -93,17 +93,14 @@ export default function WaterMonitor() {
     const nextValue = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
     setPulsesPerLiter(nextValue);
     setPulsesPerLiterInput(String(nextValue));
-
-    try {
-      setLoadingAction('calibracion');
-      const data = await sendStageCommand('inputs', { pulsesPerLiter: nextValue });
-      setDemoResponse(data);
-      showSuccessToast(`Calibracion enviada: ${nextValue} pulsos por litro`);
-    } catch (err) {
-      showErrorToast(err?.message || 'Calibracion guardada en app, pero no se pudo enviar a la maquina');
-    } finally {
-      setLoadingAction('');
-    }
+    setDemoResponse({
+      action: 'calibracion_local',
+      command: '--',
+      commandLine: `PULSOS ${nextValue}`,
+      pulsesPerLiter: nextValue,
+      response: 'Calibracion guardada en la app. Se aplicara en el siguiente comando.',
+    });
+    showSuccessToast(`Calibracion guardada: ${nextValue} pulsos por litro`);
   };
 
   const flowmeterLiters = pulsesToLiters(telemetry.flowmeterPulses, configuredPulsesPerLiter);
@@ -246,7 +243,8 @@ export default function WaterMonitor() {
             <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-text-primary">
               <p className="font-medium">Nota</p>
               <p className="mt-1 text-text-secondary">
-                Los comandos se envian con pulsos: <span className="mx-1 font-mono">COMANDO PULSOS</span>.
+                La calibracion se guarda en la app y el siguiente comando util se envia con pulsos:
+                <span className="mx-1 font-mono">COMANDO PULSOS</span>.
                 Ejemplo: <span className="mx-1 font-mono">13 360</span> transmite
                 <span className="mx-1 font-mono">AA-13-01-68</span>. "Reiniciar sistema" envia
                 <span className="mx-1 font-mono">5A</span>
