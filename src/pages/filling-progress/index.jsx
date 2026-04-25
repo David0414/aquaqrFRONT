@@ -71,6 +71,7 @@ export default function FillingProgress() {
   });
   const lastTelemetrySampleRef = useRef(null);
   const completionScheduledRef = useRef(false);
+  const mountedRef = useRef(false);
   const completionSnapshotRef = useRef({
     sawFilling: false,
     sawComplete: false,
@@ -78,6 +79,13 @@ export default function FillingProgress() {
     dispensedLiters: 0,
     dispensedPulseCount: 0,
   });
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     setTelemetryEnabled?.(true);
@@ -215,7 +223,6 @@ export default function FillingProgress() {
     const finalDispensedLiters = Math.max(snapshot.dispensedLiters, dispensedLiters, liters);
     const finalDispensedPulseCount = Math.max(snapshot.dispensedPulseCount, dispensedPulseCount, targetPulseCount);
 
-    let cancelled = false;
     const finishAndCharge = async () => {
       try {
         const completedTx = await completeDispense(tx, {
@@ -223,7 +230,7 @@ export default function FillingProgress() {
           dispensedPulseCount: finalDispensedPulseCount,
           pulsesPerLiter,
         });
-        if (cancelled) return;
+        if (!mountedRef.current) return;
 
         navigate("/transaction-complete", {
           state: {
@@ -234,8 +241,8 @@ export default function FillingProgress() {
           },
         });
       } catch (error) {
+        if (!mountedRef.current) return;
         completionScheduledRef.current = false;
-        if (cancelled) return;
 
         if (error?.code === "INSUFFICIENT_FUNDS") {
           navigate("/balance-recharge", {
@@ -257,10 +264,6 @@ export default function FillingProgress() {
     };
 
     finishAndCharge();
-
-    return () => {
-      cancelled = true;
-    };
   }, [completeDispense, currentStageCode, dispensedLiters, dispensedPulseCount, isTelemetryComplete, liters, navigate, pulsesPerLiter, targetPulseCount, tx]);
 
   const displayProgress = Math.max(progress, progressSnapshot.progress);
