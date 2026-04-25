@@ -267,6 +267,13 @@ export default function FlowProvider({ children }) {
     setMachine(machineFromRoute);
   }, [machineFromRoute]);
 
+  useEffect(() => {
+    const routeLiters = Number(location.state?.selectedLiters);
+    if (Number.isFinite(routeLiters) && routeLiters > 0) {
+      setSelectedLiters(routeLiters);
+    }
+  }, [location.state?.selectedLiters]);
+
   // Simula conexión y verificación breve
   useEffect(() => {
     const t = setTimeout(() => {
@@ -415,6 +422,7 @@ export default function FlowProvider({ children }) {
         body: JSON.stringify({
           action,
           machineId: machine.id,
+          machineLocation: machine.location,
           hardwareId: machine.hardwareId,
           pulsesPerLiter: commandPulsesPerLiter,
         }),
