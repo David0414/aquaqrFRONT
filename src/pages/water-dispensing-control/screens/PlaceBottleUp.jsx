@@ -20,7 +20,13 @@ export default function PlaceBottleUp() {
   }, [pollInputs, setTelemetryEnabled]);
 
   const currentStageCode = telemetry.currentStageCode || '00';
-  const canStartFilling = currentStageCode === '05';
+  const canStartFilling = currentStageCode === '05' || currentStageCode === '03' || currentStageCode === '04';
+  const fillHint =
+    currentStageCode === '05'
+      ? 'La maquina ya habilito el llenado.'
+      : currentStageCode === '03' || currentStageCode === '04'
+        ? 'La maquina puede estar reproduciendo indicaciones. Puedes iniciar llenado cuando terminen.'
+        : `Espera el paso 05 para iniciar llenado. Paso actual: ${currentStageCode}.`;
 
   const handleStart = async () => {
     try {
@@ -73,6 +79,10 @@ export default function PlaceBottleUp() {
       </div>
 
       <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
+
+      <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-text-secondary">
+        {fillHint}
+      </div>
 
       <div className="flex gap-3">
         <Button variant="secondary" className="flex-1" onClick={() => navigate('/water/position-down')}>

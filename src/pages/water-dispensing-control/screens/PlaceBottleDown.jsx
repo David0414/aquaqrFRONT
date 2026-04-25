@@ -8,7 +8,8 @@ import { useDispenseFlow } from '../FlowProvider';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
 
 const RINSE_DURATION_MS = 3000;
-const STAGE_WAIT_TIMEOUT_MS = 12000;
+const VOICE_PROMPT_GRACE_MS = 10000;
+const STAGE_WAIT_TIMEOUT_MS = 30000;
 const STAGE_POLL_INTERVAL_MS = 800;
 
 export default function PlaceBottleDown() {
@@ -36,15 +37,21 @@ export default function PlaceBottleDown() {
   const waitForFillReadyStage = async () => {
     const startedAt = Date.now();
     let latestStageCode = telemetry.currentStageCode || '00';
+    let sawRinseAccepted = latestStageCode === '04' || latestStageCode === '05' || latestStageCode === '06';
 
     while (Date.now() - startedAt < STAGE_WAIT_TIMEOUT_MS) {
       await delay(STAGE_POLL_INTERVAL_MS);
       const nextTelemetry = await pollInputs({ force: true }).catch(() => null);
 
       latestStageCode = nextTelemetry?.currentStageCode || latestStageCode;
+      sawRinseAccepted = sawRinseAccepted || latestStageCode === '04';
       if (latestStageCode === '05' || latestStageCode === '06') {
         return latestStageCode;
       }
+    }
+
+    if (sawRinseAccepted || latestStageCode === '03') {
+      return latestStageCode;
     }
 
     throw new Error(`La maquina no paso a llenado. Paso actual: ${latestStageCode}.`);
@@ -60,11 +67,15 @@ export default function PlaceBottleDown() {
       await delay(RINSE_DURATION_MS);
       await pollInputs({ force: true }).catch(() => {});
       setRinseStatus('success');
-      setRinseMessage('Esperando que la maquina habilite el llenado...');
+      setRinseMessage('Esperando indicaciones de la maquina...');
+      await delay(VOICE_PROMPT_GRACE_MS);
+      setRinseMessage('Confirmando que la maquina habilite el llenado...');
       const readyStage = await waitForFillReadyStage();
       setRinseMessage(
         readyStage === '06'
           ? 'La maquina ya esta en llenado. Vamos a continuar.'
+          : readyStage === '05'
+            ? 'Enjuague completado. Ya puedes iniciar dispensado.'
           : 'Enjuague completado. Ya puedes iniciar dispensado.'
       );
     } catch (err) {
