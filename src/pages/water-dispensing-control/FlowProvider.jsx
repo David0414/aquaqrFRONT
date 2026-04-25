@@ -414,11 +414,20 @@ export default function FlowProvider({ children }) {
         },
         body: JSON.stringify({
           action,
+          machineId: machine.id,
+          hardwareId: machine.hardwareId,
           pulsesPerLiter: commandPulsesPerLiter,
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.detail || data?.error || `No se pudo enviar ${action}`);
+      if (res.status === 423 && data?.error === 'MACHINE_BUSY') {
+        const err = new Error(data?.message || 'Esta maquina esta en uso por otro usuario');
+        err.code = 'MACHINE_BUSY';
+        err.expiresAt = data?.expiresAt;
+        err.isOwnLock = data?.isOwnLock;
+        throw err;
+      }
+      if (!res.ok) throw new Error(data?.detail || data?.message || data?.error || `No se pudo enviar ${action}`);
       return data;
     } catch (error) {
       if (previousTelemetry) {
@@ -502,11 +511,20 @@ export default function FlowProvider({ children }) {
       body: JSON.stringify({
         liters: selectedLiters,
         machineId: machine.id,
+        hardwareId: machine.hardwareId,
         location: machine.location,
         pulsesPerLiter,
       }),
     });
     const data = await res.json();
+
+    if (res.status === 423 && data?.error === 'MACHINE_BUSY') {
+      const err = new Error(data?.message || 'Esta maquina esta en uso por otro usuario');
+      err.code = 'MACHINE_BUSY';
+      err.expiresAt = data?.expiresAt;
+      err.isOwnLock = data?.isOwnLock;
+      throw err;
+    }
 
     if (res.status === 400 && data?.error === 'INSUFFICIENT_FUNDS') {
       const requiredAmount = Math.max(0, (data.amountCents - data.balanceCents) / 100);
