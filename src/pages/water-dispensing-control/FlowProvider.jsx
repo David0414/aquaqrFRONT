@@ -343,7 +343,7 @@ export default function FlowProvider({ children }) {
       const expectedMachineId = normalizeHexPair(machine.hardwareId);
       const machineOnline = !expectedMachineId || parsed.machineHardwareId === expectedMachineId;
 
-      setTelemetry({
+      const nextTelemetry = {
         status: 'ok',
         rawResponse,
         rawFrame: parsed.rawFrame,
@@ -370,13 +370,17 @@ export default function FlowProvider({ children }) {
         machineOnline,
         lastSeenAt: parsed.receivedAt,
         error: '',
-      });
+      };
+
+      setTelemetry(nextTelemetry);
+      return nextTelemetry;
     } catch (e) {
       setTelemetry((prev) => ({
         ...prev,
         status: 'error',
         error: e.message || 'Error leyendo inputs',
       }));
+      return null;
     } finally {
       pollingRef.current = false;
     }

@@ -8,6 +8,8 @@ import { useDispenseFlow } from '../FlowProvider';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
 
 const RINSE_DURATION_MS = 3000;
+const STAGE_WAIT_TIMEOUT_MS = 12000;
+const STAGE_POLL_INTERVAL_MS = 800;
 
 export default function PlaceBottleDown() {
   const nav = useNavigate();
@@ -31,6 +33,23 @@ export default function PlaceBottleDown() {
     window.setTimeout(resolve, ms);
   });
 
+  const waitForFillReadyStage = async () => {
+    const startedAt = Date.now();
+    let latestStageCode = telemetry.currentStageCode || '00';
+
+    while (Date.now() - startedAt < STAGE_WAIT_TIMEOUT_MS) {
+      await delay(STAGE_POLL_INTERVAL_MS);
+      const nextTelemetry = await pollInputs({ force: true }).catch(() => null);
+
+      latestStageCode = nextTelemetry?.currentStageCode || latestStageCode;
+      if (latestStageCode === '05' || latestStageCode === '06') {
+        return latestStageCode;
+      }
+    }
+
+    throw new Error(`La maquina no paso a llenado. Paso actual: ${latestStageCode}.`);
+  };
+
   const triggerRinse = async () => {
     try {
       setRinseStatus('sending');
@@ -41,7 +60,13 @@ export default function PlaceBottleDown() {
       await delay(RINSE_DURATION_MS);
       await pollInputs({ force: true }).catch(() => {});
       setRinseStatus('success');
-      setRinseMessage('Enjuague completado. Ya puedes continuar.');
+      setRinseMessage('Esperando que la maquina habilite el llenado...');
+      const readyStage = await waitForFillReadyStage();
+      setRinseMessage(
+        readyStage === '06'
+          ? 'La maquina ya esta en llenado. Vamos a continuar.'
+          : 'Enjuague completado. Ya puedes iniciar dispensado.'
+      );
     } catch (err) {
       const message = err?.message || 'No se pudo activar el enjuague';
       setRinseStatus('error');
@@ -66,6 +91,7 @@ export default function PlaceBottleDown() {
       }
 
       await triggerRinse();
+      await pollInputs({ force: true }).catch(() => {});
       nav('/water/position-up');
     } catch (err) {
       showErrorToast(err?.message || 'No se pudo reenviar el enjuague');

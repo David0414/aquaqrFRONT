@@ -15,8 +15,9 @@ export default function PlaceBottleUp() {
 
   React.useEffect(() => {
     setTelemetryEnabled(true);
+    pollInputs({ force: true }).catch(() => {});
     return () => setTelemetryEnabled(false);
-  }, [setTelemetryEnabled]);
+  }, [pollInputs, setTelemetryEnabled]);
 
   const currentStageCode = telemetry.currentStageCode || '00';
   const canStartFilling = currentStageCode === '05';
