@@ -6,6 +6,7 @@ import MachineInfoCard from '../components/MachineInfoCard';
 import BottleSizeSelector from '../components/BottleSizeSelector';
 import PricingCalculator from '../components/PricingCalculator';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
+import MachineBusyAlert from '../components/MachineBusyAlert';
 import { showErrorToast, showSuccessToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
 
@@ -28,6 +29,7 @@ export default function SelectAmount() {
     pollInputs,
   } = useDispenseFlow();
   const [continuing, setContinuing] = useState(false);
+  const [machineBusyError, setMachineBusyError] = useState(null);
 
   useEffect(() => {
     fetchConfig();
@@ -51,6 +53,7 @@ export default function SelectAmount() {
 
     try {
       setContinuing(true);
+      setMachineBusyError(null);
 
       if (canStartFlow) {
         await sendStageCommand('qr_inicio');
@@ -76,6 +79,10 @@ export default function SelectAmount() {
       await pollInputs({ force: true }).catch(() => {});
       nav('/water/position-down');
     } catch (err) {
+      if (err?.code === 'MACHINE_BUSY') {
+        setMachineBusyError(err);
+        return;
+      }
       showErrorToast(err?.message || 'No se pudo avanzar al siguiente paso');
     } finally {
       setContinuing(false);
@@ -112,6 +119,11 @@ export default function SelectAmount() {
       />
 
       <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
+
+      <MachineBusyAlert
+        error={machineBusyError}
+        onBackHome={() => nav('/home-dashboard')}
+      />
 
       <div className="flex gap-3">
         <Button variant="secondary" className="flex-1" onClick={() => nav('/home-dashboard')}>

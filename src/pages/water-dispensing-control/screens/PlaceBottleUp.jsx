@@ -7,11 +7,13 @@ import Button from '../../../components/ui/Button';
 import { showErrorToast, showSuccessToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
+import MachineBusyAlert from '../components/MachineBusyAlert';
 
 export default function PlaceBottleUp() {
   const navigate = useNavigate();
   const { startDispense, selectedLiters, telemetry, setTelemetryEnabled, pollInputs } = useDispenseFlow();
   const [loading, setLoading] = useState(false);
+  const [machineBusyError, setMachineBusyError] = useState(null);
 
   React.useEffect(() => {
     setTelemetryEnabled(true);
@@ -30,6 +32,7 @@ export default function PlaceBottleUp() {
 
   const handleStart = async () => {
     try {
+      setMachineBusyError(null);
       if (!canStartFilling) {
         showErrorToast(`Espera el paso 05 para iniciar llenado. Paso actual: ${currentStageCode}.`);
         return;
@@ -50,6 +53,8 @@ export default function PlaceBottleUp() {
             fromInsufficientBalance: true,
           },
         });
+      } else if (err?.code === 'MACHINE_BUSY') {
+        setMachineBusyError(err);
       } else {
         showErrorToast(err?.message || 'Error al iniciar el dispensado');
       }
@@ -79,6 +84,11 @@ export default function PlaceBottleUp() {
       </div>
 
       <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
+
+      <MachineBusyAlert
+        error={machineBusyError}
+        onBackHome={() => navigate('/home-dashboard')}
+      />
 
       <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-text-secondary">
         {fillHint}

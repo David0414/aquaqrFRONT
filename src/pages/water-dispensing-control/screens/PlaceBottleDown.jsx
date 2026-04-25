@@ -6,6 +6,7 @@ import Button from '../../../components/ui/Button';
 import { showErrorToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
+import MachineBusyAlert from '../components/MachineBusyAlert';
 
 const RINSE_DURATION_MS = 3000;
 const VOICE_PROMPT_GRACE_MS = 10000;
@@ -18,6 +19,7 @@ export default function PlaceBottleDown() {
   const [rinseStatus, setRinseStatus] = useState('idle');
   const [rinseMessage, setRinseMessage] = useState('El enjuague se habilita cuando el paso sea 03.');
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const [machineBusyError, setMachineBusyError] = useState(null);
 
   React.useEffect(() => {
     setTelemetryEnabled(true);
@@ -59,6 +61,7 @@ export default function PlaceBottleDown() {
 
   const triggerRinse = async () => {
     try {
+      setMachineBusyError(null);
       setRinseStatus('sending');
       setRinseMessage('Activando enjuague por 3 segundos...');
       await sendStageCommand('enjuague');
@@ -79,6 +82,12 @@ export default function PlaceBottleDown() {
           : 'Enjuague completado. Ya puedes iniciar dispensado.'
       );
     } catch (err) {
+      if (err?.code === 'MACHINE_BUSY') {
+        setMachineBusyError(err);
+        setRinseStatus('error');
+        setRinseMessage('Esta maquina esta en uso por otro usuario.');
+        throw err;
+      }
       const message = err?.message || 'No se pudo activar el enjuague';
       setRinseStatus('error');
       setRinseMessage(message);
@@ -105,6 +114,9 @@ export default function PlaceBottleDown() {
       await pollInputs({ force: true }).catch(() => {});
       nav('/water/position-up');
     } catch (err) {
+      if (err?.code === 'MACHINE_BUSY') {
+        return;
+      }
       showErrorToast(err?.message || 'No se pudo reenviar el enjuague');
     } finally {
       setIsAdvancing(false);
@@ -157,6 +169,11 @@ export default function PlaceBottleDown() {
       </div>
 
       <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
+
+      <MachineBusyAlert
+        error={machineBusyError}
+        onBackHome={() => nav('/home-dashboard')}
+      />
 
       <div className="flex gap-3">
         <Button variant="secondary" className="flex-1" onClick={() => nav('/water/choose')}>
