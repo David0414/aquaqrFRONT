@@ -41,7 +41,12 @@ export default function PendingDispenseWatcher() {
 
   React.useEffect(() => {
     if (!isLoaded || !isSignedIn) return undefined;
-    if (location.pathname.startsWith('/water') || location.pathname === '/filling-progress') return undefined;
+    const skipResume =
+      location.pathname.startsWith('/water')
+      || location.pathname === '/filling-progress'
+      || location.pathname === '/transaction-complete'
+      || location.pathname === '/balance-recharge';
+    if (skipResume) return undefined;
 
     let cancelled = false;
     const resumeActiveDispense = async () => {
