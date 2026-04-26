@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Icon from '../AppIcon';
 
-const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
+const BottomTabNavigation = ({ isVisible = true, className = '', onNavigate = null }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -46,6 +46,7 @@ const BottomTabNavigation = ({ isVisible = true, className = '' }) => {
   ];
 
   const handleTabClick = (path) => {
+    if (onNavigate?.(path) === false) return;
     navigate(path);
   };
 
