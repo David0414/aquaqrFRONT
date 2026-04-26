@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
-import { showErrorToast } from '../../../components/ui/NotificationToast';
+import { showErrorToast, showInfoToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
@@ -31,6 +31,19 @@ export default function PlaceBottleDown() {
   const canAdvanceToFill = currentStageCode === '05' || currentStageCode === '06';
   const canUseNext = canTriggerRinse || canAdvanceToFill;
   const nextButtonLabel = canAdvanceToFill ? 'Ir a llenado' : 'Enjuagar';
+
+  React.useEffect(() => {
+    if (currentStageCode !== '00') return;
+
+    showInfoToast('La maquina regreso a espera. Reinicia el flujo cuando estes listo.');
+    nav('/home-dashboard', {
+      replace: true,
+      state: {
+        machineReleased: true,
+        reason: 'idle',
+      },
+    });
+  }, [currentStageCode, nav]);
 
   const delay = (ms) => new Promise((resolve) => {
     window.setTimeout(resolve, ms);

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
-import { showErrorToast, showSuccessToast } from '../../../components/ui/NotificationToast';
+import { showErrorToast, showInfoToast, showSuccessToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
@@ -29,6 +29,19 @@ export default function PlaceBottleUp() {
       : currentStageCode === '03' || currentStageCode === '04'
         ? 'La maquina puede estar reproduciendo indicaciones. Puedes iniciar llenado cuando terminen.'
         : `Espera el paso 05 para iniciar llenado. Paso actual: ${currentStageCode}.`;
+
+  React.useEffect(() => {
+    if (currentStageCode !== '00') return;
+
+    showInfoToast('La maquina regreso a espera. Reinicia el flujo cuando estes listo.');
+    navigate('/home-dashboard', {
+      replace: true,
+      state: {
+        machineReleased: true,
+        reason: 'idle',
+      },
+    });
+  }, [currentStageCode, navigate]);
 
   const handleStart = async () => {
     try {
