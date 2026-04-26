@@ -26,12 +26,6 @@ const BottomTabNavigation = ({ isVisible = true, className = '', onNavigate = nu
       tooltip: 'Recargar saldo'
     },
     {
-      label: 'Monitor',
-      path: '/water-monitor',
-      icon: 'Activity',
-      tooltip: 'Monitoreo y control manual'
-    },
-    {
       label: 'Historial',
       path: '/transaction-history',
       icon: 'History',

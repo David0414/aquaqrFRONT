@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { SignUp, SignedIn, useUser } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
+import Agua24Brand from '../../components/Agua24Brand';
 
 export default function UserRegistration() {
   const navigate = useNavigate();
@@ -16,10 +17,10 @@ export default function UserRegistration() {
   return (
     <>
       <Helmet>
-        <title>Crear Cuenta - AquaQR</title>
+        <title>Crear cuenta - AGUA/24</title>
         <meta
           name="description"
-          content="Crea tu cuenta AquaQR y comienza a disfrutar de agua purificada inteligente"
+          content="Crea tu cuenta AGUA/24 y comienza a disfrutar de agua purificada inteligente"
         />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Helmet>
@@ -29,7 +30,7 @@ export default function UserRegistration() {
         <Navigate to="/home-dashboard" replace />
       </SignedIn>
 
-      <div className="min-h-[100dvh] overflow-x-hidden flex flex-col bg-gradient-to-b from-[#f0fbff] via-white to-[#eef6ff]">
+      <div className="min-h-[100dvh] overflow-x-hidden flex flex-col bg-[radial-gradient(circle_at_top_left,#d8f7ff_0,#f8fdff_36%,#eef9ff_100%)]">
         {/* Header */}
         <header className="w-full">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6 flex flex-wrap items-center justify-between gap-3">
@@ -37,15 +38,9 @@ export default function UserRegistration() {
               type="button"
               onClick={onBrandClick}
               className="flex items-center gap-3 select-none"
-              aria-label="AquaQR"
+              aria-label="AGUA/24"
             >
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
-                <Icon name="Droplets" size={22} className="text-white" />
-              </div>
-              <div className="leading-tight text-left">
-                <span className="block text-base sm:text-lg font-bold text-slate-900">AquaQR</span>
-                <span className="hidden sm:block text-xs sm:text-sm text-slate-500">Agua purificada inteligente</span>
-              </div>
+              <Agua24Brand className="h-12" />
             </button>
 
             <button

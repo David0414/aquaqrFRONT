@@ -7,38 +7,38 @@
 @layer base {
   :root {
     /* Background Colors */
-    --color-background: #FFFFFF; /* white */
-    --color-foreground: #0F172A; /* slate-900 */
-    --color-surface: #F8FAFC; /* slate-50 */
+    --color-background: #F7FDFF;
+    --color-foreground: #12335F;
+    --color-surface: #EAF8FC;
     
     /* Border and Input Colors */
-    --color-border: #E2E8F0; /* slate-200 */
-    --color-input: #FFFFFF; /* white */
-    --color-ring: #0891B2; /* cyan-600 */
+    --color-border: #CBEFF7;
+    --color-input: #FFFFFF;
+    --color-ring: #42B9D4;
     
     /* Card Colors */
-    --color-card: #FFFFFF; /* white */
-    --color-card-foreground: #0F172A; /* slate-900 */
+    --color-card: #FFFFFF;
+    --color-card-foreground: #12335F;
     
     /* Popover Colors */
-    --color-popover: #FFFFFF; /* white */
-    --color-popover-foreground: #0F172A; /* slate-900 */
+    --color-popover: #FFFFFF;
+    --color-popover-foreground: #12335F;
     
     /* Muted Colors */
-    --color-muted: #F8FAFC; /* slate-50 */
-    --color-muted-foreground: #475569; /* slate-600 */
+    --color-muted: #EAF8FC;
+    --color-muted-foreground: #4B6D88;
     
     /* Primary Colors */
-    --color-primary: #0891B2; /* cyan-600 */
-    --color-primary-foreground: #FFFFFF; /* white */
+    --color-primary: #1E3F7A;
+    --color-primary-foreground: #FFFFFF;
     
     /* Secondary Colors */
-    --color-secondary: #64748B; /* slate-500 */
-    --color-secondary-foreground: #FFFFFF; /* white */
+    --color-secondary: #42B9D4;
+    --color-secondary-foreground: #FFFFFF;
     
     /* Accent Colors */
-    --color-accent: #06B6D4; /* cyan-500 */
-    --color-accent-foreground: #FFFFFF; /* white */
+    --color-accent: #42B9D4;
+    --color-accent-foreground: #FFFFFF;
     
     /* Status Colors */
     --color-success: #059669; /* emerald-600 */
@@ -54,8 +54,8 @@
     --color-destructive-foreground: #FFFFFF; /* white */
     
     /* Text Colors */
-    --color-text-primary: #0F172A; /* slate-900 */
-    --color-text-secondary: #475569; /* slate-600 */
+    --color-text-primary: #12335F;
+    --color-text-secondary: #4B6D88;
   }
   
   * {

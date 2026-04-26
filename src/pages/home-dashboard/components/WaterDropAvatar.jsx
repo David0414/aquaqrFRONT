@@ -25,7 +25,7 @@ const WaterDropAvatar = ({ title = '¡Hola!' }) => {
           </svg>
         </div>
         <h3 className="mt-3 text-body-base font-semibold text-text-primary">{title}</h3>
-        <p className="text-body-sm text-text-secondary">Pronto versión animada con IA 🤖✨</p>
+        <p className="text-body-sm text-text-secondary">Agua pura disponible cuando la necesitas.</p>
       </div>
 
       <style>{`

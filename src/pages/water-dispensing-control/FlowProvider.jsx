@@ -22,6 +22,18 @@ const DEFAULT_FLOW_LPM = (20 / 10) * 60; // 120
 const INPUT_POLL_INTERVAL_MS = 1000;
 const INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS = 1500;
 const FLOWMETER_PULSES_PER_LITER_KEY = 'flowmeterPulsesPerLiter';
+const MONITOR_ADMIN_SESSION_KEY = 'agua24MonitorAdmin';
+const MONITOR_ADMIN_USER_KEY = 'agua24MonitorAdminUser';
+const MONITOR_ADMIN_PASSWORD_KEY = 'agua24MonitorAdminPassword';
+
+function monitorAdminHeaders() {
+  if (typeof window === 'undefined') return {};
+  if (window.sessionStorage.getItem(MONITOR_ADMIN_SESSION_KEY) !== 'true') return {};
+  return {
+    'X-Monitor-User': window.sessionStorage.getItem(MONITOR_ADMIN_USER_KEY) || 'admin',
+    'X-Monitor-Password': window.sessionStorage.getItem(MONITOR_ADMIN_PASSWORD_KEY) || '123',
+  };
+}
 
 function extractTelemetryBytes(payload) {
   const matches = String(payload || '').toUpperCase().match(/[0-9A-F]{2}/g) || [];
@@ -329,6 +341,7 @@ export default function FlowProvider({ children }) {
       const res = await fetch(`${API}/api/dispense/demo/monitor`, {
         headers: {
           Authorization: `Bearer ${token}`,
+          ...monitorAdminHeaders(),
         },
       });
       const data = await res.json();
@@ -418,6 +431,7 @@ export default function FlowProvider({ children }) {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
+          ...monitorAdminHeaders(),
         },
         body: JSON.stringify({
           action,

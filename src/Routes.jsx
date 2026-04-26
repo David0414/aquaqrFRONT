@@ -48,6 +48,18 @@ const Protected = ({ children }) => (
   </>
 );
 
+const MonitorAdminProtected = ({ children }) => {
+  const isMonitorAdmin =
+    typeof window !== "undefined"
+    && window.sessionStorage.getItem("agua24MonitorAdmin") === "true";
+
+  if (!isMonitorAdmin) {
+    return <Navigate to="/user-login?monitor=1" replace />;
+  }
+
+  return children;
+};
+
 // Header (ahora mismo no pinta nada, pero respeta tus auth-routes)
 function LayoutHeader() {
   const { pathname } = useLocation();
@@ -170,11 +182,11 @@ const Routes = () => {
           <Route
             path="/water-monitor"
             element={
-              <Protected>
+              <MonitorAdminProtected>
                 <FlowProvider>
                   <WaterMonitor />
                 </FlowProvider>
-              </Protected>
+              </MonitorAdminProtected>
             }
           />
 

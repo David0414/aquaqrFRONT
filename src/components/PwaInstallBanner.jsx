@@ -53,7 +53,7 @@ const PwaInstallBanner = () => {
 
             <div className="flex-1 min-w-0">
               <p className="text-body-sm font-semibold text-text-primary">
-                Instala AquaQR en tu pantalla de inicio
+                Instala AGUA/24 en tu pantalla de inicio
               </p>
               <p className="text-body-xs text-text-secondary mt-1">
                 Úsala como una app: acceso rápido, experiencia a pantalla
@@ -100,7 +100,7 @@ const PwaInstallBanner = () => {
             </div>
 
             <ol className="list-decimal list-inside text-body-sm text-text-secondary space-y-2">
-              <li>Abre AquaQR en Safari.</li>
+              <li>Abre AGUA/24 en Safari.</li>
               <li>
                 Toca el botón <strong>Compartir</strong> (icono de cuadrado con
                 flecha hacia arriba).
@@ -109,7 +109,7 @@ const PwaInstallBanner = () => {
                 Desplázate hacia abajo y elige{" "}
                 <strong>“Agregar a pantalla de inicio”</strong>.
               </li>
-              <li>Confirma y listo: tendrás AquaQR como una app.</li>
+              <li>Confirma y listo: tendras AGUA/24 como una app.</li>
             </ol>
 
             <div className="mt-4 flex justify-end space-x-2">

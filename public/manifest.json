@@ -1,7 +1,7 @@
 {
-  "short_name": "AquaQR",
-  "name": "AquaQR",
-  "description": "Recarga saldo y dispensa agua desde tu celular con AquaQR.",
+  "short_name": "AGUA/24",
+  "name": "AGUA/24",
+  "description": "Recarga saldo y dispensa agua purificada desde tu celular con AGUA/24.",
   "icons": [
     {
       "src": "favicon.ico",
@@ -25,6 +25,6 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#06b6d4",
-  "background_color": "#020617"
+  "theme_color": "#42B9D4",
+  "background_color": "#F7FDFF"
 }

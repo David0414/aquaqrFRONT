@@ -11,6 +11,7 @@ import WaterDropAvatar from './components/WaterDropAvatar';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
 import Icon from '../../components/AppIcon';
+import Agua24Brand from '../../components/Agua24Brand';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -24,13 +25,13 @@ const HomeDashboard = () => {
   const { balanceCents, setTelemetryEnabled, pollInputs } = useDispenseFlow();
 
   const displayName = useMemo(() => {
-    if (!user) return 'AquaQR';
+    if (!user) return 'AGUA/24';
     const base =
       user.firstName ||
       user.fullName ||
       user.username ||
       user.primaryEmailAddress?.emailAddress?.split('@')[0] ||
-      'AquaQR';
+      'AGUA/24';
     return base.split(' ')[0];
   }, [user]);
 
@@ -150,7 +151,7 @@ const HomeDashboard = () => {
                 <Icon name="Droplets" size={24} className="text-primary" />
               </div>
               <div>
-                <h1 className="text-heading-sm font-bold text-text-primary">AquaQR</h1>
+                <Agua24Brand className="h-8" showTagline={false} />
                 <p className="text-caption text-text-secondary">¡Hola, {displayName}!</p>
               </div>
             </div>
@@ -176,7 +177,7 @@ const HomeDashboard = () => {
               onDispense={handleDispense}
               dispenseLoading={dispenseLoading}
             />
-            <WaterDropAvatar title="Tu gota AquaQR" />
+            <WaterDropAvatar title="Tu gota AGUA/24" />
           </div>
 
           {/* Banners promocionales (se mantienen) */}
