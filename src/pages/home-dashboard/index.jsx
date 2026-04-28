@@ -146,13 +146,14 @@ const HomeDashboard = () => {
       <header className="bg-card border-b border-border sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                <Icon name="Droplets" size={24} className="text-primary" />
-              </div>
-              <div>
-                <Agua24Brand className="h-8" showTagline={false} />
-                <p className="text-caption text-text-secondary">¡Hola, {displayName}!</p>
+            <div className="flex min-w-0 items-center gap-3">
+              <Agua24Brand
+                variant="mark"
+                className="h-14 w-auto flex-shrink-0 object-contain"
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-text-primary">¡Hola, {displayName}!</p>
+                <p className="text-xs text-text-secondary">AGUA/24</p>
               </div>
             </div>
             <button

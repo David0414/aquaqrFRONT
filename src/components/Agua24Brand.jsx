@@ -11,8 +11,8 @@ export default function Agua24Brand({
 }) {
   const [imageFailed, setImageFailed] = React.useState(false);
   const src = variant === 'mark'
-    ? '/assets/agua24-logo-mark.png'
-    : '/assets/agua24-logo-horizontal.png';
+    ? '/assets/images/agua24-logo-mark.jpg'
+    : '/assets/images/agua24-logo-horizontal.png';
 
   if (!imageFailed) {
     return (
