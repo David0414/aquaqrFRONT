@@ -6,11 +6,13 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { showErrorToast, showInfoToast, showSuccessToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
+import { useWaterFlowNavigation } from '../WaterFlowLayout';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
 
 export default function PlaceBottleUp() {
   const navigate = useNavigate();
+  const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
   const { startDispense, selectedLiters, telemetry, setTelemetryEnabled, pollInputs } = useDispenseFlow();
   const [loading, setLoading] = useState(false);
   const [machineBusyError, setMachineBusyError] = useState(null);
@@ -23,6 +25,7 @@ export default function PlaceBottleUp() {
 
   const currentStageCode = telemetry.currentStageCode || '00';
   const canStartFilling = currentStageCode === '05' || currentStageCode === '03' || currentStageCode === '04';
+  const hasStartedFlow = Boolean(shouldGuardExit);
   const fillHint =
     currentStageCode === '05'
       ? 'La maquina ya habilito el llenado.'
@@ -52,7 +55,7 @@ export default function PlaceBottleUp() {
       }
 
       setLoading(true);
-      const tx = await startDispense(); // arranca llenado; el cobro se hace al finalizar
+      const tx = await startDispense();
       await pollInputs({ force: true }).catch(() => {});
       showSuccessToast('Dispensado iniciado');
       navigate('/filling-progress', { state: { tx } });
@@ -76,9 +79,14 @@ export default function PlaceBottleUp() {
     }
   };
 
+  const handleBackOrCancel = () => {
+    const targetPath = hasStartedFlow ? '/home-dashboard' : '/water/position-down';
+    if (requestNavigation(targetPath)) navigate(targetPath);
+  };
+
   return (
     <div className="space-y-8">
-      <h2 className="text-xl font-semibold text-text-primary">Acomodar GarrafÃƒÂ³n</h2>
+      <h2 className="text-xl font-semibold text-text-primary">Acomodar Garrafon</h2>
 
       <div className="bg-card border border-border rounded-2xl p-8 flex flex-col items-center text-center">
         <motion.div
@@ -89,10 +97,10 @@ export default function PlaceBottleUp() {
           <Icon name="Target" size={44} className="text-success" />
         </motion.div>
         <h3 className="text-2xl font-bold text-text-primary mb-2">
-          ColÃƒÂ³calo <span className="text-success">boca arriba y centrado</span>
+          Colocalo <span className="text-success">boca arriba y centrado</span>
         </h3>
         <p className="text-text-secondary max-w-md">
-          AsegÃƒÂºrate de que el cuello quede firme en el centro para evitar derrames.
+          Asegurate de que el cuello quede firme en el centro para evitar derrames.
         </p>
       </div>
 
@@ -100,7 +108,7 @@ export default function PlaceBottleUp() {
 
       <MachineBusyAlert
         error={machineBusyError}
-        onBackHome={() => navigate('/home-dashboard')}
+        onBackHome={handleBackOrCancel}
       />
 
       <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-text-secondary">
@@ -108,8 +116,13 @@ export default function PlaceBottleUp() {
       </div>
 
       <div className="flex gap-3">
-        <Button variant="secondary" className="flex-1" onClick={() => navigate('/water/position-down')}>
-          <Icon name="ArrowLeft" size={18} /> AtrÃƒÂ¡s
+        <Button
+          variant={hasStartedFlow ? 'destructive' : 'secondary'}
+          className="flex-1"
+          onClick={handleBackOrCancel}
+        >
+          <Icon name={hasStartedFlow ? 'RotateCcw' : 'ArrowLeft'} size={18} />
+          {hasStartedFlow ? 'Cancelar llenado' : 'Atras'}
         </Button>
         <Button
           className="flex-1"

@@ -5,6 +5,7 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { showErrorToast, showInfoToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
+import { useWaterFlowNavigation } from '../WaterFlowLayout';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
 
@@ -15,6 +16,7 @@ const STAGE_POLL_INTERVAL_MS = 800;
 
 export default function PlaceBottleDown() {
   const nav = useNavigate();
+  const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
   const { machine, telemetry, setTelemetryEnabled, sendStageCommand, pollInputs } = useDispenseFlow();
   const [rinseStatus, setRinseStatus] = useState('idle');
   const [rinseMessage, setRinseMessage] = useState('El enjuague se habilita cuando el paso sea 03.');
@@ -31,6 +33,12 @@ export default function PlaceBottleDown() {
   const canAdvanceToFill = currentStageCode === '05' || currentStageCode === '06';
   const canUseNext = canTriggerRinse || canAdvanceToFill;
   const nextButtonLabel = canAdvanceToFill ? 'Ir a llenado' : 'Enjuagar';
+  const hasStartedFlow = Boolean(shouldGuardExit);
+
+  const handleBackOrCancel = () => {
+    const targetPath = hasStartedFlow ? '/home-dashboard' : '/water/choose';
+    if (requestNavigation(targetPath)) nav(targetPath);
+  };
 
   React.useEffect(() => {
     if (currentStageCode !== '00') return;
@@ -185,12 +193,17 @@ export default function PlaceBottleDown() {
 
       <MachineBusyAlert
         error={machineBusyError}
-        onBackHome={() => nav('/home-dashboard')}
+        onBackHome={handleBackOrCancel}
       />
 
       <div className="flex gap-3">
-        <Button variant="secondary" className="flex-1" onClick={() => nav('/water/choose')}>
-          <Icon name="ArrowLeft" size={18} /> Atras
+        <Button
+          variant={hasStartedFlow ? 'destructive' : 'secondary'}
+          className="flex-1"
+          onClick={handleBackOrCancel}
+        >
+          <Icon name={hasStartedFlow ? 'RotateCcw' : 'ArrowLeft'} size={18} />
+          {hasStartedFlow ? 'Cancelar llenado' : 'Atras'}
         </Button>
         <Button
           className="flex-1"

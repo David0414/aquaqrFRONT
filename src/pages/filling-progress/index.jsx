@@ -39,6 +39,7 @@ export default function FillingProgress() {
   const setTelemetryEnabled = flow?.setTelemetryEnabled;
   const currentPulsesPerLiter = flow?.pulsesPerLiter;
   const completeDispense = flow?.completeDispense;
+  const cancelActiveSession = flow?.cancelActiveSession;
 
   const tx = location.state?.tx || lastTx;
 
@@ -63,6 +64,7 @@ export default function FillingProgress() {
   const [flowRate, setFlowRate] = useState(0);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [isDispensing, setIsDispensing] = useState(true);
   const [completionStatus, setCompletionStatus] = useState("");
   const [displayTelemetry, setDisplayTelemetry] = useState(telemetry || null);
@@ -297,19 +299,53 @@ export default function FillingProgress() {
     : "connecting";
 
   const handleCancelClick = useCallback(() => {
-    if (displayProgress > 0 && displayProgress < 100) setIsCancelModalOpen(true);
-    else navigate("/water/choose");
-  }, [displayProgress, navigate]);
+    if (completionScheduledRef.current || displayProgress >= 100) return;
+    setIsCancelModalOpen(true);
+  }, [displayProgress]);
 
-  const handleConfirmCancel = useCallback(() => {
-    setIsDispensing(false);
-    showWarningToast(`Dispensado cancelado. Reembolso de ${money(refundAmount)} procesado.`);
-    window.setTimeout(() => {
-      navigate("/home-dashboard", {
-        state: { refundAmount, cancelledAt: new Date().toISOString() },
+  const handleConfirmCancel = useCallback(async () => {
+    if (completionScheduledRef.current || isCancelling) return;
+
+    try {
+      setIsCancelling(true);
+      const data = await cancelActiveSession?.();
+      setIsDispensing(false);
+      setIsCancelModalOpen(false);
+
+      const refunded = Number(data?.refundedCents || 0) / 100;
+      showWarningToast(
+        refunded > 0
+          ? `Dispensado cancelado. Reembolso de ${money(refunded)} procesado.`
+          : "Dispensado cancelado. Se envio reinicio a la maquina."
+      );
+
+      navigate("/water/choose", {
+        replace: true,
+        state: {
+          machineReleased: true,
+          reason: "user_cancelled",
+          cancelledAt: new Date().toISOString(),
+          refundAmount: refunded || refundAmount,
+        },
       });
-    }, 900);
-  }, [refundAmount, navigate]);
+    } catch (error) {
+      showErrorToast(error?.message || "No se pudo cancelar el dispensado");
+      setIsCancelling(false);
+    }
+  }, [cancelActiveSession, isCancelling, navigate, refundAmount]);
+
+  useEffect(() => {
+    if (!isDispensing || completionScheduledRef.current) return undefined;
+
+    const handlePopState = () => {
+      window.history.pushState({ agua24FillingGuard: true }, "", window.location.href);
+      setIsCancelModalOpen(true);
+    };
+
+    window.history.pushState({ agua24FillingGuard: true }, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [isDispensing]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -389,8 +425,11 @@ export default function FillingProgress() {
       <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
       <CancelConfirmationModal
         isOpen={isCancelModalOpen}
-        onClose={() => setIsCancelModalOpen(false)}
+        onClose={() => {
+          if (!isCancelling) setIsCancelModalOpen(false);
+        }}
         onConfirm={handleConfirmCancel}
+        confirmLoading={isCancelling}
         progress={displayProgress}
         totalCost={totalCost}
         refundAmount={refundAmount}

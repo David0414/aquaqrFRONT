@@ -1,7 +1,6 @@
 // src/pages/water-dispensing-control/WaterFlowLayout.jsx
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
@@ -9,25 +8,29 @@ import NotificationToast from '../../components/ui/NotificationToast';
 import { showErrorToast, showInfoToast } from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from './FlowProvider';
 
-const API = import.meta.env.VITE_API_URL;
-const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+const WaterFlowNavigationContext = React.createContext({
+  requestNavigation: () => true,
+  shouldGuardExit: false,
+});
+
+export const useWaterFlowNavigation = () => React.useContext(WaterFlowNavigationContext);
 
 export default function WaterFlowLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getToken } = useAuth();
-  const { telemetry } = useDispenseFlow();
+  const { lastTx, hasActiveSession, cancelActiveSession } = useDispenseFlow();
   const [exitPrompt, setExitPrompt] = React.useState({
     open: Boolean(location.state?.fromActiveSession),
     targetPath: '/home-dashboard',
     cancelling: false,
   });
 
-  const currentStageCode = telemetry?.currentStageCode || '00';
-  const isGuardedStep =
-    location.pathname === '/water/position-down'
-    || location.pathname === '/water/position-up';
-  const shouldGuardExit = isGuardedStep && currentStageCode !== '00';
+  const isWaterStep = location.pathname.startsWith('/water');
+  const hasActiveTx = Boolean(location.state?.tx || lastTx?.status === 'STARTED');
+  const hasResumedSession = Boolean(location.state?.fromActiveSession);
+  const shouldGuardExit =
+    isWaterStep
+    && (hasActiveSession || hasActiveTx || hasResumedSession);
 
   const requestNavigation = (path = '/home-dashboard') => {
     if (!shouldGuardExit) return true;
@@ -42,19 +45,14 @@ export default function WaterFlowLayout() {
   const cancelAndReset = async () => {
     try {
       setExitPrompt((current) => ({ ...current, cancelling: true }));
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-      const res = await fetch(`${API}/api/dispense/active/cancel`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.message || data?.error || 'No se pudo cancelar el proceso');
-      }
+      const data = await cancelActiveSession();
 
-      showInfoToast('Proceso cancelado. La maquina regreso a espera.');
+      const refunded = Number(data?.refundedCents || 0) / 100;
+      showInfoToast(
+        refunded > 0
+          ? `Llenado cancelado. Reembolso aplicado: $${refunded.toFixed(2)}.`
+          : 'Llenado cancelado. La maquina regreso a espera.'
+      );
       navigate(exitPrompt.targetPath || '/home-dashboard', {
         replace: true,
         state: { machineReleased: true, reason: 'user_cancelled' },
@@ -88,7 +86,9 @@ export default function WaterFlowLayout() {
       </header>
 
       <main className="px-4 py-6 pb-24">
-        <Outlet />
+        <WaterFlowNavigationContext.Provider value={{ requestNavigation, shouldGuardExit }}>
+          <Outlet />
+        </WaterFlowNavigationContext.Provider>
       </main>
 
       {exitPrompt.open ? (
@@ -99,18 +99,18 @@ export default function WaterFlowLayout() {
                 <Icon name="AlertTriangle" size={21} className="text-warning" />
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-semibold text-text-primary">Proceso activo</h2>
+                <h2 className="text-lg font-semibold text-text-primary">Flujo iniciado</h2>
                 <p className="mt-2 text-sm text-text-secondary">
-                  Esta maquina sigue reservada para tu proceso. Puedes continuar o cancelar para reiniciar la maquina a espera.
+                  Esta maquina ya esta siguiendo el flujo. Para salir, cancela el llenado y enviaremos el reinicio a espera.
                 </p>
               </div>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Button variant="secondary" onClick={continueProcess} disabled={exitPrompt.cancelling}>
-                Continuar proceso
+                Continuar flujo
               </Button>
               <Button variant="destructive" onClick={cancelAndReset} loading={exitPrompt.cancelling}>
-                Cancelar y reiniciar
+                Cancelar llenado
               </Button>
             </div>
           </div>

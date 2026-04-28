@@ -178,6 +178,13 @@ function applyTelemetryActionSnapshot(currentTelemetry, action) {
         lastSeenAt: nextSeenAt,
         error: '',
       };
+    case 'reiniciar_sistema':
+      return withStage({
+        ...currentTelemetry,
+        pumpOn: false,
+        fillValveOn: false,
+        rinseValveOn: false,
+      }, '00');
     default:
       return currentTelemetry;
   }
@@ -230,6 +237,9 @@ export default function FlowProvider({ children }) {
   });
 
   const [lastTx, setLastTx] = useState(null);
+  const [hasActiveSession, setHasActiveSession] = useState(() => (
+    Boolean(location.state?.fromActiveSession || location.state?.tx)
+  ));
   const [telemetry, setTelemetry] = useState({
     status: 'idle',
     rawResponse: '',
@@ -285,6 +295,12 @@ export default function FlowProvider({ children }) {
       setSelectedLiters(routeLiters);
     }
   }, [location.state?.selectedLiters]);
+
+  useEffect(() => {
+    if (location.state?.fromActiveSession || location.state?.tx) {
+      setHasActiveSession(true);
+    }
+  }, [location.state?.fromActiveSession, location.state?.tx]);
 
   // Simula conexión y verificación breve
   useEffect(() => {
@@ -450,6 +466,9 @@ export default function FlowProvider({ children }) {
         throw err;
       }
       if (!res.ok) throw new Error(data?.detail || data?.message || data?.error || `No se pudo enviar ${action}`);
+      if (action !== 'inputs' && action !== 'recarga_monedas') {
+        setHasActiveSession(true);
+      }
       return data;
     } catch (error) {
       if (previousTelemetry) {
@@ -578,6 +597,7 @@ export default function FlowProvider({ children }) {
     };
 
     setLastTx(tx);
+    setHasActiveSession(true);
     setTelemetry((currentTelemetry) => applyTelemetryActionSnapshot(currentTelemetry, 'inicio_dispensado'));
     return tx;
     } finally {
@@ -633,7 +653,44 @@ export default function FlowProvider({ children }) {
     }
 
     setLastTx(completedTx);
+    setHasActiveSession(false);
     return completedTx;
+  }
+
+  async function cancelActiveSession() {
+    const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+    const res = await fetch(`${API}/api/dispense/active/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ pulsesPerLiter }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const error = new Error(data?.message || data?.error || 'No se pudo cancelar el proceso');
+      error.code = data?.error;
+      throw error;
+    }
+
+    setLastTx(null);
+    setHasActiveSession(false);
+    setTelemetry((currentTelemetry) => applyTelemetryActionSnapshot(currentTelemetry, 'reiniciar_sistema'));
+
+    if (typeof data?.balanceCents === 'number') {
+      setBalanceCents(data.balanceCents);
+      window.dispatchEvent(new CustomEvent('wallet:updated', {
+        detail: {
+          balanceCents: data.balanceCents,
+          source: 'dispense-cancel',
+          machineId: machine.id,
+        },
+      }));
+    }
+
+    return data;
   }
 
   const value = {
@@ -649,6 +706,7 @@ export default function FlowProvider({ children }) {
     pulsesPerLiter,
     setPulsesPerLiter,
     lastTx,
+    hasActiveSession,
     telemetry,
     telemetryEnabled,
     setTelemetryEnabled,
@@ -658,6 +716,7 @@ export default function FlowProvider({ children }) {
     sendStageCommand,
     startDispense,
     completeDispense,
+    cancelActiveSession,
   };
 
   useEffect(() => {

@@ -15,7 +15,7 @@ const ProgressHeader = ({
           className="p-2 rounded-lg hover:bg-muted transition-colors duration-200"
           aria-label="Cancelar dispensado"
         >
-          <Icon name="ArrowLeft" size={20} className="text-text-secondary" />
+          <Icon name="X" size={20} className="text-error" />
         </button>
 
         <div>

@@ -6,6 +6,7 @@ const CancelConfirmationModal = ({
   isOpen,
   onClose,
   onConfirm,
+  confirmLoading = false,
   progress = 0,
   totalCost = 0,
   refundAmount = 0,
@@ -29,23 +30,20 @@ const CancelConfirmationModal = ({
       aria-modal="true"
     >
       <div className="bg-background rounded-2xl max-w-sm w-full shadow-xl">
-        {/* Header */}
         <div className="p-6 text-center">
           <div className="w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Icon name="AlertTriangle" size={32} className="text-warning" />
           </div>
 
           <h2 className="text-heading-sm font-semibold text-text-primary mb-2">
-            ¿Cancelar dispensado?
+            Cancelar llenado
           </h2>
 
           <p className="text-body-sm text-text-secondary">
-            El dispensado está {Math.round(pct)}% completado. Si cancelas ahora,
-            procesaremos un reembolso parcial.
+            El dispensado esta {Math.round(pct)}% completado. Al cancelar enviaremos el reinicio de la maquina y cerraremos esta sesion.
           </p>
         </div>
 
-        {/* Detalle de reembolso */}
         <div className="px-6 pb-6">
           <div className="bg-muted/50 rounded-lg p-4 space-y-2 mb-6">
             <div className="flex justify-between items-center">
@@ -65,25 +63,25 @@ const CancelConfirmationModal = ({
             </div>
 
             <div className="flex justify-between items-center pt-2 border-t border-border">
-              <span className="text-body-sm font-semibold text-text-primary">Reembolso</span>
+              <span className="text-body-sm font-semibold text-text-primary">Reembolso estimado</span>
               <span className="text-body-sm font-bold text-success">
                 +{money(refundAmount)}
               </span>
             </div>
           </div>
 
-          {/* Acciones */}
           <div className="space-y-3">
             <Button
               variant="destructive"
               fullWidth
               iconName="X"
               onClick={onConfirm}
+              loading={confirmLoading}
             >
-              Sí, cancelar dispensado
+              Si, cancelar llenado
             </Button>
 
-            <Button variant="outline" fullWidth onClick={onClose}>
+            <Button variant="outline" fullWidth onClick={onClose} disabled={confirmLoading}>
               Continuar dispensando
             </Button>
           </div>

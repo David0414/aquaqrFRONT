@@ -21,10 +21,10 @@ const FLOW_COMMANDS = [
 
 const HARDWARE_COMMANDS = [
   { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', variant: 'success' },
-  { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', variant: 'secondary' },
   { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', variant: 'success' },
-  { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', variant: 'secondary' },
   { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', variant: 'success' },
+  { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', variant: 'secondary' },
+  { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', variant: 'secondary' },
   { key: 'valvula_llenado_off', label: 'Llenado OFF', icon: 'CircleOff', variant: 'secondary' },
 ];
 

@@ -9,9 +9,11 @@ import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
 import { showErrorToast, showSuccessToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
+import { useWaterFlowNavigation } from '../WaterFlowLayout';
 
 export default function SelectAmount() {
   const nav = useNavigate();
+  const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
   const {
     machine,
     connectionStatus,
@@ -94,6 +96,12 @@ export default function SelectAmount() {
     : canGoToRinse
       ? 'Ir a enjuague'
       : 'Continuar';
+  const hasStartedFlow = Boolean(shouldGuardExit);
+
+  const handleCancel = () => {
+    const targetPath = '/home-dashboard';
+    if (requestNavigation(targetPath)) nav(targetPath);
+  };
 
   return (
     <div className="space-y-6">
@@ -122,12 +130,17 @@ export default function SelectAmount() {
 
       <MachineBusyAlert
         error={machineBusyError}
-        onBackHome={() => nav('/home-dashboard')}
+        onBackHome={handleCancel}
       />
 
       <div className="flex gap-3">
-        <Button variant="secondary" className="flex-1" onClick={() => nav('/home-dashboard')}>
-          <Icon name="X" size={18} /> Cancelar
+        <Button
+          variant={hasStartedFlow ? 'destructive' : 'secondary'}
+          className="flex-1"
+          onClick={handleCancel}
+        >
+          <Icon name={hasStartedFlow ? 'RotateCcw' : 'X'} size={18} />
+          {hasStartedFlow ? 'Cancelar llenado' : 'Cancelar'}
         </Button>
         <Button
           className="flex-1"
