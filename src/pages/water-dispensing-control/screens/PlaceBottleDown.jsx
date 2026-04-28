@@ -10,9 +10,6 @@ import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
 
 const RINSE_DURATION_MS = 3000;
-const VOICE_PROMPT_GRACE_MS = 10000;
-const STAGE_WAIT_TIMEOUT_MS = 30000;
-const STAGE_POLL_INTERVAL_MS = 800;
 
 export default function PlaceBottleDown() {
   const nav = useNavigate();
@@ -30,7 +27,7 @@ export default function PlaceBottleDown() {
 
   const currentStageCode = telemetry.currentStageCode || '00';
   const canTriggerRinse = currentStageCode === '03';
-  const canAdvanceToFill = currentStageCode === '05' || currentStageCode === '06';
+  const canAdvanceToFill = currentStageCode === '04' || currentStageCode === '05' || currentStageCode === '06';
   const canUseNext = canTriggerRinse || canAdvanceToFill;
   const nextButtonLabel = canAdvanceToFill ? 'Ir a llenado' : 'Enjuagar';
   const hasStartedFlow = Boolean(shouldGuardExit);
@@ -57,50 +54,26 @@ export default function PlaceBottleDown() {
     window.setTimeout(resolve, ms);
   });
 
-  const waitForFillReadyStage = async () => {
-    const startedAt = Date.now();
-    let latestStageCode = telemetry.currentStageCode || '00';
-    let sawRinseAccepted = latestStageCode === '04' || latestStageCode === '05' || latestStageCode === '06';
-
-    while (Date.now() - startedAt < STAGE_WAIT_TIMEOUT_MS) {
-      await delay(STAGE_POLL_INTERVAL_MS);
-      const nextTelemetry = await pollInputs({ force: true }).catch(() => null);
-
-      latestStageCode = nextTelemetry?.currentStageCode || latestStageCode;
-      sawRinseAccepted = sawRinseAccepted || latestStageCode === '04';
-      if (latestStageCode === '05' || latestStageCode === '06') {
-        return latestStageCode;
-      }
-    }
-
-    if (sawRinseAccepted || latestStageCode === '03') {
-      return latestStageCode;
-    }
-
-    throw new Error(`La maquina no paso a llenado. Paso actual: ${latestStageCode}.`);
-  };
-
   const triggerRinse = async () => {
     try {
       setMachineBusyError(null);
       setRinseStatus('sending');
       setRinseMessage('Activando enjuague por 3 segundos...');
       await sendStageCommand('enjuague');
-      await pollInputs({ force: true }).catch(() => {});
+      const firstTelemetry = await pollInputs({ force: true }).catch(() => null);
+      const acceptedStageCode = firstTelemetry?.currentStageCode || currentStageCode;
+      if (acceptedStageCode !== '04' && acceptedStageCode !== '05' && acceptedStageCode !== '06') {
+        throw new Error(`La maquina no acepto enjuague. Paso actual: ${acceptedStageCode}.`);
+      }
       setRinseMessage('Enjuagando...');
       await delay(RINSE_DURATION_MS);
-      await pollInputs({ force: true }).catch(() => {});
+      const latestTelemetry = await pollInputs({ force: true }).catch(() => null);
+      const latestStageCode = latestTelemetry?.currentStageCode || acceptedStageCode;
       setRinseStatus('success');
-      setRinseMessage('Esperando indicaciones de la maquina...');
-      await delay(VOICE_PROMPT_GRACE_MS);
-      setRinseMessage('Confirmando que la maquina habilite el llenado...');
-      const readyStage = await waitForFillReadyStage();
       setRinseMessage(
-        readyStage === '06'
+        latestStageCode === '06'
           ? 'La maquina ya esta en llenado. Vamos a continuar.'
-          : readyStage === '05'
-            ? 'Enjuague completado. Ya puedes iniciar dispensado.'
-          : 'Enjuague completado. Ya puedes iniciar dispensado.'
+          : 'Enjuague confirmado. Vamos a iniciar llenado.'
       );
     } catch (err) {
       if (err?.code === 'MACHINE_BUSY') {

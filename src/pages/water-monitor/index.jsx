@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 import Agua24Brand from '../../components/Agua24Brand';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
@@ -12,6 +13,18 @@ import {
   pulsesToLiters,
   sanitizePulsesPerLiter,
 } from '../water-dispensing-control/telemetry';
+
+const API = import.meta.env.VITE_API_URL;
+const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+
+function monitorAdminHeaders() {
+  if (typeof window === 'undefined') return {};
+  if (window.sessionStorage.getItem('agua24MonitorAdmin') !== 'true') return {};
+  return {
+    'X-Monitor-User': window.sessionStorage.getItem('agua24MonitorAdminUser') || 'admin',
+    'X-Monitor-Password': window.sessionStorage.getItem('agua24MonitorAdminPassword') || '123',
+  };
+}
 
 const FLOW_COMMANDS = [
   { key: 'qr_inicio', label: 'Inicio', icon: 'Play', variant: 'default' },
@@ -96,6 +109,7 @@ function CommandGrid({ title, description, commands, loadingAction, onCommand })
 
 export default function WaterMonitor() {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const {
     telemetry,
     pulsesPerLiter,
@@ -141,17 +155,35 @@ export default function WaterMonitor() {
     }
   };
 
-  const handleSavePulsesPerLiter = () => {
+  const handleSavePulsesPerLiter = async () => {
     const nextValue = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
-    setPulsesPerLiter(nextValue);
-    setPulsesPerLiterInput(String(nextValue));
-    setLastResponse({
-      action: 'calibracion_local',
-      commandLine: `PULSOS ${nextValue}`,
-      pulsesPerLiter: nextValue,
-      response: 'Calibracion guardada para el siguiente comando.',
-    });
-    showSuccessToast(`Calibracion guardada: ${nextValue} pulsos/L`);
+
+    try {
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      const res = await fetch(`${API}/api/dispense/config/pulses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...monitorAdminHeaders(),
+        },
+        body: JSON.stringify({ pulsesPerLiter: nextValue }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || 'No se pudo guardar calibracion');
+
+      setPulsesPerLiter(data.pulsesPerLiter || nextValue);
+      setPulsesPerLiterInput(String(data.pulsesPerLiter || nextValue));
+      setLastResponse({
+        action: 'calibracion_global',
+        commandLine: `PULSOS ${data.pulsesPerLiter || nextValue}`,
+        pulsesPerLiter: data.pulsesPerLiter || nextValue,
+        response: 'Calibracion guardada en backend para monitor y flujo normal.',
+      });
+      showSuccessToast(`Calibracion guardada: ${data.pulsesPerLiter || nextValue} pulsos/L`);
+    } catch (error) {
+      showErrorToast(error?.message || 'No se pudo guardar calibracion');
+    }
   };
 
   const handleLogout = () => {

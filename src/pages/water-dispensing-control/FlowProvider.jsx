@@ -318,6 +318,11 @@ export default function FlowProvider({ children }) {
       if (!res.ok) throw new Error(data?.error || 'No se pudo obtener config');
 
       setPricePerLiterCents(data.pricePerLiterCents ?? 175);
+      const nextPulsesPerLiter = sanitizePulsesPerLiter(
+        data.pulsesPerLiter ?? data.defaultPulsesPerLiter,
+        pulsesPerLiter,
+      );
+      setPulsesPerLiter(nextPulsesPerLiter);
       const nextAllowedLiters = data.allowedLiters ?? data.optionsLiters ?? [5, 10, 20];
       setAllowedLiters(nextAllowedLiters);
 
