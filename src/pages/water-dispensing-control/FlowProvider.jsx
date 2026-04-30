@@ -701,16 +701,21 @@ export default function FlowProvider({ children }) {
 
   const hasStartedDispenseTx = Boolean(lastTx?.txId || location.state?.tx?.txId);
   const rawStageCode = telemetry.currentStageCode || '00';
-  const shouldIgnoreManualFillingStage = rawStageCode === '06' && !hasStartedDispenseTx;
-  if (!shouldIgnoreManualFillingStage) {
-    lastGuidedStageCodeRef.current = rawStageCode;
-  }
+  const previousGuidedStageCode = lastGuidedStageCodeRef.current || '00';
+  const isManualActuatorStage =
+    !hasStartedDispenseTx
+    && (
+      rawStageCode === '06'
+      || (rawStageCode === '04' && !['03', '04'].includes(previousGuidedStageCode))
+      || (rawStageCode === '05' && !['04', '05'].includes(previousGuidedStageCode))
+    );
 
-  const guidedStageCode = shouldIgnoreManualFillingStage
-    ? lastGuidedStageCodeRef.current || '00'
-    : rawStageCode;
+  const guidedStageCode = isManualActuatorStage ? previousGuidedStageCode : rawStageCode;
+  if (!isManualActuatorStage) {
+    lastGuidedStageCodeRef.current = guidedStageCode;
+  }
   const guidedStepInfo = getTelemetryStepInfo(guidedStageCode);
-  const guidedTelemetry = shouldIgnoreManualFillingStage
+  const guidedTelemetry = isManualActuatorStage
     ? {
         ...telemetry,
         currentStageCode: guidedStepInfo.code,
