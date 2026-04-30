@@ -41,6 +41,7 @@ export default function PlaceBottleUp() {
 
   React.useEffect(() => {
     if (currentStageCode !== '00') return;
+    if (!displayTelemetry.lastSeenAt) return;
 
     showInfoToast('La maquina regreso a espera. Reinicia el flujo cuando estes listo.');
     navigate('/home-dashboard', {
@@ -50,7 +51,7 @@ export default function PlaceBottleUp() {
         reason: 'idle',
       },
     });
-  }, [currentStageCode, navigate]);
+  }, [currentStageCode, displayTelemetry.lastSeenAt, navigate]);
 
   const handleStart = async () => {
     try {

@@ -34,8 +34,10 @@ export default function WaterFlowLayout() {
   const isWaterStep = location.pathname.startsWith('/water');
   const hasActiveTx = Boolean(location.state?.tx || lastTx?.status === 'STARTED');
   const hasResumedSession = Boolean(location.state?.fromActiveSession);
-  const currentStageCode = (guidedTelemetry || telemetry)?.currentStageCode || '00';
-  const isReleasedIdleSession = currentStageCode === '00' && !hasActiveTx;
+  const displayTelemetry = guidedTelemetry || telemetry;
+  const currentStageCode = displayTelemetry?.currentStageCode || '00';
+  const hasRealTelemetry = Boolean(displayTelemetry?.lastSeenAt);
+  const isReleasedIdleSession = hasRealTelemetry && currentStageCode === '00' && !hasActiveTx;
   const shouldGuardExit =
     isWaterStep
     && !isReleasedIdleSession

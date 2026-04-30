@@ -14,6 +14,7 @@ export default function PendingDispenseWatcher() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const resumeKeyRef = React.useRef('');
 
   React.useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -59,6 +60,10 @@ export default function PendingDispenseWatcher() {
         if (cancelled || !res.ok || !data?.active) return;
 
         const nextPath = data.nextPath || '/water/choose';
+        const resumeKey = `${nextPath}:${data.tx?.txId || data.machineId || ''}:${data.stageCode || ''}`;
+        if (resumeKeyRef.current === resumeKey) return;
+        resumeKeyRef.current = resumeKey;
+
         navigate(nextPath, {
           replace: true,
           state: {
