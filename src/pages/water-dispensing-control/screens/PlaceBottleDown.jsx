@@ -196,7 +196,7 @@ export default function PlaceBottleDown() {
 
       <MachineBusyAlert
         error={machineBusyError}
-        onBackHome={handleBackOrCancel}
+        onBackHome={() => nav('/home-dashboard', { replace: true })}
       />
 
       <div className="flex gap-3">

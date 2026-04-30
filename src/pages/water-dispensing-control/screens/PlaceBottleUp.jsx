@@ -109,7 +109,7 @@ export default function PlaceBottleUp() {
 
       <MachineBusyAlert
         error={machineBusyError}
-        onBackHome={handleBackOrCancel}
+        onBackHome={() => navigate('/home-dashboard', { replace: true })}
       />
 
       <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-text-secondary">

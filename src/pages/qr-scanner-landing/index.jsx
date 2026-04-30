@@ -5,6 +5,7 @@ import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import QRCodeScanner from '../../components/qr/QRCodeScanner';
 import { parseMachineFromQR } from '../../lib/qr';
+import MachineBusyAlert from '../water-dispensing-control/components/MachineBusyAlert';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -16,6 +17,37 @@ const QRScannerLanding = () => {
   const resolvingRef = useRef(false);
   const qrPreparedRef = useRef(false);
   const [prepareError, setPrepareError] = useState('');
+  const [machineBusyError, setMachineBusyError] = useState(null);
+
+  const reserveMachineStart = useCallback(async ({ machineId, machineLocation } = {}) => {
+    const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+    if (!token) throw new Error('No se pudo obtener token de sesion');
+
+    const res = await fetch(`${API}/api/dispense/demo/control`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        action: 'qr_inicio',
+        machineId,
+        machineLocation,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 423 && data?.error === 'MACHINE_BUSY') {
+      const err = new Error(data?.message || 'Esta maquina esta en uso por otro usuario');
+      err.code = 'MACHINE_BUSY';
+      err.expiresAt = data?.expiresAt;
+      err.isOwnLock = data?.isOwnLock;
+      throw err;
+    }
+    if (!res.ok) {
+      throw new Error(data?.detail || data?.message || data?.error || 'No se pudo preparar la maquina para escanear');
+    }
+    return data;
+  }, [getToken]);
 
   useEffect(() => {
     if (!location?.state?.prepareQrOnMount) return;
@@ -25,29 +57,29 @@ const QRScannerLanding = () => {
 
     const prepareQr = async () => {
       try {
-        const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-        if (!token) throw new Error('No se pudo obtener token de sesión');
-
-        const res = await fetch(`${API}/api/dispense/demo/control`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ action: 'qr_inicio' }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data?.detail || data?.error || 'No se pudo preparar la máquina para escanear');
-        }
+        await reserveMachineStart();
         setPrepareError('');
+        setMachineBusyError(null);
       } catch (error) {
-        setPrepareError(error?.message || 'No se pudo preparar la máquina para escanear');
+        if (error?.code === 'MACHINE_BUSY') {
+          setMachineBusyError(error);
+          setPrepareError('');
+          return;
+        }
+        setPrepareError(error?.message || 'No se pudo preparar la maquina para escanear');
       }
     };
 
     prepareQr();
-  }, [getToken, location?.state?.prepareQrOnMount]);
+  }, [location?.state?.prepareQrOnMount, reserveMachineStart]);
+
+  const handleBusyOrThrow = useCallback((error) => {
+    if (error?.code === 'MACHINE_BUSY') {
+      setMachineBusyError(error);
+      return true;
+    }
+    return false;
+  }, []);
 
   const handleDetected = useCallback(async (text) => {
     if (resolvingRef.current) return;
@@ -57,7 +89,7 @@ const QRScannerLanding = () => {
       const parsed = parseMachineFromQR(text);
 
       if (!parsed?.machineId) {
-        window.showToast?.('QR inválido o sin machineId', 'error');
+        window.showToast?.('QR invalido o sin machineId', 'error');
         return;
       }
 
@@ -77,6 +109,17 @@ const QRScannerLanding = () => {
             return;
           }
 
+          try {
+            await reserveMachineStart({
+              machineId: resp.machineId,
+              machineLocation: resp.machineLocation || 'Desconocida',
+            });
+            setMachineBusyError(null);
+          } catch (error) {
+            if (handleBusyOrThrow(error)) return;
+            throw error;
+          }
+
           navigate(redirectAfter, {
             state: {
               machineId: resp.machineId,
@@ -93,6 +136,17 @@ const QRScannerLanding = () => {
         }
       }
 
+      try {
+        await reserveMachineStart({
+          machineId: parsed.machineId,
+          machineLocation: parsed.machineLocation || 'Desconocida',
+        });
+        setMachineBusyError(null);
+      } catch (error) {
+        if (handleBusyOrThrow(error)) return;
+        throw error;
+      }
+
       navigate(redirectAfter, {
         state: {
           machineId: parsed.machineId,
@@ -106,7 +160,7 @@ const QRScannerLanding = () => {
         resolvingRef.current = false;
       }, 1200);
     }
-  }, [location?.state?.redirectAfterScan, navigate]);
+  }, [handleBusyOrThrow, location?.state?.redirectAfterScan, navigate, reserveMachineStart]);
 
   return (
     <div className="min-h-screen bg-background px-4 py-8">
@@ -114,7 +168,7 @@ const QRScannerLanding = () => {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/home-dashboard', { replace: true })}
           className="h-10 w-10"
           aria-label="Volver"
         >
@@ -127,10 +181,10 @@ const QRScannerLanding = () => {
 
       <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
         <div className="space-y-2">
-          <h2 className="text-heading-sm font-semibold text-text-primary">Apunta al código QR</h2>
+          <h2 className="text-heading-sm font-semibold text-text-primary">Apunta al codigo QR</h2>
           <p className="text-text-secondary text-body-sm">
-            Escanea el QR pegado en la máquina para continuar con el llenado.
-            En producción, accede por HTTPS para que la cámara funcione.
+            Escanea el QR pegado en la maquina para continuar con el llenado.
+            En produccion, accede por HTTPS para que la camara funcione.
           </p>
           {prepareError ? (
             <p className="text-error text-body-sm">{prepareError}</p>
@@ -141,6 +195,11 @@ const QRScannerLanding = () => {
 
         <ManualImageDecoder onDetected={handleDetected} />
       </div>
+
+      <MachineBusyAlert
+        error={machineBusyError}
+        onBackHome={() => navigate('/home-dashboard', { replace: true })}
+      />
     </div>
   );
 };
@@ -154,7 +213,7 @@ function ManualImageDecoder({ onDetected }) {
       const result = await QrScanner.scanImage(file, { returnDetailedScanResult: false });
       if (result) onDetected(result);
     } catch (_err) {
-      window.showToast?.('No se detectó un QR en la imagen', 'error');
+      window.showToast?.('No se detecto un QR en la imagen', 'error');
     } finally {
       e.target.value = '';
     }
@@ -163,7 +222,7 @@ function ManualImageDecoder({ onDetected }) {
   return (
     <div className="space-y-2">
       <label className="text-body-sm text-text-secondary">
-        ¿Problemas con la cámara? Sube una imagen del QR:
+        Problemas con la camara? Sube una imagen del QR:
       </label>
       <input
         type="file"

@@ -18,27 +18,26 @@ export default function MachineBusyAlert({ error, onBackHome, className = '' }) 
   const unlockTime = formatUnlockTime(error.expiresAt);
 
   return (
-    <div className={`rounded-xl border border-warning/30 bg-warning/10 p-4 ${className}`}>
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-warning/15">
-          <Icon name="Lock" size={20} className="text-warning" />
+    <div className={`fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 ${className}`}>
+      <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 text-center shadow-2xl">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-error/40 text-error">
+          <Icon name="X" size={42} strokeWidth={2.5} />
         </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-text-primary">Maquina en uso</h3>
-          <p className="mt-1 text-sm text-text-secondary">
-            Alguien mas esta usando esta maquina en este momento. Espera a que termine el dispensado o intenta de nuevo mas tarde.
+
+        <h3 className="mt-4 text-xl font-bold text-text-primary">Maquina en uso</h3>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-text-secondary">
+          Alguien mas esta usando esta maquina en este momento. Espera a que termine el dispensado o intenta de nuevo mas tarde.
+        </p>
+        {unlockTime ? (
+          <p className="mt-2 text-xs font-medium text-warning">
+            Reserva activa hasta aprox. {unlockTime}.
           </p>
-          {unlockTime ? (
-            <p className="mt-2 text-xs font-medium text-warning">
-              Reserva activa hasta aprox. {unlockTime}.
-            </p>
-          ) : null}
-          {onBackHome ? (
-            <Button variant="secondary" size="sm" className="mt-3" onClick={onBackHome}>
-              <Icon name="Home" size={16} /> Ir al inicio
-            </Button>
-          ) : null}
-        </div>
+        ) : null}
+        {onBackHome ? (
+          <Button variant="default" size="sm" className="mt-5 min-w-32" onClick={onBackHome}>
+            <Icon name="Home" size={16} /> Ir a inicio
+          </Button>
+        ) : null}
       </div>
     </div>
   );

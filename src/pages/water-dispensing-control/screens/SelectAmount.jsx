@@ -132,7 +132,7 @@ export default function SelectAmount() {
 
       <MachineBusyAlert
         error={machineBusyError}
-        onBackHome={handleCancel}
+        onBackHome={() => nav('/home-dashboard', { replace: true })}
       />
 
       <div className="flex gap-3">
