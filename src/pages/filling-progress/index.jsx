@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
 import ProgressHeader from "./components/ProgressHeader";
 import WaterAnimation from "./components/WaterAnimation";
 import ProgressIndicator from "./components/ProgressIndicator";
@@ -18,6 +19,9 @@ import {
   sanitizePulsesPerLiter,
 } from "../water-dispensing-control/telemetry";
 
+const API = import.meta.env.VITE_API_URL;
+const CLERK_JWT_TEMPLATE = "aquaqr-api";
+
 function money(n) {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
@@ -32,6 +36,7 @@ const RESET_COMPLETION_PROGRESS = 99.5;
 export default function FillingProgress() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
 
   const flow = useDispenseFlow();
   const lastTx = flow?.lastTx;
@@ -40,12 +45,63 @@ export default function FillingProgress() {
   const currentPulsesPerLiter = flow?.pulsesPerLiter;
   const completeDispense = flow?.completeDispense;
   const cancelActiveSession = flow?.cancelActiveSession;
+  const [recoveredTx, setRecoveredTx] = useState(null);
+  const [isRecoveringTx, setIsRecoveringTx] = useState(true);
 
-  const tx = location.state?.tx || lastTx;
+  const tx = location.state?.tx || lastTx || recoveredTx;
 
   useEffect(() => {
-    if (!tx) navigate("/water/choose", { replace: true });
-  }, [tx, navigate]);
+    if (tx) {
+      setIsRecoveringTx(false);
+      return;
+    }
+
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setIsRecoveringTx(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const recoverActiveDispense = async () => {
+      try {
+        const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+        const res = await fetch(`${API}/api/dispense/active`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => null);
+        if (cancelled) return;
+
+        if (res.ok && data?.active && data?.tx && (data.nextPath === "/filling-progress" || data.stageCode === "06" || data.stageCode === "07")) {
+          setRecoveredTx({
+            ...data.tx,
+            machineId: data.tx.machineId || data.machineId,
+            location: data.tx.location || data.machineLocation,
+            pulsesPerLiter: data.tx.pulsesPerLiter || currentPulsesPerLiter || DEFAULT_PULSES_PER_LITER,
+          });
+          setIsRecoveringTx(false);
+          return;
+        }
+
+        setIsRecoveringTx(false);
+      } catch {
+        if (!cancelled) setIsRecoveringTx(false);
+      }
+    };
+
+    recoverActiveDispense();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPulsesPerLiter, getToken, isLoaded, isSignedIn, tx]);
+
+  useEffect(() => {
+    if (tx || isRecoveringTx) return;
+    navigate("/water/choose", { replace: true });
+  }, [isRecoveringTx, tx, navigate]);
 
   if (!tx) return null;
 

@@ -46,6 +46,11 @@ export default function SelectAmount() {
   const canGoToRinse = currentStageCode === '03' || currentStageCode === '04';
   const canUsePrimaryAction = canStartFlow || canChooseBottle || canGoToRinse;
 
+  useEffect(() => {
+    if (currentStageCode !== '06' && currentStageCode !== '07') return;
+    nav('/filling-progress', { replace: true });
+  }, [currentStageCode, nav]);
+
   const handlePrimaryAction = async () => {
     const litersActionMap = {
       5: 'litros_5',
