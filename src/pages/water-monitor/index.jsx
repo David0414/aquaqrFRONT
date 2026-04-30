@@ -26,19 +26,43 @@ function monitorAdminHeaders() {
   };
 }
 
-const FLOW_COMMANDS = [
-  { key: 'qr_inicio', label: 'Inicio', icon: 'Play', variant: 'default' },
-  { key: 'enjuague', label: 'Enjuague 3s', icon: 'Waves', variant: 'secondary' },
-  { key: 'inicio_dispensado', label: 'Llenar', icon: 'Droplets', variant: 'default' },
-];
-
 const HARDWARE_COMMANDS = [
-  { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', variant: 'success' },
-  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', variant: 'success' },
-  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', variant: 'success' },
-  { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', variant: 'secondary' },
-  { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', variant: 'secondary' },
-  { key: 'valvula_llenado_off', label: 'Llenado OFF', icon: 'CircleOff', variant: 'secondary' },
+  {
+    key: 'bomba_on',
+    label: 'Bomba ON',
+    icon: 'Power',
+    className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]',
+  },
+  {
+    key: 'valvula_enjuague_on',
+    label: 'Enjuague ON',
+    icon: 'Waves',
+    className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]',
+  },
+  {
+    key: 'valvula_llenado_on',
+    label: 'Llenado ON',
+    icon: 'Droplet',
+    className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]',
+  },
+  {
+    key: 'bomba_off',
+    label: 'Bomba OFF',
+    icon: 'PowerOff',
+    className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]',
+  },
+  {
+    key: 'valvula_enjuague_off',
+    label: 'Enjuague OFF',
+    icon: 'CircleOff',
+    className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]',
+  },
+  {
+    key: 'valvula_llenado_off',
+    label: 'Llenado OFF',
+    icon: 'CircleOff',
+    className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]',
+  },
 ];
 
 const SAFETY_COMMANDS = [
@@ -97,7 +121,7 @@ function CommandGrid({ title, description, commands, loadingAction, onCommand })
             variant={item.variant}
             onClick={() => onCommand(item.key)}
             loading={loadingAction === item.key}
-            className="justify-center"
+            className={`justify-center ${item.className || ''}`}
           >
             <Icon name={item.icon} size={16} /> {item.label}
           </Button>
@@ -301,14 +325,7 @@ export default function WaterMonitor() {
           </div>
         </section>
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-3">
-          <CommandGrid
-            title="Flujo guiado"
-            description="Comandos normales del proceso."
-            commands={FLOW_COMMANDS}
-            loadingAction={loadingAction}
-            onCommand={handleCommand}
-          />
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
           <CommandGrid
             title="Control manual"
             description="Activa o apaga componentes de forma individual."
