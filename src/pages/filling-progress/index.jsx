@@ -105,6 +105,18 @@ export default function FillingProgress() {
 
   if (!tx) return null;
 
+  return <FillingProgressView tx={tx} />;
+}
+
+function FillingProgressView({ tx }) {
+  const navigate = useNavigate();
+  const flow = useDispenseFlow();
+  const telemetry = flow?.telemetry;
+  const setTelemetryEnabled = flow?.setTelemetryEnabled;
+  const currentPulsesPerLiter = flow?.pulsesPerLiter;
+  const completeDispense = flow?.completeDispense;
+  const cancelActiveSession = flow?.cancelActiveSession;
+
   const liters = Number(tx.liters) || 0;
   const pricePerLiter = Number(tx.pricePerLiter) || 0;
   const totalCost = (tx.amountCents ?? Math.round(liters * pricePerLiter * 100)) / 100;
@@ -375,7 +387,7 @@ export default function FillingProgress() {
           : "Dispensado cancelado. Se envio reinicio a la maquina."
       );
 
-      navigate("/water/choose", {
+      navigate("/home-dashboard", {
         replace: true,
         state: {
           machineReleased: true,
