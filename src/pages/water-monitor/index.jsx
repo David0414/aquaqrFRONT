@@ -43,7 +43,7 @@ const HARDWARE_COMMANDS = [
     key: 'valvula_llenado_on',
     label: 'Llenado ON',
     icon: 'Droplet',
-    className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]',
+    className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]',
   },
   {
     key: 'bomba_off',
@@ -61,7 +61,7 @@ const HARDWARE_COMMANDS = [
     key: 'valvula_llenado_off',
     label: 'Llenado OFF',
     icon: 'CircleOff',
-    className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]',
+    className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]',
   },
 ];
 
