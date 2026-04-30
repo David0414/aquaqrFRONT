@@ -41,6 +41,19 @@ const BottomTabNavigation = ({ isVisible = true, className = '', onNavigate = nu
 
   const handleTabClick = (path) => {
     if (onNavigate?.(path) === false) return;
+
+    if (path === '/qr-scanner-landing') {
+      navigate(path, {
+        state: {
+          fromDashboard: true,
+          action: 'dispense',
+          redirectAfterScan: '/water/choose',
+          prepareQrOnMount: true,
+        },
+      });
+      return;
+    }
+
     navigate(path);
   };
 
