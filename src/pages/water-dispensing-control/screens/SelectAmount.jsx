@@ -26,6 +26,7 @@ export default function SelectAmount() {
     fetchWallet,
     balanceCents,
     telemetry,
+    guidedTelemetry,
     setTelemetryEnabled,
     sendStageCommand,
     pollInputs,
@@ -40,7 +41,8 @@ export default function SelectAmount() {
     return () => setTelemetryEnabled(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const currentStageCode = telemetry.currentStageCode || '00';
+  const displayTelemetry = guidedTelemetry || telemetry;
+  const currentStageCode = displayTelemetry.currentStageCode || '00';
   const canStartFlow = currentStageCode === '00';
   const canChooseBottle = currentStageCode === '01' || currentStageCode === '02';
   const canGoToRinse = currentStageCode === '03' || currentStageCode === '04';
@@ -126,7 +128,7 @@ export default function SelectAmount() {
         currentBalance={(balanceCents ?? 0) / 100}
       />
 
-      <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
+      <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
 
       <MachineBusyAlert
         error={machineBusyError}

@@ -13,7 +13,7 @@ import MachineBusyAlert from '../components/MachineBusyAlert';
 export default function PlaceBottleUp() {
   const navigate = useNavigate();
   const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
-  const { startDispense, selectedLiters, telemetry, setTelemetryEnabled, pollInputs } = useDispenseFlow();
+  const { startDispense, selectedLiters, telemetry, guidedTelemetry, setTelemetryEnabled, pollInputs } = useDispenseFlow();
   const [loading, setLoading] = useState(false);
   const [machineBusyError, setMachineBusyError] = useState(null);
 
@@ -23,7 +23,8 @@ export default function PlaceBottleUp() {
     return () => setTelemetryEnabled(false);
   }, [pollInputs, setTelemetryEnabled]);
 
-  const currentStageCode = telemetry.currentStageCode || '00';
+  const displayTelemetry = guidedTelemetry || telemetry;
+  const currentStageCode = displayTelemetry.currentStageCode || '00';
   const canStartFilling = currentStageCode === '05' || currentStageCode === '03' || currentStageCode === '04';
   const hasStartedFlow = Boolean(shouldGuardExit);
   const fillHint =
@@ -104,7 +105,7 @@ export default function PlaceBottleUp() {
         </p>
       </div>
 
-      <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
+      <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
 
       <MachineBusyAlert
         error={machineBusyError}

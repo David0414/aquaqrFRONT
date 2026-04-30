@@ -274,6 +274,7 @@ export default function FlowProvider({ children }) {
   const telemetryCreditSyncRef = useRef('');
   const commandInFlightRef = useRef(false);
   const startDispenseInFlightRef = useRef(false);
+  const lastGuidedStageCodeRef = useRef('00');
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
 
   const setPulsesPerLiter = (value) => {
@@ -698,6 +699,27 @@ export default function FlowProvider({ children }) {
     return data;
   }
 
+  const hasStartedDispenseTx = Boolean(lastTx?.txId || location.state?.tx?.txId);
+  const rawStageCode = telemetry.currentStageCode || '00';
+  const shouldIgnoreManualFillingStage = rawStageCode === '06' && !hasStartedDispenseTx;
+  if (!shouldIgnoreManualFillingStage) {
+    lastGuidedStageCodeRef.current = rawStageCode;
+  }
+
+  const guidedStageCode = shouldIgnoreManualFillingStage
+    ? lastGuidedStageCodeRef.current || '00'
+    : rawStageCode;
+  const guidedStepInfo = getTelemetryStepInfo(guidedStageCode);
+  const guidedTelemetry = shouldIgnoreManualFillingStage
+    ? {
+        ...telemetry,
+        currentStageCode: guidedStepInfo.code,
+        currentStageLabel: guidedStepInfo.label,
+        currentStageInstruction: guidedStepInfo.instruction,
+        rawStageCode,
+      }
+    : telemetry;
+
   const value = {
     machine,
     connectionStatus,
@@ -713,6 +735,7 @@ export default function FlowProvider({ children }) {
     lastTx,
     hasActiveSession,
     telemetry,
+    guidedTelemetry,
     telemetryEnabled,
     setTelemetryEnabled,
     fetchConfig,

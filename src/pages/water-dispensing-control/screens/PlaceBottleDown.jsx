@@ -17,7 +17,7 @@ const RINSE_ACCEPTED_STAGES = new Set(['04', '05', '06']);
 export default function PlaceBottleDown() {
   const nav = useNavigate();
   const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
-  const { machine, telemetry, setTelemetryEnabled, sendStageCommand, pollInputs } = useDispenseFlow();
+  const { machine, telemetry, guidedTelemetry, setTelemetryEnabled, sendStageCommand, pollInputs } = useDispenseFlow();
   const [rinseStatus, setRinseStatus] = useState('idle');
   const [rinseMessage, setRinseMessage] = useState('El enjuague se habilita cuando el paso sea 03.');
   const [isAdvancing, setIsAdvancing] = useState(false);
@@ -28,7 +28,8 @@ export default function PlaceBottleDown() {
     return () => setTelemetryEnabled(false);
   }, [setTelemetryEnabled]);
 
-  const currentStageCode = telemetry.currentStageCode || '00';
+  const displayTelemetry = guidedTelemetry || telemetry;
+  const currentStageCode = displayTelemetry.currentStageCode || '00';
   const canTriggerRinse = currentStageCode === '03';
   const canAdvanceToFill = currentStageCode === '04' || currentStageCode === '05' || currentStageCode === '06';
   const canUseNext = canTriggerRinse || canAdvanceToFill;
@@ -191,7 +192,7 @@ export default function PlaceBottleDown() {
         </div>
       </div>
 
-      <TelemetryStatusCard telemetry={telemetry} title="Estado de la maquina" compact />
+      <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
 
       <MachineBusyAlert
         error={machineBusyError}
