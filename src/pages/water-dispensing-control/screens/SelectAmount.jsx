@@ -43,10 +43,15 @@ export default function SelectAmount() {
 
   const displayTelemetry = guidedTelemetry || telemetry;
   const currentStageCode = displayTelemetry.currentStageCode || '00';
+  const telemetryFresh = Boolean(
+    displayTelemetry.machineOnline
+    && displayTelemetry.lastSeenAt
+    && Date.now() - displayTelemetry.lastSeenAt < 8000
+  );
   const canStartFlow = currentStageCode === '00';
   const canChooseBottle = currentStageCode === '01' || currentStageCode === '02';
   const canGoToRinse = currentStageCode === '03' || currentStageCode === '04';
-  const canUsePrimaryAction = canStartFlow || canChooseBottle || canGoToRinse;
+  const canUsePrimaryAction = telemetryFresh && (canStartFlow || canChooseBottle || canGoToRinse);
 
   const handlePrimaryAction = async () => {
     const litersActionMap = {
@@ -58,6 +63,11 @@ export default function SelectAmount() {
     try {
       setContinuing(true);
       setMachineBusyError(null);
+
+      if (!telemetryFresh) {
+        showErrorToast('La maquina no esta conectada o no esta enviando trama.');
+        return;
+      }
 
       if (canStartFlow) {
         await sendStageCommand('qr_inicio');
@@ -129,6 +139,12 @@ export default function SelectAmount() {
       />
 
       <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
+
+      {!telemetryFresh ? (
+        <div className="rounded-xl border border-error/20 bg-error/10 px-4 py-3 text-sm font-medium text-error">
+          Maquina sin conexion o sin trama reciente. No se puede iniciar el flujo.
+        </div>
+      ) : null}
 
       <MachineBusyAlert
         error={machineBusyError}

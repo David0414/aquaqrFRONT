@@ -30,9 +30,14 @@ export default function PlaceBottleDown() {
 
   const displayTelemetry = guidedTelemetry || telemetry;
   const currentStageCode = displayTelemetry.currentStageCode || '00';
+  const telemetryFresh = Boolean(
+    displayTelemetry.machineOnline
+    && displayTelemetry.lastSeenAt
+    && Date.now() - displayTelemetry.lastSeenAt < 8000
+  );
   const canTriggerRinse = currentStageCode === '03';
   const canAdvanceToFill = currentStageCode === '04' || currentStageCode === '05' || currentStageCode === '06';
-  const canUseNext = canTriggerRinse || canAdvanceToFill;
+  const canUseNext = telemetryFresh && (canTriggerRinse || canAdvanceToFill);
   const nextButtonLabel = canAdvanceToFill ? 'Ir a llenado' : 'Enjuagar';
   const hasStartedFlow = Boolean(shouldGuardExit);
 
@@ -87,6 +92,9 @@ export default function PlaceBottleDown() {
   const triggerRinse = async () => {
     try {
       setMachineBusyError(null);
+      if (!telemetryFresh) {
+        throw new Error('La maquina no esta conectada o no esta enviando trama.');
+      }
       setRinseStatus('sending');
       setRinseMessage('Activando enjuague por 3 segundos...');
       await sendStageCommand('enjuague');
@@ -121,6 +129,11 @@ export default function PlaceBottleDown() {
   const handleNext = async () => {
     try {
       setIsAdvancing(true);
+
+      if (!telemetryFresh) {
+        showErrorToast('La maquina no esta conectada o no esta enviando trama.');
+        return;
+      }
 
       if (canAdvanceToFill) {
         nav('/water/position-up');
@@ -193,6 +206,12 @@ export default function PlaceBottleDown() {
       </div>
 
       <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
+
+      {!telemetryFresh ? (
+        <div className="rounded-xl border border-error/20 bg-error/10 px-4 py-3 text-sm font-medium text-error">
+          Maquina sin conexion o sin trama reciente. No se puede continuar el flujo.
+        </div>
+      ) : null}
 
       <MachineBusyAlert
         error={machineBusyError}

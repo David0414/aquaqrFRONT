@@ -25,7 +25,12 @@ export default function PlaceBottleUp() {
 
   const displayTelemetry = guidedTelemetry || telemetry;
   const currentStageCode = displayTelemetry.currentStageCode || '00';
-  const canStartFilling = currentStageCode === '05' || currentStageCode === '03' || currentStageCode === '04';
+  const telemetryFresh = Boolean(
+    displayTelemetry.machineOnline
+    && displayTelemetry.lastSeenAt
+    && Date.now() - displayTelemetry.lastSeenAt < 8000
+  );
+  const canStartFilling = telemetryFresh && (currentStageCode === '05' || currentStageCode === '03' || currentStageCode === '04');
   const hasStartedFlow = Boolean(shouldGuardExit);
   const fillHint =
     currentStageCode === '05'
@@ -50,6 +55,10 @@ export default function PlaceBottleUp() {
   const handleStart = async () => {
     try {
       setMachineBusyError(null);
+      if (!telemetryFresh) {
+        showErrorToast('La maquina no esta conectada o no esta enviando trama.');
+        return;
+      }
       if (!canStartFilling) {
         showErrorToast(`Espera el paso 05 para iniciar llenado. Paso actual: ${currentStageCode}.`);
         return;
@@ -106,6 +115,12 @@ export default function PlaceBottleUp() {
       </div>
 
       <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
+
+      {!telemetryFresh ? (
+        <div className="rounded-xl border border-error/20 bg-error/10 px-4 py-3 text-sm font-medium text-error">
+          Maquina sin conexion o sin trama reciente. No se puede iniciar llenado.
+        </div>
+      ) : null}
 
       <MachineBusyAlert
         error={machineBusyError}

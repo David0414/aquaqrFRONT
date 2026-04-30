@@ -9,6 +9,7 @@ import MachineBusyAlert from '../water-dispensing-control/components/MachineBusy
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+const scannerBlocked = (message) => Boolean(message);
 
 const QRScannerLanding = () => {
   const navigate = useNavigate();
@@ -191,9 +192,16 @@ const QRScannerLanding = () => {
           ) : null}
         </div>
 
-        <QRCodeScanner onDetected={handleDetected} />
-
-        <ManualImageDecoder onDetected={handleDetected} />
+        {scannerBlocked(prepareError) ? (
+          <div className="rounded-xl border border-error/20 bg-error/10 px-4 py-4 text-sm text-error">
+            La maquina no esta conectada o no esta enviando datos. No se puede iniciar el flujo.
+          </div>
+        ) : (
+          <>
+            <QRCodeScanner onDetected={handleDetected} />
+            <ManualImageDecoder onDetected={handleDetected} />
+          </>
+        )}
       </div>
 
       <MachineBusyAlert
