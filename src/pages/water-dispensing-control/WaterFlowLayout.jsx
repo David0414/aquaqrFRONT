@@ -18,7 +18,13 @@ export const useWaterFlowNavigation = () => React.useContext(WaterFlowNavigation
 export default function WaterFlowLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { lastTx, hasActiveSession, cancelActiveSession } = useDispenseFlow();
+  const {
+    lastTx,
+    hasActiveSession,
+    cancelActiveSession,
+    guidedTelemetry,
+    telemetry,
+  } = useDispenseFlow();
   const [exitPrompt, setExitPrompt] = React.useState({
     open: Boolean(location.state?.fromActiveSession),
     targetPath: '/home-dashboard',
@@ -28,9 +34,36 @@ export default function WaterFlowLayout() {
   const isWaterStep = location.pathname.startsWith('/water');
   const hasActiveTx = Boolean(location.state?.tx || lastTx?.status === 'STARTED');
   const hasResumedSession = Boolean(location.state?.fromActiveSession);
+  const currentStageCode = (guidedTelemetry || telemetry)?.currentStageCode || '00';
+  const isReleasedIdleSession = currentStageCode === '00' && !hasActiveTx;
   const shouldGuardExit =
     isWaterStep
+    && !isReleasedIdleSession
     && (hasActiveSession || hasActiveTx || hasResumedSession);
+
+  React.useEffect(() => {
+    if (!isWaterStep) return;
+    if (!isReleasedIdleSession) return;
+    if (!hasActiveSession && !hasResumedSession && !exitPrompt.open && !location.state?.machineReleased) return;
+
+    setExitPrompt({ open: false, targetPath: '/home-dashboard', cancelling: false });
+    navigate('/home-dashboard', {
+      replace: true,
+      state: {
+        machineReleased: true,
+        reason: location.state?.reason || 'idle',
+      },
+    });
+  }, [
+    exitPrompt.open,
+    hasActiveSession,
+    hasResumedSession,
+    isReleasedIdleSession,
+    isWaterStep,
+    location.state?.machineReleased,
+    location.state?.reason,
+    navigate,
+  ]);
 
   const requestNavigation = (path = '/home-dashboard') => {
     if (!shouldGuardExit) return true;
@@ -53,7 +86,7 @@ export default function WaterFlowLayout() {
           ? `Llenado cancelado. Reembolso aplicado: $${refunded.toFixed(2)}.`
           : 'Llenado cancelado. La maquina regreso a espera.'
       );
-      navigate(exitPrompt.targetPath || '/home-dashboard', {
+      navigate('/home-dashboard', {
         replace: true,
         state: { machineReleased: true, reason: 'user_cancelled' },
       });
