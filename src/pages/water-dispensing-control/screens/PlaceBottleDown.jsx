@@ -10,6 +10,9 @@ import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
 
 const RINSE_DURATION_MS = 3000;
+const RINSE_ACCEPT_TIMEOUT_MS = 6500;
+const RINSE_ACCEPT_POLL_MS = 500;
+const RINSE_ACCEPTED_STAGES = new Set(['04', '05', '06']);
 
 export default function PlaceBottleDown() {
   const nav = useNavigate();
@@ -54,17 +57,40 @@ export default function PlaceBottleDown() {
     window.setTimeout(resolve, ms);
   });
 
+  const waitForRinseAccepted = async () => {
+    const deadline = Date.now() + RINSE_ACCEPT_TIMEOUT_MS;
+    let lastStageCode = telemetry.currentStageCode || currentStageCode || '00';
+
+    while (Date.now() <= deadline) {
+      const nextTelemetry = await pollInputs({ force: true }).catch(() => null);
+      const nextStageCode = nextTelemetry?.currentStageCode;
+
+      if (nextStageCode) {
+        lastStageCode = nextStageCode;
+      }
+
+      if (RINSE_ACCEPTED_STAGES.has(lastStageCode)) {
+        return lastStageCode;
+      }
+
+      if (lastStageCode === '00' || lastStageCode === '08' || lastStageCode === '09') {
+        break;
+      }
+
+      await delay(RINSE_ACCEPT_POLL_MS);
+    }
+
+    throw new Error(`La maquina no confirmo enjuague. Ultimo paso leido: ${lastStageCode}.`);
+  };
+
   const triggerRinse = async () => {
     try {
       setMachineBusyError(null);
       setRinseStatus('sending');
       setRinseMessage('Activando enjuague por 3 segundos...');
       await sendStageCommand('enjuague');
-      const firstTelemetry = await pollInputs({ force: true }).catch(() => null);
-      const acceptedStageCode = firstTelemetry?.currentStageCode || currentStageCode;
-      if (acceptedStageCode !== '04' && acceptedStageCode !== '05' && acceptedStageCode !== '06') {
-        throw new Error(`La maquina no acepto enjuague. Paso actual: ${acceptedStageCode}.`);
-      }
+      setRinseMessage('Esperando confirmacion de la maquina...');
+      const acceptedStageCode = await waitForRinseAccepted();
       setRinseMessage('Enjuagando...');
       await delay(RINSE_DURATION_MS);
       const latestTelemetry = await pollInputs({ force: true }).catch(() => null);
@@ -86,6 +112,7 @@ export default function PlaceBottleDown() {
       setRinseStatus('error');
       setRinseMessage(message);
       showErrorToast(message);
+      err.notified = true;
       throw err;
     }
   };
@@ -111,7 +138,9 @@ export default function PlaceBottleDown() {
       if (err?.code === 'MACHINE_BUSY') {
         return;
       }
-      showErrorToast(err?.message || 'No se pudo reenviar el enjuague');
+      if (!err?.notified) {
+        showErrorToast(err?.message || 'No se pudo reenviar el enjuague');
+      }
     } finally {
       setIsAdvancing(false);
     }
