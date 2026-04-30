@@ -1,12 +1,16 @@
 // src/pages/water-dispensing-control/WaterFlowLayout.jsx
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import { showErrorToast, showInfoToast } from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from './FlowProvider';
+
+const API = import.meta.env.VITE_API_URL;
+const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 
 const WaterFlowNavigationContext = React.createContext({
   requestNavigation: () => true,
@@ -18,6 +22,7 @@ export const useWaterFlowNavigation = () => React.useContext(WaterFlowNavigation
 export default function WaterFlowLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const {
     lastTx,
     hasActiveSession,
@@ -30,6 +35,7 @@ export default function WaterFlowLayout() {
     targetPath: '/home-dashboard',
     cancelling: false,
   });
+  const [recoveredActiveSession, setRecoveredActiveSession] = React.useState(false);
 
   const isWaterStep = location.pathname.startsWith('/water');
   const hasActiveTx = Boolean(location.state?.tx || lastTx?.status === 'STARTED');
@@ -41,7 +47,65 @@ export default function WaterFlowLayout() {
   const shouldGuardExit =
     isWaterStep
     && !isReleasedIdleSession
-    && (hasActiveSession || hasActiveTx || hasResumedSession);
+    && (hasActiveSession || hasActiveTx || hasResumedSession || recoveredActiveSession);
+
+  React.useEffect(() => {
+    if (!isWaterStep) return undefined;
+    if (!isLoaded || !isSignedIn) return undefined;
+    if (hasActiveSession || hasActiveTx || hasResumedSession || recoveredActiveSession) return undefined;
+
+    let cancelled = false;
+
+    const recoverWaterSession = async () => {
+      try {
+        const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+        const res = await fetch(`${API}/api/dispense/active`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => null);
+        if (cancelled || !res.ok || !data?.active) return;
+
+        setRecoveredActiveSession(true);
+
+        const nextPath = data.nextPath || location.pathname;
+        if (nextPath && nextPath !== location.pathname) {
+          navigate(nextPath, {
+            replace: true,
+            state: {
+              machineId: data.machineId,
+              machineLocation: data.machineLocation || 'Desconocida',
+              hardwareId: data.hardwareId,
+              selectedLiters: data.selectedLiters,
+              tx: data.tx || undefined,
+              fromActiveSession: true,
+            },
+          });
+          return;
+        }
+
+        setExitPrompt({ open: true, targetPath: '/home-dashboard', cancelling: false });
+      } catch {
+        // Si falla la consulta, dejamos que la pantalla actual siga sin interrumpir.
+      }
+    };
+
+    recoverWaterSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    getToken,
+    hasActiveSession,
+    hasActiveTx,
+    hasResumedSession,
+    isLoaded,
+    isSignedIn,
+    isWaterStep,
+    location.pathname,
+    navigate,
+    recoveredActiveSession,
+  ]);
 
   React.useEffect(() => {
     if (!isWaterStep) return;
