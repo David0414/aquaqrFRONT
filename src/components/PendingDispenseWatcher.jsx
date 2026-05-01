@@ -5,26 +5,39 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+const PENDING_DISPENSE_STORAGE_KEY = 'agua24.pendingDispense';
+const PENDING_DISPENSE_MAX_AGE_MS = 10 * 60 * 1000;
 
 /**
  * Reanuda el flujo hacia /water/choose si el usuario
  * se acaba de loguear y existe una intención guardada en localStorage.
  */
 export default function PendingDispenseWatcher() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const resumeKeyRef = React.useRef('');
 
   React.useEffect(() => {
+    resumeKeyRef.current = '';
+  }, [userId]);
+
+  React.useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
-    const raw = localStorage.getItem('pendingDispense');
+    const raw =
+      window.sessionStorage.getItem(PENDING_DISPENSE_STORAGE_KEY)
+      || window.localStorage.getItem('pendingDispense');
     if (!raw) return;
 
-    localStorage.removeItem('pendingDispense');
+    window.sessionStorage.removeItem(PENDING_DISPENSE_STORAGE_KEY);
+    window.localStorage.removeItem('pendingDispense');
     try {
-      const { machineId, machineLocation } = JSON.parse(raw);
+      const { machineId, machineLocation, at } = JSON.parse(raw);
+      const createdAt = Number(at);
+      if (!Number.isFinite(createdAt) || Date.now() - createdAt > PENDING_DISPENSE_MAX_AGE_MS) {
+        return;
+      }
       if (machineId) {
         navigate('/water/choose', {
           state: {
@@ -38,7 +51,7 @@ export default function PendingDispenseWatcher() {
     } catch {
       // no-op
     }
-  }, [isLoaded, isSignedIn, navigate]);
+  }, [isLoaded, isSignedIn, navigate, userId]);
 
   React.useEffect(() => {
     if (!isLoaded || !isSignedIn) return undefined;
@@ -86,7 +99,7 @@ export default function PendingDispenseWatcher() {
     return () => {
       cancelled = true;
     };
-  }, [getToken, isLoaded, isSignedIn, location.pathname, navigate]);
+  }, [getToken, isLoaded, isSignedIn, location.pathname, navigate, userId]);
 
   return null;
 }

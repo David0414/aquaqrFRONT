@@ -22,7 +22,7 @@ export const useWaterFlowNavigation = () => React.useContext(WaterFlowNavigation
 export default function WaterFlowLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const {
     lastTx,
     hasActiveSession,
@@ -53,6 +53,10 @@ export default function WaterFlowLayout() {
     isWaterStep
     && !isReleasedIdleSession
     && (hasActiveSession || hasActiveTx || hasResumedSession || recoveredActiveSession);
+
+  React.useEffect(() => {
+    setRecoveredActiveSession(false);
+  }, [userId]);
 
   React.useEffect(() => {
     if (!isWaterStep) return undefined;
@@ -108,6 +112,7 @@ export default function WaterFlowLayout() {
     location.pathname,
     navigate,
     recoveredActiveSession,
+    userId,
   ]);
 
   React.useEffect(() => {

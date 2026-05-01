@@ -195,7 +195,7 @@ const Ctx = createContext(null);
 export const useDispenseFlow = () => useContext(Ctx);
 
 export default function FlowProvider({ children }) {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const location = useLocation();
   const routeState = location.state || {};
 
@@ -287,6 +287,7 @@ export default function FlowProvider({ children }) {
   const startDispenseInFlightRef = useRef(false);
   const cancelActiveSessionPromiseRef = useRef(null);
   const lastGuidedStageCodeRef = useRef('00');
+  const authOwnerRef = useRef(userId || null);
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
 
   const setPulsesPerLiter = (value) => {
@@ -319,6 +320,55 @@ export default function FlowProvider({ children }) {
     if (!qrStartFromRouteAt) return;
     setPendingQrStartAt((current) => (current && current >= qrStartFromRouteAt ? current : qrStartFromRouteAt));
   }, [qrStartFromRouteAt]);
+
+  useEffect(() => {
+    if (authOwnerRef.current === userId) return;
+
+    authOwnerRef.current = userId || null;
+    setMachine(machineFromRoute);
+    setSelectedLiters(Number.isFinite(Number(routeState.selectedLiters)) && Number(routeState.selectedLiters) > 0
+      ? Number(routeState.selectedLiters)
+      : 20);
+    setLastTx(null);
+    setHasActiveSession(Boolean(routeState.fromActiveSession || routeState.tx || qrStartFromRouteAt));
+    setPendingQrStartAt(qrStartFromRouteAt);
+    setTelemetryEnabled(false);
+    setTelemetry({
+      status: 'idle',
+      rawResponse: '',
+      rawFrame: '',
+      machineHardwareId: null,
+      phHex: '',
+      solidsHex: '',
+      phDecimal: null,
+      solidsDecimal: null,
+      phVoltage: null,
+      fillValveOn: false,
+      rinseValveOn: false,
+      pumpOn: false,
+      pumpHex: '00',
+      currentStageCode: '00',
+      currentStageLabel: getTelemetryStageLabel('00'),
+      currentStageInstruction: getTelemetryStepInfo('00').instruction,
+      flowmeterHex: '',
+      flowmeterPulses: null,
+      coinHex: '00',
+      insertedCoinAmount: 0,
+      insertedCoinLabel: 'Sin moneda',
+      accumulatedMoneyHex: '00',
+      accumulatedMoney: 0,
+      machineOnline: false,
+      lastSeenAt: null,
+      error: '',
+    });
+    pollingRef.current = false;
+    pollingCooldownUntilRef.current = 0;
+    telemetryCreditSyncRef.current = '';
+    commandInFlightRef.current = false;
+    startDispenseInFlightRef.current = false;
+    cancelActiveSessionPromiseRef.current = null;
+    lastGuidedStageCodeRef.current = '00';
+  }, [machineFromRoute, qrStartFromRouteAt, routeState.fromActiveSession, routeState.selectedLiters, routeState.tx, userId]);
 
   // Simula conexión y verificación breve
   useEffect(() => {

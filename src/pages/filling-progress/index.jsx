@@ -36,7 +36,7 @@ const RESET_COMPLETION_PROGRESS = 99.5;
 export default function FillingProgress() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
 
   const flow = useDispenseFlow();
   const lastTx = flow?.lastTx;
@@ -47,8 +47,14 @@ export default function FillingProgress() {
   const cancelActiveSession = flow?.cancelActiveSession;
   const [recoveredTx, setRecoveredTx] = useState(null);
   const [isRecoveringTx, setIsRecoveringTx] = useState(true);
+  const routeTx = location.state?.tx || null;
 
-  const tx = location.state?.tx || lastTx || recoveredTx;
+  const tx = lastTx || recoveredTx;
+
+  useEffect(() => {
+    setRecoveredTx(null);
+    setIsRecoveringTx(true);
+  }, [userId]);
 
   useEffect(() => {
     if (tx) {
@@ -75,6 +81,10 @@ export default function FillingProgress() {
         if (cancelled) return;
 
         if (res.ok && data?.active && data?.tx && (data.nextPath === "/filling-progress" || data.stageCode === "06" || data.stageCode === "07")) {
+          if (routeTx?.txId && data.tx?.txId && routeTx.txId !== data.tx.txId) {
+            setIsRecoveringTx(false);
+            return;
+          }
           setRecoveredTx({
             ...data.tx,
             machineId: data.tx.machineId || data.machineId,
@@ -96,7 +106,7 @@ export default function FillingProgress() {
     return () => {
       cancelled = true;
     };
-  }, [currentPulsesPerLiter, getToken, isLoaded, isSignedIn, tx]);
+  }, [currentPulsesPerLiter, getToken, isLoaded, isSignedIn, routeTx?.txId, tx]);
 
   useEffect(() => {
     if (tx || isRecoveringTx) return;

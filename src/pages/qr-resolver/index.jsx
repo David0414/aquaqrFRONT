@@ -8,6 +8,7 @@ import MachineBusyAlert from '../water-dispensing-control/components/MachineBusy
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+const PENDING_DISPENSE_STORAGE_KEY = 'agua24.pendingDispense';
 
 const QRResolver = () => {
   const nav = useNavigate();
@@ -54,8 +55,8 @@ const QRResolver = () => {
     if (state.phase !== 'validated' || !isLoaded) return undefined;
 
     if (!isSignedIn) {
-      localStorage.setItem(
-        'pendingDispense',
+      window.sessionStorage.setItem(
+        PENDING_DISPENSE_STORAGE_KEY,
         JSON.stringify({ machineId: state.machineId, machineLocation: state.machineLocation, at: Date.now() })
       );
       window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`;
