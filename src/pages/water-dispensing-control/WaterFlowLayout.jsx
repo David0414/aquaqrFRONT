@@ -31,7 +31,7 @@ export default function WaterFlowLayout() {
     telemetry,
   } = useDispenseFlow();
   const [exitPrompt, setExitPrompt] = React.useState({
-    open: Boolean(location.state?.fromActiveSession),
+    open: false,
     targetPath: '/home-dashboard',
     cancelling: false,
   });
@@ -82,8 +82,6 @@ export default function WaterFlowLayout() {
           });
           return;
         }
-
-        setExitPrompt({ open: true, targetPath: '/home-dashboard', cancelling: false });
       } catch {
         // Si falla la consulta, dejamos que la pantalla actual siga sin interrumpir.
       }

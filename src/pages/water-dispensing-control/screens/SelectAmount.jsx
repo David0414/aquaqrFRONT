@@ -7,7 +7,7 @@ import BottleSizeSelector from '../components/BottleSizeSelector';
 import PricingCalculator from '../components/PricingCalculator';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
-import { showErrorToast, showSuccessToast } from '../../../components/ui/NotificationToast';
+import { showErrorToast, showInfoToast, showSuccessToast } from '../../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../FlowProvider';
 import { useWaterFlowNavigation } from '../WaterFlowLayout';
 
@@ -25,6 +25,7 @@ export default function SelectAmount() {
     fetchConfig,
     fetchWallet,
     balanceCents,
+    hasPendingQrStart,
     telemetry,
     guidedTelemetry,
     setTelemetryEnabled,
@@ -70,6 +71,24 @@ export default function SelectAmount() {
       }
 
       if (canStartFlow) {
+        if (hasPendingQrStart) {
+          const nextTelemetry = await pollInputs({ force: true }).catch(() => null);
+          const nextStageCode = nextTelemetry?.currentStageCode || currentStageCode;
+          if (nextStageCode === '01' || nextStageCode === '02') {
+            showSuccessToast('La maquina confirmo el inicio. Ya puedes elegir botella.');
+            return;
+          }
+          if (nextStageCode === '03' || nextStageCode === '04') {
+            nav('/water/position-down');
+            return;
+          }
+          if (nextStageCode === '05' || nextStageCode === '06') {
+            nav('/water/position-up');
+            return;
+          }
+          showInfoToast('El QR ya activo el flujo. Espera a que la maquina confirme el paso 01 o 02.');
+          return;
+        }
         await sendStageCommand('qr_inicio');
         await pollInputs({ force: true }).catch(() => {});
         showSuccessToast('Inicio enviado. Espera el paso 01 o 02 para elegir botella.');

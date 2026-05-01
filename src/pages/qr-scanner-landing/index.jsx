@@ -16,7 +16,6 @@ const QRScannerLanding = () => {
   const location = useLocation();
   const { getToken } = useAuth();
   const resolvingRef = useRef(false);
-  const qrPreparedRef = useRef(false);
   const [prepareError, setPrepareError] = useState('');
   const [machineBusyError, setMachineBusyError] = useState(null);
 
@@ -49,30 +48,6 @@ const QRScannerLanding = () => {
     }
     return data;
   }, [getToken]);
-
-  useEffect(() => {
-    if (!location?.state?.prepareQrOnMount) return;
-    if (qrPreparedRef.current) return;
-
-    qrPreparedRef.current = true;
-
-    const prepareQr = async () => {
-      try {
-        await reserveMachineStart();
-        setPrepareError('');
-        setMachineBusyError(null);
-      } catch (error) {
-        if (error?.code === 'MACHINE_BUSY') {
-          setMachineBusyError(error);
-          setPrepareError('');
-          return;
-        }
-        setPrepareError(error?.message || 'No se pudo preparar la maquina para escanear');
-      }
-    };
-
-    prepareQr();
-  }, [location?.state?.prepareQrOnMount, reserveMachineStart]);
 
   const handleBusyOrThrow = useCallback((error) => {
     if (error?.code === 'MACHINE_BUSY') {
@@ -127,6 +102,8 @@ const QRScannerLanding = () => {
               machineLocation: resp.machineLocation || 'Desconocida',
               fromScanner: true,
               fromQR: true,
+              qrInicioSent: true,
+              qrInicioSentAt: Date.now(),
             },
             replace: true,
           });
@@ -153,6 +130,8 @@ const QRScannerLanding = () => {
           machineId: parsed.machineId,
           machineLocation: parsed.machineLocation || 'Desconocida',
           fromScanner: true,
+          qrInicioSent: true,
+          qrInicioSentAt: Date.now(),
         },
         replace: true,
       });

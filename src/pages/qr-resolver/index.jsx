@@ -97,7 +97,13 @@ const QRResolver = () => {
         }
 
         nav('/water/choose', {
-          state: { machineId: state.machineId, machineLocation: state.machineLocation, fromQR: true },
+          state: {
+            machineId: state.machineId,
+            machineLocation: state.machineLocation,
+            fromQR: true,
+            qrInicioSent: true,
+            qrInicioSentAt: Date.now(),
+          },
           replace: true,
         });
       } catch {

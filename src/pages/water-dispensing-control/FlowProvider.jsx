@@ -21,6 +21,7 @@ const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 const DEFAULT_FLOW_LPM = (20 / 10) * 60; // 120
 const INPUT_POLL_INTERVAL_MS = 1000;
 const INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS = 1500;
+const QR_INICIO_PENDING_WINDOW_MS = 10000;
 const FLOWMETER_PULSES_PER_LITER_KEY = 'flowmeterPulsesPerLiter';
 const MONITOR_ADMIN_SESSION_KEY = 'agua24MonitorAdmin';
 const MONITOR_ADMIN_USER_KEY = 'agua24MonitorAdminUser';
@@ -196,13 +197,13 @@ export const useDispenseFlow = () => useContext(Ctx);
 export default function FlowProvider({ children }) {
   const { getToken } = useAuth();
   const location = useLocation();
+  const routeState = location.state || {};
 
   const machineFromRoute = useMemo(() => {
-    const state = location.state || {};
     const fallbackId = 'AQ-2024-001';
-    const machineId = String(state.machineId || fallbackId).trim();
+    const machineId = String(routeState.machineId || fallbackId).trim();
     const machineLocation = String(
-      state.machineLocation || 'Centro Comercial Plaza Norte, Local 15'
+      routeState.machineLocation || 'Centro Comercial Plaza Norte, Local 15'
     ).trim();
 
     // Cuando el ID es una trama tipo E2-01-01-...-E3, el segundo byte suele ser
@@ -216,9 +217,18 @@ export default function FlowProvider({ children }) {
     return {
       id: machineId,
       location: machineLocation,
-      hardwareId: inferredHardwareId || String(state.hardwareId || '01').trim(),
+      hardwareId: inferredHardwareId || String(routeState.hardwareId || '01').trim(),
     };
-  }, [location.state]);
+  }, [routeState.hardwareId, routeState.machineId, routeState.machineLocation]);
+
+  const qrStartFromRouteAt = useMemo(() => {
+    if (!routeState.qrInicioSent) return null;
+    const sentAt = Number(routeState.qrInicioSentAt);
+    if (Number.isFinite(sentAt)) {
+      return Date.now() - sentAt <= QR_INICIO_PENDING_WINDOW_MS ? sentAt : null;
+    }
+    return Date.now();
+  }, [routeState.qrInicioSent, routeState.qrInicioSentAt]);
 
   const [machine, setMachine] = useState(machineFromRoute);
 
@@ -238,8 +248,9 @@ export default function FlowProvider({ children }) {
 
   const [lastTx, setLastTx] = useState(null);
   const [hasActiveSession, setHasActiveSession] = useState(() => (
-    Boolean(location.state?.fromActiveSession || location.state?.tx)
+    Boolean(routeState.fromActiveSession || routeState.tx || qrStartFromRouteAt)
   ));
+  const [pendingQrStartAt, setPendingQrStartAt] = useState(() => qrStartFromRouteAt);
   const [telemetry, setTelemetry] = useState({
     status: 'idle',
     rawResponse: '',
@@ -274,6 +285,7 @@ export default function FlowProvider({ children }) {
   const telemetryCreditSyncRef = useRef('');
   const commandInFlightRef = useRef(false);
   const startDispenseInFlightRef = useRef(false);
+  const cancelActiveSessionPromiseRef = useRef(null);
   const lastGuidedStageCodeRef = useRef('00');
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
 
@@ -291,17 +303,22 @@ export default function FlowProvider({ children }) {
   }, [machineFromRoute]);
 
   useEffect(() => {
-    const routeLiters = Number(location.state?.selectedLiters);
+    const routeLiters = Number(routeState.selectedLiters);
     if (Number.isFinite(routeLiters) && routeLiters > 0) {
       setSelectedLiters(routeLiters);
     }
-  }, [location.state?.selectedLiters]);
+  }, [routeState.selectedLiters]);
 
   useEffect(() => {
-    if (location.state?.fromActiveSession || location.state?.tx) {
+    if (routeState.fromActiveSession || routeState.tx || qrStartFromRouteAt) {
       setHasActiveSession(true);
     }
-  }, [location.state?.fromActiveSession, location.state?.tx]);
+  }, [qrStartFromRouteAt, routeState.fromActiveSession, routeState.tx]);
+
+  useEffect(() => {
+    if (!qrStartFromRouteAt) return;
+    setPendingQrStartAt((current) => (current && current >= qrStartFromRouteAt ? current : qrStartFromRouteAt));
+  }, [qrStartFromRouteAt]);
 
   // Simula conexión y verificación breve
   useEffect(() => {
@@ -435,11 +452,15 @@ export default function FlowProvider({ children }) {
 
     commandInFlightRef.current = true;
     let previousTelemetry = null;
+    const previousPendingQrStartAt = pendingQrStartAt;
 
     setTelemetry((currentTelemetry) => {
       previousTelemetry = currentTelemetry;
       return applyTelemetryActionSnapshot(currentTelemetry, action);
     });
+    if (action === 'qr_inicio') {
+      setPendingQrStartAt(Date.now());
+    }
 
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
     try {
@@ -479,6 +500,9 @@ export default function FlowProvider({ children }) {
     } catch (error) {
       if (previousTelemetry) {
         setTelemetry(previousTelemetry);
+      }
+      if (action === 'qr_inicio') {
+        setPendingQrStartAt(previousPendingQrStartAt);
       }
       throw error;
     } finally {
@@ -604,6 +628,7 @@ export default function FlowProvider({ children }) {
 
     setLastTx(tx);
     setHasActiveSession(true);
+    setPendingQrStartAt(null);
     setTelemetry((currentTelemetry) => applyTelemetryActionSnapshot(currentTelemetry, 'inicio_dispensado'));
     return tx;
     } finally {
@@ -660,46 +685,69 @@ export default function FlowProvider({ children }) {
 
     setLastTx(completedTx);
     setHasActiveSession(false);
+    setPendingQrStartAt(null);
     return completedTx;
   }
 
   async function cancelActiveSession() {
-    const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-    const res = await fetch(`${API}/api/dispense/active/cancel`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ pulsesPerLiter }),
-    });
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      const error = new Error(data?.message || data?.error || 'No se pudo cancelar el proceso');
-      error.code = data?.error;
-      throw error;
+    if (cancelActiveSessionPromiseRef.current) {
+      return cancelActiveSessionPromiseRef.current;
     }
 
-    setLastTx(null);
-    setHasActiveSession(false);
-    setTelemetry((currentTelemetry) => applyTelemetryActionSnapshot(currentTelemetry, 'reiniciar_sistema'));
-
-    if (typeof data?.balanceCents === 'number') {
-      setBalanceCents(data.balanceCents);
-      window.dispatchEvent(new CustomEvent('wallet:updated', {
-        detail: {
-          balanceCents: data.balanceCents,
-          source: 'dispense-cancel',
-          machineId: machine.id,
+    cancelActiveSessionPromiseRef.current = (async () => {
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      const res = await fetch(`${API}/api/dispense/active/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-      }));
-    }
+        body: JSON.stringify({ pulsesPerLiter }),
+      });
+      const data = await res.json().catch(() => ({}));
 
-    return data;
+      if (!res.ok) {
+        const error = new Error(data?.message || data?.error || 'No se pudo cancelar el proceso');
+        error.code = data?.error;
+        throw error;
+      }
+
+      setLastTx(null);
+      setHasActiveSession(false);
+      setPendingQrStartAt(null);
+      setTelemetry((currentTelemetry) => applyTelemetryActionSnapshot(currentTelemetry, 'reiniciar_sistema'));
+
+      if (typeof data?.balanceCents === 'number') {
+        setBalanceCents(data.balanceCents);
+        window.dispatchEvent(new CustomEvent('wallet:updated', {
+          detail: {
+            balanceCents: data.balanceCents,
+            source: 'dispense-cancel',
+            machineId: machine.id,
+          },
+        }));
+      }
+
+      return data;
+    })();
+
+    try {
+      return await cancelActiveSessionPromiseRef.current;
+    } finally {
+      cancelActiveSessionPromiseRef.current = null;
+    }
   }
 
+  useEffect(() => {
+    const currentStageCode = telemetry.currentStageCode || '00';
+    if (currentStageCode !== '00' || lastTx?.txId) {
+      setPendingQrStartAt(null);
+    }
+  }, [lastTx?.txId, telemetry.currentStageCode]);
+
   const hasStartedDispenseTx = Boolean(lastTx?.txId || location.state?.tx?.txId);
+  const hasPendingQrStart =
+    Number.isFinite(pendingQrStartAt) && Date.now() - pendingQrStartAt < QR_INICIO_PENDING_WINDOW_MS;
   const rawStageCode = telemetry.currentStageCode || '00';
   const previousGuidedStageCode = lastGuidedStageCodeRef.current || '00';
   const isManualActuatorStage =
@@ -739,6 +787,7 @@ export default function FlowProvider({ children }) {
     setPulsesPerLiter,
     lastTx,
     hasActiveSession,
+    hasPendingQrStart,
     telemetry,
     guidedTelemetry,
     telemetryEnabled,
