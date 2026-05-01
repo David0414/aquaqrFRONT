@@ -46,7 +46,9 @@ export default function PendingDispenseWatcher() {
       location.pathname.startsWith('/water')
       || location.pathname === '/filling-progress'
       || location.pathname === '/transaction-complete'
-      || location.pathname === '/balance-recharge';
+      || location.pathname === '/balance-recharge'
+      || location.pathname === '/qr-scanner-landing'
+      || location.pathname === '/qr-resolver';
     if (skipResume) return undefined;
 
     let cancelled = false;

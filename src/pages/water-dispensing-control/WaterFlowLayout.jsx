@@ -26,6 +26,7 @@ export default function WaterFlowLayout() {
   const {
     lastTx,
     hasActiveSession,
+    hasPendingQrStart,
     cancelActiveSession,
     guidedTelemetry,
     telemetry,
@@ -43,7 +44,11 @@ export default function WaterFlowLayout() {
   const displayTelemetry = guidedTelemetry || telemetry;
   const currentStageCode = displayTelemetry?.currentStageCode || '00';
   const hasRealTelemetry = Boolean(displayTelemetry?.lastSeenAt);
-  const isReleasedIdleSession = hasRealTelemetry && currentStageCode === '00' && !hasActiveTx;
+  const isReleasedIdleSession =
+    hasRealTelemetry
+    && currentStageCode === '00'
+    && !hasActiveTx
+    && !hasPendingQrStart;
   const shouldGuardExit =
     isWaterStep
     && !isReleasedIdleSession

@@ -13,7 +13,15 @@ import MachineBusyAlert from '../components/MachineBusyAlert';
 export default function PlaceBottleUp() {
   const navigate = useNavigate();
   const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
-  const { startDispense, selectedLiters, telemetry, guidedTelemetry, setTelemetryEnabled, pollInputs } = useDispenseFlow();
+  const {
+    startDispense,
+    selectedLiters,
+    telemetry,
+    guidedTelemetry,
+    hasPendingQrStart,
+    setTelemetryEnabled,
+    pollInputs,
+  } = useDispenseFlow();
   const [loading, setLoading] = useState(false);
   const [machineBusyError, setMachineBusyError] = useState(null);
 
@@ -40,6 +48,7 @@ export default function PlaceBottleUp() {
         : `Espera el paso 05 para iniciar llenado. Paso actual: ${currentStageCode}.`;
 
   React.useEffect(() => {
+    if (hasPendingQrStart) return;
     if (currentStageCode !== '00') return;
     if (!displayTelemetry.lastSeenAt) return;
 
@@ -51,7 +60,7 @@ export default function PlaceBottleUp() {
         reason: 'idle',
       },
     });
-  }, [currentStageCode, displayTelemetry.lastSeenAt, navigate]);
+  }, [currentStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, navigate]);
 
   const handleStart = async () => {
     try {

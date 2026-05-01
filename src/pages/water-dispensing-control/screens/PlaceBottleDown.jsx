@@ -17,7 +17,15 @@ const RINSE_ACCEPTED_STAGES = new Set(['04', '05', '06']);
 export default function PlaceBottleDown() {
   const nav = useNavigate();
   const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
-  const { machine, telemetry, guidedTelemetry, setTelemetryEnabled, sendStageCommand, pollInputs } = useDispenseFlow();
+  const {
+    machine,
+    telemetry,
+    guidedTelemetry,
+    hasPendingQrStart,
+    setTelemetryEnabled,
+    sendStageCommand,
+    pollInputs,
+  } = useDispenseFlow();
   const [rinseStatus, setRinseStatus] = useState('idle');
   const [rinseMessage, setRinseMessage] = useState('El enjuague se habilita cuando el paso sea 03.');
   const [isAdvancing, setIsAdvancing] = useState(false);
@@ -47,6 +55,7 @@ export default function PlaceBottleDown() {
   };
 
   React.useEffect(() => {
+    if (hasPendingQrStart) return;
     if (currentStageCode !== '00') return;
     if (!displayTelemetry.lastSeenAt) return;
 
@@ -58,7 +67,7 @@ export default function PlaceBottleDown() {
         reason: 'idle',
       },
     });
-  }, [currentStageCode, displayTelemetry.lastSeenAt, nav]);
+  }, [currentStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, nav]);
 
   const delay = (ms) => new Promise((resolve) => {
     window.setTimeout(resolve, ms);
