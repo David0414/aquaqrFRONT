@@ -149,6 +149,7 @@ export default function SelectAmount() {
         selectedLiters={selectedLiters}
         onChange={setSelectedLiters}
         garrafonLiters={20}
+        pricePerLiter={pricePerLiter}
       />
 
       <PricingCalculator
@@ -160,8 +161,27 @@ export default function SelectAmount() {
       <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
 
       {!telemetryFresh ? (
-        <div className="rounded-xl border border-error/20 bg-error/10 px-4 py-3 text-sm font-medium text-error">
-          Maquina sin conexion o sin trama reciente. No se puede iniciar el flujo.
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <Icon name="AlertTriangle" size={18} />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-slate-900">No pudimos conectar con la maquina</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  La maquina no tiene conexion o no envio una trama reciente. Vuelve al inicio para intentarlo otra vez.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="default"
+              onClick={() => nav('/home-dashboard')}
+              className="w-full sm:w-auto"
+            >
+              Volver a home
+            </Button>
+          </div>
         </div>
       ) : null}
 

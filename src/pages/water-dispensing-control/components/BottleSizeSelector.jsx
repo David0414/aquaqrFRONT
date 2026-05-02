@@ -1,43 +1,49 @@
-// src/pages/water-dispensing-control/components/BottleSizeSelector.jsx
 import React, { useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 
 const BottleSizeSelector = ({
   selectedLiters,
-  onChange,                 // callback al seleccionar
+  onChange,
   allowedLiters = [5, 10, 20],
   garrafonLiters = 20,
+  pricePerLiter = 0,
   className = '',
 }) => {
-  // Construye etiquetas bonitas según el tamaño del garrafón
   const sizes = useMemo(() => {
     const quarter = garrafonLiters / 4;
     const half = garrafonLiters / 2;
 
-    const labelFor = (l) => {
-      const is = (a, b) => Math.abs(a - b) < 1e-6;
-      if (is(l, quarter)) return `¼ garrafón (${l}L)`;
-      if (is(l, half))    return `½ garrafón (${l}L)`;
-      if (is(l, garrafonLiters)) return `Garrafón completo (${l}L)`;
-      return `${l} litros`;
+    const isSame = (a, b) => Math.abs(a - b) < 1e-6;
+    const formatPrice = (liters) => `$${(Number(liters || 0) * Number(pricePerLiter || 0)).toFixed(2)}`;
+
+    const labelFor = (liters) => {
+      if (isSame(liters, quarter)) return `1 galon de agua purificada (${liters}L)`;
+      if (isSame(liters, half)) return `Medio garrafon de agua purificada (${liters}L)`;
+      if (isSame(liters, garrafonLiters)) return `Garrafon completo (${liters}L)`;
+      return `${liters} litros`;
     };
 
-    return allowedLiters.map((l) => ({ liters: l, label: labelFor(l) }));
-  }, [allowedLiters, garrafonLiters]);
+    return allowedLiters.map((liters) => ({
+      liters,
+      label: labelFor(liters),
+      subtitle: `${liters} litros`,
+      priceLabel: formatPrice(liters),
+    }));
+  }, [allowedLiters, garrafonLiters, pricePerLiter]);
 
   return (
     <div className={`bg-card border border-border rounded-xl p-6 ${className}`}>
       <h3 className="text-xl font-semibold text-text-primary mb-6">
-        Tamaño de garrafón
+        Tamano de garrafon
       </h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {sizes.map((s) => {
-          const active = Number(selectedLiters) === Number(s.liters);
+        {sizes.map((size) => {
+          const active = Number(selectedLiters) === Number(size.liters);
           return (
             <button
-              key={s.liters}
-              onClick={() => onChange?.(s.liters)}
+              key={size.liters}
+              onClick={() => onChange?.(size.liters)}
               type="button"
               className={`
                 group p-4 rounded-lg border-2 transition-all duration-200
@@ -57,8 +63,11 @@ const BottleSizeSelector = ({
                   <Icon name="Droplets" size={20} />
                 </div>
                 <div>
-                  <div className="font-semibold">{s.label}</div>
-                  <div className="text-sm text-text-secondary">{s.liters} litros</div>
+                  <div className="font-semibold">{size.label}</div>
+                  <div className="text-sm text-text-secondary">{size.subtitle}</div>
+                  <div className={`mt-1 text-sm font-semibold ${active ? 'text-primary' : 'text-text-primary'}`}>
+                    Precio: {size.priceLabel}
+                  </div>
                 </div>
               </div>
             </button>
