@@ -33,9 +33,15 @@ const PromotionalBanner = ({ promotions = [] }) => {
                 <h3 className="font-semibold text-text-primary">
                   {promotion.title}
                 </h3>
-                <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-success">
-                  Activa
-                </span>
+                {promotion.key === 'welcome_first_garrafon' && promotion.status?.used ? (
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                    Usada
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-success">
+                    {promotion.key === 'welcome_first_garrafon' && promotion.status?.available ? 'Disponible' : 'Activa'}
+                  </span>
+                )}
               </div>
               <p className="text-text-secondary text-body-sm mt-1">
                 {promotion.summary || promotion.description}

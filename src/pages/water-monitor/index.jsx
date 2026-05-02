@@ -323,8 +323,15 @@ export default function WaterMonitor() {
   }));
 
   const activePromotions = useMemo(
-    () => (monitorSummary.promotions || []).filter((promotion) => promotion.isActive),
+    () => (monitorSummary.promotions || []).filter((promotion) => promotion.isActive && promotion.key !== 'premium_membership'),
     [monitorSummary.promotions]
+  );
+
+  const visiblePromotions = useMemo(
+    () => activePromotions.concat(
+      (monitorSummary.promotions || []).filter((promotion) => !promotion.isActive && promotion.key !== 'premium_membership')
+    ),
+    [activePromotions, monitorSummary.promotions]
   );
 
   const selectedMachineHardwareId = normalizeHardwareId(selectedMachine?.hardwareId || selectedMachine?.id);
@@ -812,7 +819,7 @@ export default function WaterMonitor() {
             </div>
 
             <div className="space-y-4">
-              {activePromotions.concat((monitorSummary.promotions || []).filter((promotion) => !promotion.isActive)).map((promotion) => (
+              {visiblePromotions.map((promotion) => (
                 <article key={promotion.key} className={`rounded-3xl border p-4 shadow-sm ${cardClass}`}>
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
@@ -824,10 +831,6 @@ export default function WaterMonitor() {
                       </div>
                       <p className={`mt-2 text-sm font-medium ${darkMode ? 'text-slate-100' : 'text-text-primary'}`}>{promotion.summary || 'Sin resumen configurado'}</p>
                       <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{promotion.description || 'Sin descripcion configurada'}</p>
-                      <div className={`mt-3 rounded-2xl border p-3 text-xs ${mutedClass}`}>
-                        <p className={`font-semibold uppercase tracking-wide ${darkMode ? 'text-white' : 'text-text-primary'}`}>Configuracion</p>
-                        <pre className={`mt-2 overflow-auto whitespace-pre-wrap ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{JSON.stringify(promotion.config || {}, null, 2)}</pre>
-                      </div>
                     </div>
                     <div className="flex shrink-0 items-center">
                       <Button variant={promotion.isActive ? 'warning' : 'success'} onClick={() => handlePromotionToggle(promotion)} loading={promotionSavingKey === promotion.key}>
