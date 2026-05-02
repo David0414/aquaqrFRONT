@@ -6,7 +6,6 @@ import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import BalanceCard from './components/BalanceCard';
 import PromotionalBanner from './components/PromotionalBanner';
-import WaterDropAvatar from './components/WaterDropAvatar';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
 import Icon from '../../components/AppIcon';
@@ -166,6 +165,8 @@ const HomeDashboard = () => {
   const realBalance = Number(dashboard.wallet?.realBalanceCents || 0);
   const bonusBalance = Number(dashboard.wallet?.bonusBalanceCents || 0);
   const activePromotions = (dashboard.promotions || []).filter((promotion) => promotion.isActive && promotion.key !== 'premium_membership');
+  const currentMonthPoints = dashboard.monthlyProgress?.points || 0;
+  const currentMonthGarrafones = Number(dashboard.monthlyProgress?.garrafones || 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -195,7 +196,7 @@ const HomeDashboard = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20">
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             <BalanceCard
               totalBalance={totalBalance / 100}
               realBalance={realBalance / 100}
@@ -204,45 +205,23 @@ const HomeDashboard = () => {
               onDispense={handleDispense}
               dispenseLoading={dispenseLoading}
             />
-            <WaterDropAvatar
-              title="Promociones activas"
-              subtitle={`${activePromotions.length} promociones disponibles y ${moneyFromCents(dashboard.bonusSummary?.totalBonusEarnedCents)} MXN ganados en bonificacion`}
-            />
           </div>
 
           <PromotionalBanner
             promotions={activePromotions}
             monthlyProgress={dashboard.monthlyProgress}
             welcomeReward={dashboard.welcomeReward}
+            bonusBalanceCents={bonusBalance}
+            recentBonusCredits={dashboard.recentBonusCredits}
           />
-
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Saldo de regalo</p>
-              <p className="mt-2 text-2xl font-black text-[#0F9F6E]">${moneyFromCents(bonusBalance)}</p>
-              <p className="mt-1 text-sm text-text-secondary">Disponible para usar en dispensados.</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Bonificacion ganada</p>
-              <p className="mt-2 text-2xl font-black text-[#1E3F7A]">
-                ${moneyFromCents(dashboard.bonusSummary?.totalBonusEarnedCents)}
-              </p>
-              <p className="mt-1 text-sm text-text-secondary">{dashboard.bonusSummary?.bonusRewardsCount || 0} recompensas acreditadas.</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Puntos del mes</p>
-              <p className="mt-2 text-2xl font-black text-[#E59E0D]">{dashboard.monthlyProgress?.points || 0}</p>
-              <p className="mt-1 text-sm text-text-secondary">{dashboard.monthlyProgress?.pointsLabel || 'Sin beneficio'}</p>
-            </div>
-          </section>
 
           <section className="rounded-3xl border border-border bg-card p-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Resumen rapido</p>
-                <h2 className="mt-2 text-2xl font-black text-text-primary">Lo importante hoy</h2>
+                <h2 className="mt-2 text-2xl font-black text-text-primary">Lo importante de tu mes</h2>
                 <p className="mt-2 text-sm text-text-secondary">
-                  Tu detalle completo de recompensas y movimientos sigue disponible en tu perfil.
+                  Dejamos solo dos referencias para que puedas entender tu avance sin llenar la pantalla de numeros.
                 </p>
               </div>
               <button
@@ -256,19 +235,21 @@ const HomeDashboard = () => {
 
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
               <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-text-primary">Cashback estimado este mes</p>
+                <p className="text-sm font-semibold text-text-primary">Consumo del mes</p>
                 <p className="mt-2 text-3xl font-black text-[#0F9F6E]">
-                  ${moneyFromCents(dashboard.monthlyProgress?.estimatedCashbackCents)}
-                </p>
-                <p className="mt-2 text-sm text-text-secondary">{dashboard.monthlyProgress?.cashbackLabel}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-text-primary">Saldo extra por puntos</p>
-                <p className="mt-2 text-3xl font-black text-[#42B9D4]">
-                  ${moneyFromCents(dashboard.monthlyProgress?.estimatedPointsBonusCents)}
+                  {currentMonthGarrafones.toFixed(1)} garrafones
                 </p>
                 <p className="mt-2 text-sm text-text-secondary">
-                  {dashboard.monthlyProgress?.bonusPercent || 0}% desbloqueado con tus puntos de este mes.
+                  Este dato es el que se usa para calcular tu cashback mensual.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-text-primary">Puntos del mes</p>
+                <p className="mt-2 text-3xl font-black text-[#42B9D4]">
+                  {currentMonthPoints}
+                </p>
+                <p className="mt-2 text-sm text-text-secondary">
+                  Tu nivel actual es: {dashboard.monthlyProgress?.pointsLabel || 'Sin beneficio'}.
                 </p>
               </div>
             </div>

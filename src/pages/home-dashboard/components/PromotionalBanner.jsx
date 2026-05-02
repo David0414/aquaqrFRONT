@@ -12,8 +12,35 @@ const PROMOTION_ICONS = {
   monthly_consumption_points: 'Sparkles',
 };
 
-const PromotionalBanner = ({ promotions = [], monthlyProgress = null, welcomeReward = null }) => {
+function formatCurrency(amountCents) {
+  return `$${moneyFromCents(amountCents)}`;
+}
+
+function getSimplePromotionExplanation(promotion, monthlyProgress) {
+  switch (promotion.key) {
+    case 'welcome_first_garrafon':
+      return 'Se activa una sola vez al registrarte y te regala tu primer garrafon.';
+    case 'topup_bonus':
+      return 'Cuando recargas ciertos montos, el sistema te deposita saldo extra automaticamente.';
+    case 'monthly_cashback':
+      return `Este mes llevas ${Number(monthlyProgress?.garrafones || 0).toFixed(1)} garrafones. Tu cashback se calcula por garrafones consumidos.`;
+    case 'monthly_consumption_points':
+      return `Tus puntos salen de tu consumo del mes: ${monthlyProgress?.points || 0} puntos acumulados hasta ahora.`;
+    default:
+      return promotion.summary || promotion.description;
+  }
+}
+
+const PromotionalBanner = ({
+  promotions = [],
+  monthlyProgress = null,
+  welcomeReward = null,
+  bonusBalanceCents = 0,
+  recentBonusCredits = [],
+}) => {
   const featuredPromotions = promotions.slice(0, 4);
+  const lastBonus = recentBonusCredits[0] || null;
+  const cashbackPerGarrafon = Number(monthlyProgress?.cashbackPerGarrafonCents || 0) / 100;
 
   return (
     <section className="rounded-3xl border border-border bg-card p-6">
@@ -37,20 +64,62 @@ const PromotionalBanner = ({ promotions = [], monthlyProgress = null, welcomeRew
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Promociones activas</p>
-          <h2 className="mt-2 text-2xl font-black text-text-primary">Tus beneficios de hoy</h2>
+          <h2 className="mt-2 text-2xl font-black text-text-primary">Tus promociones, en simple</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
-            Aqui ves de forma simple lo que ya tienes disponible y lo que puedes ganar este mes.
+            Aqui solo te mostramos lo importante: que ya tienes hoy y como se calculan los beneficios del mes.
           </p>
         </div>
-        <div className="rounded-2xl bg-sky-50 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">Podrias ganar este mes</p>
+        <div className="rounded-2xl bg-sky-50 px-4 py-3 md:max-w-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-secondary">Hoy ya tienes</p>
           <p className="mt-1 text-lg font-bold text-text-primary">
-            ${moneyFromCents(monthlyProgress?.estimatedCashbackCents)} de cashback + ${moneyFromCents(monthlyProgress?.estimatedPointsBonusCents)} extra
+            {formatCurrency(bonusBalanceCents)} de saldo promocional
+          </p>
+          <p className="mt-1 text-sm text-text-secondary">
+            Es el saldo de regalo que ya fue abonado a tu cuenta y ya puedes usar.
           </p>
         </div>
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <article className="rounded-2xl border border-border bg-slate-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#0F9F6E] shadow-sm">
+              <Icon name="Wallet" size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-bold text-text-primary">De donde sale tu saldo de regalo</h3>
+              <p className="mt-2 text-sm text-text-secondary">
+                Sale de promociones ya aplicadas a tu cuenta, como bienvenida, recargas con bono o recompensas mensuales.
+              </p>
+              <p className="mt-3 text-sm font-semibold text-[#1E3F7A]">
+                {lastBonus
+                  ? `Ultimo abono registrado: ${lastBonus.description || 'Promocion aplicada'} por ${formatCurrency(lastBonus.amountCents)}.`
+                  : 'Todavia no tienes un abono promocional registrado.'}
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <article className="rounded-2xl border border-border bg-slate-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#1E3F7A] shadow-sm">
+              <Icon name="Calculator" size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-bold text-text-primary">Como se calculan los numeros del mes</h3>
+              <p className="mt-2 text-sm text-text-secondary">
+                Llevas {Number(monthlyProgress?.garrafones || 0).toFixed(1)} garrafones y {monthlyProgress?.points || 0} puntos este mes.
+              </p>
+              <p className="mt-3 text-sm font-semibold text-[#1E3F7A]">
+                Cashback estimado: {Number.isFinite(cashbackPerGarrafon) ? `$${cashbackPerGarrafon.toFixed(2)}` : '$0.00'} por garrafon.
+              </p>
+              <p className="mt-1 text-sm font-semibold text-[#1E3F7A]">
+                Bono por puntos: {monthlyProgress?.bonusPercent || 0}% segun tu nivel actual.
+              </p>
+            </div>
+          </div>
+        </article>
+
         {featuredPromotions.map((promotion) => (
           <article key={promotion.key} className="rounded-2xl border border-border bg-slate-50 p-4">
             <div className="flex items-start gap-3">
@@ -70,15 +139,17 @@ const PromotionalBanner = ({ promotions = [], monthlyProgress = null, welcomeRew
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-sm text-text-secondary">{promotion.summary || promotion.description}</p>
+                <p className="mt-2 text-sm text-text-secondary">
+                  {getSimplePromotionExplanation(promotion, monthlyProgress)}
+                </p>
                 {promotion.key === 'monthly_cashback' ? (
                   <p className="mt-3 text-sm font-semibold text-[#1E3F7A]">
-                    Vas acumulando ${moneyFromCents(monthlyProgress?.estimatedCashbackCents)}.
+                    Ahorita vas acumulando {formatCurrency(monthlyProgress?.estimatedCashbackCents)}.
                   </p>
                 ) : null}
                 {promotion.key === 'monthly_consumption_points' ? (
                   <p className="mt-3 text-sm font-semibold text-[#1E3F7A]">
-                    Ya llevas {monthlyProgress?.points || 0} puntos este mes.
+                    Si hoy cerrara el mes, tu bono extra seria de {formatCurrency(monthlyProgress?.estimatedPointsBonusCents)}.
                   </p>
                 ) : null}
               </div>
