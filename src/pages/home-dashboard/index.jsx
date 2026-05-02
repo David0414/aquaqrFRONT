@@ -14,6 +14,7 @@ import Agua24Brand from '../../components/Agua24Brand';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+const DASHBOARD_CACHE_KEY = 'agua24-home-dashboard-cache';
 
 function moneyFromCents(amountCents) {
   return (Number(amountCents || 0) / 100).toFixed(2);
@@ -28,6 +29,21 @@ const HomeDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dispenseLoading, setDispenseLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const cached = window.sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+      if (!cached) return;
+      const parsed = JSON.parse(cached);
+      if (parsed?.wallet && parsed?.promotions) {
+        setDashboard(parsed);
+        setDashboardLoading(false);
+      }
+    } catch {
+      // Ignorado a proposito
+    }
+  }, []);
 
   const displayName = useMemo(() => {
     if (!user) return 'AGUA/24';
@@ -54,6 +70,9 @@ const HomeDashboard = () => {
         throw new Error(data?.error || 'No se pudo cargar tu resumen');
       }
       setDashboard(data);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(data));
+      }
     } catch (error) {
       console.error(error);
       window.showToast?.(error.message || 'Error cargando dashboard', 'error');
@@ -146,7 +165,6 @@ const HomeDashboard = () => {
   const totalBalance = Number(dashboard.wallet?.totalAvailableCents || dashboard.wallet?.balanceCents || 0);
   const realBalance = Number(dashboard.wallet?.realBalanceCents || 0);
   const bonusBalance = Number(dashboard.wallet?.bonusBalanceCents || 0);
-  const totalLiters = Number(dashboard.stats?.totalLitersDispensed || 0);
   const activePromotions = (dashboard.promotions || []).filter((promotion) => promotion.isActive && promotion.key !== 'premium_membership');
 
   return (
@@ -195,11 +213,10 @@ const HomeDashboard = () => {
           <PromotionalBanner
             promotions={activePromotions}
             monthlyProgress={dashboard.monthlyProgress}
-            recentBonusCredits={dashboard.recentBonusCredits}
             welcomeReward={dashboard.welcomeReward}
           />
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div className="rounded-2xl border border-border bg-card p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Saldo de regalo</p>
               <p className="mt-2 text-2xl font-black text-[#0F9F6E]">${moneyFromCents(bonusBalance)}</p>
@@ -213,11 +230,6 @@ const HomeDashboard = () => {
               <p className="mt-1 text-sm text-text-secondary">{dashboard.bonusSummary?.bonusRewardsCount || 0} recompensas acreditadas.</p>
             </div>
             <div className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Consumo del mes</p>
-              <p className="mt-2 text-2xl font-black text-[#42B9D4]">{Number(dashboard.monthlyProgress?.liters || 0).toFixed(1)} L</p>
-              <p className="mt-1 text-sm text-text-secondary">{Number(dashboard.monthlyProgress?.garrafones || 0).toFixed(2)} garrafones equivalentes.</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Puntos del mes</p>
               <p className="mt-2 text-2xl font-black text-[#E59E0D]">{dashboard.monthlyProgress?.points || 0}</p>
               <p className="mt-1 text-sm text-text-secondary">{dashboard.monthlyProgress?.pointsLabel || 'Sin beneficio'}</p>
@@ -225,23 +237,26 @@ const HomeDashboard = () => {
           </section>
 
           <section className="rounded-3xl border border-border bg-card p-6">
-            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Un vistazo general</p>
-                <h2 className="mt-2 text-2xl font-black text-text-primary">Tu resumen de recompensas</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Resumen rapido</p>
+                <h2 className="mt-2 text-2xl font-black text-text-primary">Lo importante hoy</h2>
+                <p className="mt-2 text-sm text-text-secondary">
+                  Tu detalle completo de recompensas y movimientos sigue disponible en tu perfil.
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => navigate('/user-profile-settings')}
                 className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3F7A]"
               >
-                Ver detalle completo <Icon name="ArrowRight" size={16} />
+                Ver estadisticas <Icon name="ArrowRight" size={16} />
               </button>
             </div>
 
-            <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
               <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-text-primary">Cashback mensual estimado</p>
+                <p className="text-sm font-semibold text-text-primary">Cashback estimado este mes</p>
                 <p className="mt-2 text-3xl font-black text-[#0F9F6E]">
                   ${moneyFromCents(dashboard.monthlyProgress?.estimatedCashbackCents)}
                 </p>
@@ -253,13 +268,8 @@ const HomeDashboard = () => {
                   ${moneyFromCents(dashboard.monthlyProgress?.estimatedPointsBonusCents)}
                 </p>
                 <p className="mt-2 text-sm text-text-secondary">
-                  {dashboard.monthlyProgress?.bonusPercent || 0}% sobre tu consumo completado del mes.
+                  {dashboard.monthlyProgress?.bonusPercent || 0}% desbloqueado con tus puntos de este mes.
                 </p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-text-primary">Actividad acumulada</p>
-                <p className="mt-2 text-3xl font-black text-[#1E3F7A]">{totalLiters.toFixed(0)} L</p>
-                <p className="mt-2 text-sm text-text-secondary">{dashboard.stats?.transactionCount || 0} movimientos registrados.</p>
               </div>
             </div>
           </section>
