@@ -19,7 +19,7 @@ const TransactionSummary = ({
       type: 'normal'
     },
     ...(bonus > 0 ? [{
-      label: 'Bonus incluido',
+      label: 'Saldo de regalo incluido',
       value: `+$${bonus?.toFixed(2)}`,
       type: 'success'
     }] : []),
@@ -77,7 +77,7 @@ const TransactionSummary = ({
             <span className="font-medium text-text-primary">${currentBalance?.toFixed(2)}</span>
           </div>
           <div className="flex justify-between items-center mt-2">
-            <span className="text-text-secondary text-body-sm">Nuevo saldo</span>
+            <span className="text-text-secondary text-body-sm">Nuevo saldo total</span>
             <span className="font-bold text-primary text-lg">${newBalance?.toFixed(2)}</span>
           </div>
         </div>

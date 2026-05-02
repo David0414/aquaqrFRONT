@@ -1,4 +1,3 @@
-// src/pages/user-profile-settings/index.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
@@ -23,7 +22,6 @@ function formatMonthYear(dateStr) {
   return d.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
 }
 
-/** ============ Sección: Sesión (Cerrar sesión) ============ */
 const SessionSection = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -35,7 +33,7 @@ const SessionSection = () => {
       await signOut();
       navigate('/user-login', { replace: true });
     } catch (e) {
-      showErrorToast(e?.message || 'No se pudo cerrar sesión');
+      showErrorToast(e?.message || 'No se pudo cerrar sesion');
     } finally {
       setLoading(false);
     }
@@ -48,9 +46,9 @@ const SessionSection = () => {
           <Icon name="LogOut" size={20} className="text-warning" />
         </div>
         <div>
-          <h3 className="text-heading-base font-semibold text-text-primary">Sesión</h3>
+          <h3 className="text-heading-base font-semibold text-text-primary">Sesion</h3>
           <p className="text-body-sm text-text-secondary">
-            Cierra tu sesión de forma segura en este dispositivo.
+            Cierra tu sesion de forma segura en este dispositivo.
           </p>
         </div>
       </div>
@@ -62,9 +60,9 @@ const SessionSection = () => {
               <Icon name="AlertTriangle" size={18} className="text-error" />
             </div>
             <div>
-              <p className="text-body-sm font-medium text-text-primary">¿Deseas cerrar sesión?</p>
+              <p className="text-body-sm font-medium text-text-primary">Deseas cerrar sesion?</p>
               <p className="text-body-xs text-text-secondary">
-                Podrás volver a ingresar cuando lo necesites.
+                Podras volver a ingresar cuando lo necesites.
               </p>
             </div>
           </div>
@@ -77,14 +75,13 @@ const SessionSection = () => {
             loading={loading}
             onClick={handleLogout}
           >
-            Cerrar sesión
+            Cerrar sesion
           </Button>
         </div>
       </div>
     </div>
   );
 };
-/** ======================================================== */
 
 const UserProfileSettings = () => {
   const navigate = useNavigate();
@@ -111,7 +108,6 @@ const UserProfileSettings = () => {
     };
   }, [clerkUser]);
 
-  /** 🔄 Sincronizar automáticamente email / nombre / teléfono al backend */
   useEffect(() => {
     const syncProfile = async () => {
       if (!clerkLoaded || !isSignedIn || !clerkUser) return;
@@ -153,37 +149,36 @@ const UserProfileSettings = () => {
   const loadMetrics = async () => {
     try {
       const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-      if (!token) throw new Error('Sin sesión');
+      if (!token) throw new Error('Sin sesion');
 
-      const [rechargeRes, dispenseRes] = await Promise.all([
-        fetch(`${API}/api/recharge/history?limit=100`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${API}/api/dispense/history?limit=100`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
+      const rewardsRes = await fetch(`${API}/api/rewards/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const rewardsData = await rewardsRes.json().catch(() => null);
+      if (!rewardsRes.ok || !rewardsData) {
+        throw new Error(rewardsData?.error || 'Error recompensas');
+      }
 
-      const rechargeData = await rechargeRes.json().catch(() => ({ items: [] }));
-      const dispenseData = await dispenseRes.json().catch(() => ({ items: [] }));
-
-      if (!rechargeRes.ok) throw new Error(rechargeData?.error || 'Error recargas');
-      if (!dispenseRes.ok) throw new Error(dispenseData?.error || 'Error dispensados');
-
-      const dispenses = dispenseData.items || [];
-      const recharges = rechargeData.items || [];
-
-      const totalLitersDispensed = dispenses.reduce(
-        (acc, it) => acc + (Number(it.liters) || 0),
-        0
-      );
-      const transactionCount = (dispenses.length || 0) + (recharges.length || 0);
-      const totalDonated = 0;
-
-      return { totalLitersDispensed, transactionCount, totalDonated };
+      return {
+        totalLitersDispensed: Number(rewardsData.stats?.totalLitersDispensed || 0),
+        transactionCount: Number(rewardsData.stats?.transactionCount || 0),
+        totalBonusEarnedCents: Number(rewardsData.bonusSummary?.totalBonusEarnedCents || 0),
+        bonusRewardsCount: Number(rewardsData.bonusSummary?.bonusRewardsCount || 0),
+        monthlyProgress: rewardsData.monthlyProgress || null,
+        promotions: rewardsData.promotions || [],
+        recentBonusCredits: rewardsData.recentBonusCredits || [],
+      };
     } catch (e) {
-      showErrorToast(e.message || 'No se pudieron cargar tus métricas');
-      return { totalLitersDispensed: 0, transactionCount: 0, totalDonated: 0 };
+      showErrorToast(e.message || 'No se pudieron cargar tus metricas');
+      return {
+        totalLitersDispensed: 0,
+        transactionCount: 0,
+        totalBonusEarnedCents: 0,
+        bonusRewardsCount: 0,
+        monthlyProgress: null,
+        promotions: [],
+        recentBonusCredits: [],
+      };
     }
   };
 
@@ -198,12 +193,16 @@ const UserProfileSettings = () => {
         email: clerkBasics?.email || '',
         profileImage: clerkBasics?.profileImage || '',
         memberSince: clerkBasics?.memberSince || '',
-        lastPasswordChange: '—',
+        lastPasswordChange: '-',
         twoFactorEnabled: false,
 
         totalLitersDispensed: Math.round(metrics.totalLitersDispensed),
-        totalDonated: metrics.totalDonated,
         transactionCount: metrics.transactionCount,
+        totalBonusEarnedCents: metrics.totalBonusEarnedCents,
+        bonusRewardsCount: metrics.bonusRewardsCount,
+        monthlyProgress: metrics.monthlyProgress,
+        promotions: metrics.promotions,
+        recentBonusCredits: metrics.recentBonusCredits,
         membershipDays: clerkBasics?.createdAt
           ? Math.max(
               1,
@@ -242,7 +241,7 @@ const UserProfileSettings = () => {
     setUiUser((prev) => ({ ...prev, ...updated }));
 
   const handleImageUpload = async (file) => {
-    if (!clerkUser) throw new Error('No hay sesión activa');
+    if (!clerkUser) throw new Error('No hay sesion activa');
     await clerkUser.setProfileImage({ file });
     await clerkUser.reload();
     const freshUrl = `${clerkUser.imageUrl}?v=${Date.now()}`;
@@ -253,17 +252,17 @@ const UserProfileSettings = () => {
     { id: 'personal', title: 'Personal', icon: 'User', component: PersonalInfoSection },
     { id: 'security', title: 'Seguridad', icon: 'Shield', component: SecuritySection },
     { id: 'notifications', title: 'Notificaciones', icon: 'Bell', component: NotificationPreferences },
-    { id: 'statistics', title: 'Estadísticas', icon: 'BarChart3', component: AccountStatistics },
-    { id: 'session', title: 'Sesión', icon: 'LogOut', component: SessionSection },
+    { id: 'statistics', title: 'Estadisticas', icon: 'BarChart3', component: AccountStatistics },
+    { id: 'session', title: 'Sesion', icon: 'LogOut', component: SessionSection },
   ];
-  const ActiveComponent = sections.find((s) => s.id === activeSection)?.component;
+  const ActiveComponent = sections.find((section) => section.id === activeSection)?.component;
 
   if (!clerkLoaded || !isSignedIn || loading || !uiUser) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-text-secondary text-body-sm">Cargando tu perfil…</p>
+          <p className="text-text-secondary text-body-sm">Cargando tu perfil...</p>
         </div>
       </div>
     );
@@ -271,7 +270,6 @@ const UserProfileSettings = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -285,9 +283,9 @@ const UserProfileSettings = () => {
                 aria-label="Volver"
               />
               <div>
-                <h1 className="text-heading-lg font-bold text-text-primary">Configuración</h1>
+                <h1 className="text-heading-lg font-bold text-text-primary">Configuracion</h1>
                 <p className="text-body-sm text-text-secondary">
-                  Gestiona tu cuenta y preferencias
+                  Gestiona tu cuenta, estadisticas y recompensas.
                 </p>
               </div>
             </div>
@@ -304,11 +302,9 @@ const UserProfileSettings = () => {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
-        {/* Cabecera con datos reales + subida de imagen */}
         <ProfileHeader user={uiUser} onImageUpload={handleImageUpload} />
 
         <div className="lg:grid lg:grid-cols-4 lg:gap-8">
-          {/* Sidebar (desktop) */}
           <aside className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24">
               <nav className="space-y-2">
@@ -338,7 +334,6 @@ const UserProfileSettings = () => {
             </div>
           </aside>
 
-          {/* Pestañas móviles */}
           <div className="lg:hidden mb-6">
             <div className="flex overflow-x-auto space-x-2 pb-2 -mx-1 px-1 snap-x snap-mandatory">
               {sections.map((section) => (
@@ -362,7 +357,6 @@ const UserProfileSettings = () => {
             </div>
           </div>
 
-          {/* Contenido */}
           <div className="lg:col-span-3">
             {ActiveComponent && (
               <ActiveComponent user={uiUser} onUserUpdate={handleUserUpdate} />

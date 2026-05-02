@@ -25,7 +25,7 @@ const PresetAmountCard = ({
         </div>
         {bonus > 0 && (
           <div className="text-success text-body-sm font-medium">
-            +${bonus} bonus
+            +${bonus} regalo
           </div>
         )}
       </div>

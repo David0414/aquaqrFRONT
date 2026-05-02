@@ -192,6 +192,28 @@ const TransactionDetailModal = ({
                       <span className="font-medium">{transaction?.paymentMethod}</span>
                     </div>
                   )}
+                  {transaction?.bonusAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Bonificacion:</span>
+                      <span className="font-medium text-success">
+                        +{new Intl.NumberFormat('es-MX', {
+                          style: 'currency',
+                          currency: transaction?.currency || 'MXN'
+                        }).format(transaction?.bonusAmount)}
+                      </span>
+                    </div>
+                  )}
+                  {transaction?.totalReceivedAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Total recibido:</span>
+                      <span className="font-medium">
+                        {new Intl.NumberFormat('es-MX', {
+                          style: 'currency',
+                          currency: transaction?.currency || 'MXN'
+                        }).format(transaction?.totalReceivedAmount)}
+                      </span>
+                    </div>
+                  )}
                   {transaction?.balanceBefore !== undefined && (
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Saldo anterior:</span>

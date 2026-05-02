@@ -172,6 +172,24 @@ const TransactionCard = ({
               )}
 
               {/* ID de Stripe si viene */}
+              {transaction?.bonusAmount > 0 && (
+                <div>
+                  <span className="text-text-secondary">Bonificacion:</span>
+                  <span className="ml-2 font-medium text-success">
+                    {formatMoney(transaction.bonusAmount, transaction?.currency)}
+                  </span>
+                </div>
+              )}
+              {transaction?.totalReceivedAmount > 0 && (
+                <div>
+                  <span className="text-text-secondary">Total recibido:</span>
+                  <span className="ml-2 font-medium">
+                    {formatMoney(transaction.totalReceivedAmount, transaction?.currency)}
+                  </span>
+                </div>
+              )}
+
+              {/* ID de Stripe si viene */}
               {transaction?.providerPaymentId && (
                 <div className="truncate">
                   <span className="text-text-secondary">Pago (proveedor):</span>

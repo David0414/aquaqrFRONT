@@ -24,9 +24,14 @@ import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+const DEFAULT_RECHARGE_OPTIONS = [50, 100, 200, 500];
 
 async function safeJson(res) {
   try { return await res.json(); } catch { return {}; }
+}
+
+function moneyFromCents(amountCents) {
+  return Number(amountCents || 0) / 100;
 }
 
 const BalanceRecharge = () => {
@@ -35,7 +40,12 @@ const BalanceRecharge = () => {
   const { getToken } = useAuth();
   const { telemetry, balanceCents, setTelemetryEnabled, sendStageCommand } = useDispenseFlow();
 
-  const [currentBalance, setCurrentBalance] = useState(0);
+  const [walletBreakdown, setWalletBreakdown] = useState({
+    totalBalance: 0,
+    realBalance: 0,
+    bonusBalance: 0,
+  });
+  const [availablePromotions, setAvailablePromotions] = useState([]);
   const [selectedAmount, setSelectedAmount] = useState(0);
   const [customAmount, setCustomAmount] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
@@ -44,50 +54,80 @@ const BalanceRecharge = () => {
   const [creatingPI, setCreatingPI] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const presetAmounts = [
-    { amount: 30, bonus: 0 },
-    { amount: 50, bonus: 5 },
-    { amount: 100, bonus: 10 },
-    { amount: 200, bonus: 25 },
-  ];
+  const topUpPromotion = useMemo(
+    () => availablePromotions.find((promotion) => promotion.key === 'topup_bonus' && promotion.isActive) || null,
+    [availablePromotions]
+  );
 
-  const fetchWallet = useCallback(async () => {
+  const topUpTiers = useMemo(
+    () => (
+      Array.isArray(topUpPromotion?.config?.tiers)
+        ? [...topUpPromotion.config.tiers].sort((a, b) => Number(a.amountCents || 0) - Number(b.amountCents || 0))
+        : []
+    ),
+    [topUpPromotion]
+  );
+
+  const getBonusForAmount = useCallback((amount) => {
+    const amountCents = Math.round(Number(amount || 0) * 100);
+    const matchingTier = [...topUpTiers]
+      .filter((tier) => Number(tier.amountCents || 0) <= amountCents)
+      .sort((a, b) => Number(b.amountCents || 0) - Number(a.amountCents || 0))[0];
+
+    return moneyFromCents(matchingTier?.bonusCents || 0);
+  }, [topUpTiers]);
+
+  const presetAmounts = useMemo(
+    () => DEFAULT_RECHARGE_OPTIONS.map((amount) => ({ amount, bonus: getBonusForAmount(amount) })),
+    [getBonusForAmount]
+  );
+
+  const fetchRechargeContext = useCallback(async () => {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
     if (!token) throw new Error('No se pudo obtener token de sesion');
 
-    const res = await fetch(`${API}/api/me/wallet`, {
+    const res = await fetch(`${API}/api/rewards/summary`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     });
     if (!res.ok) {
       const data = await safeJson(res);
-      throw new Error(data?.error || 'No se pudo obtener el saldo');
+      throw new Error(data?.error || 'No se pudo obtener el contexto de recarga');
     }
     const data = await res.json();
-    const balance = (data.balanceCents ?? 0) / 100;
-    setCurrentBalance(balance);
-    return balance;
+    const totalBalance = moneyFromCents(data.wallet?.totalAvailableCents ?? data.wallet?.balanceCents ?? 0);
+    const realBalance = moneyFromCents(data.wallet?.realBalanceCents ?? 0);
+    const bonusBalance = moneyFromCents(data.wallet?.bonusBalanceCents ?? 0);
+
+    setWalletBreakdown({
+      totalBalance,
+      realBalance,
+      bonusBalance,
+    });
+    setAvailablePromotions(data.promotions || []);
+    return data;
   }, [getToken]);
 
   useEffect(() => {
-    fetchWallet().catch((e) => showErrorToast(e.message || 'Error cargando saldo'));
-  }, [fetchWallet]);
+    fetchRechargeContext().catch((e) => showErrorToast(e.message || 'Error cargando saldo'));
+  }, [fetchRechargeContext]);
 
   useEffect(() => {
     if (!Number.isFinite(balanceCents)) return;
-    setCurrentBalance(balanceCents / 100);
+    setWalletBreakdown((current) => ({
+      ...current,
+      totalBalance: balanceCents / 100,
+    }));
   }, [balanceCents]);
 
   useEffect(() => {
-    const onWalletUpdated = (event) => {
-      const nextBalanceCents = Number(event?.detail?.balanceCents);
-      if (!Number.isFinite(nextBalanceCents)) return;
-      setCurrentBalance(nextBalanceCents / 100);
+    const onWalletUpdated = () => {
+      fetchRechargeContext().catch(() => {});
     };
 
     window.addEventListener('wallet:updated', onWalletUpdated);
     return () => window.removeEventListener('wallet:updated', onWalletUpdated);
-  }, []);
+  }, [fetchRechargeContext]);
 
   useEffect(() => {
     const state = location?.state;
@@ -175,7 +215,7 @@ const BalanceRecharge = () => {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const getBonus = () => presetAmounts.find((p) => p.amount === selectedAmount)?.bonus || 0;
+  const getBonus = () => getBonusForAmount(selectedAmount);
   const getFees = () => 0;
 
   const handleRecharge = async () => {
@@ -264,7 +304,7 @@ const BalanceRecharge = () => {
       if (rechargeId) {
         const result = await quickCheckRechargeStatus(rechargeId);
         if (result?.ok) {
-          await fetchWallet();
+          await fetchRechargeContext();
           showSuccessToast('Recarga aplicada');
         } else if (result?.fallback) {
           showInfoToast('Pago recibido. Acreditacion en curso.');
@@ -290,6 +330,7 @@ const BalanceRecharge = () => {
 
   const isCoinMode = selectedPaymentMethod === 'coins';
   const isStripeMode = selectedPaymentMethod === 'stripe';
+  const currentBalance = walletBreakdown.totalBalance;
 
   return (
     <div className="min-h-screen bg-background">
@@ -309,8 +350,12 @@ const BalanceRecharge = () => {
 
       <main className="pb-20 px-4">
         <div className="max-w-2xl mx-auto space-y-6 py-6">
-          <CurrentBalanceCard balance={currentBalance} />
-          <PromotionalBanner />
+          <CurrentBalanceCard
+            totalBalance={walletBreakdown.totalBalance}
+            realBalance={walletBreakdown.realBalance}
+            bonusBalance={walletBreakdown.bonusBalance}
+          />
+          <PromotionalBanner promotions={availablePromotions} />
 
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-text-primary">Metodo de Recarga</h2>
