@@ -136,6 +136,32 @@ export default function SelectAmount() {
 
   return (
     <div className="space-y-6">
+      {!telemetryFresh ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-lg rounded-[2rem] border border-amber-200 bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+              <Icon name="AlertTriangle" size={28} />
+            </div>
+            <div className="mt-5 text-center">
+              <h2 className="text-2xl font-black text-slate-900">No pudimos conectar con la maquina</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                La maquina no tiene conexion o no envio una trama reciente. Por seguridad, no puedes continuar con este flujo en este momento.
+              </p>
+            </div>
+            <div className="mt-6">
+              <Button
+                variant="default"
+                size="lg"
+                fullWidth
+                onClick={() => nav('/home-dashboard')}
+              >
+                Volver a home
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <MachineInfoCard
         machineId={machine.id}
         location={machine.location}
@@ -159,31 +185,6 @@ export default function SelectAmount() {
       />
 
       <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
-
-      {!telemetryFresh ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-                <Icon name="AlertTriangle" size={18} />
-              </div>
-              <div>
-                <p className="text-base font-semibold text-slate-900">No pudimos conectar con la maquina</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  La maquina no tiene conexion o no envio una trama reciente. Vuelve al inicio para intentarlo otra vez.
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="default"
-              onClick={() => nav('/home-dashboard')}
-              className="w-full sm:w-auto"
-            >
-              Volver a home
-            </Button>
-          </div>
-        </div>
-      ) : null}
 
       <MachineBusyAlert
         error={machineBusyError}
