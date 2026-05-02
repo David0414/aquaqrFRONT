@@ -55,6 +55,24 @@ const emptyMachineForm = {
   isActive: true,
 };
 
+const emptyTelemetry = {
+  machineOnline: false,
+  lastSeenAt: null,
+  rawFrame: '',
+  currentStageCode: '00',
+  phDecimal: null,
+  solidsDecimal: null,
+  phVoltage: null,
+  fillValveOn: false,
+  rinseValveOn: false,
+  pumpOn: false,
+  flowmeterPulses: 0,
+  insertedCoinAmount: 0,
+  accumulatedMoney: 0,
+  hardwareId: '',
+  error: '',
+};
+
 function monitorAdminHeaders() {
   if (typeof window === 'undefined') return {};
   if (window.sessionStorage.getItem('agua24MonitorAdmin') !== 'true') return {};
@@ -84,23 +102,6 @@ function formatSeenAt(value) {
     minute: '2-digit',
     second: '2-digit',
   }).format(new Date(value));
-}
-
-function buildTelemetryMachineFallback(telemetry) {
-  const hardwareId = normalizeHardwareId(telemetry?.machineHardwareId);
-  if (!hardwareId) return null;
-
-  return {
-    id: hardwareId,
-    name: `Maquina ${hardwareId}`,
-    location: 'Detectada por telemetria',
-    address: 'Aun no registrada en el monitor',
-    hardwareId,
-    status: telemetry?.machineOnline ? 'ONLINE' : 'SINCRONIZANDO',
-    isActive: true,
-    detectedOnly: true,
-    stickerUrl: null,
-  };
 }
 
 function StatusPill({ active, labelOn, labelOff, darkMode }) {
@@ -168,13 +169,7 @@ function CommandGrid({ title, description, commands, loadingAction, onCommand, d
 export default function WaterMonitor() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
-  const {
-    telemetry,
-    pulsesPerLiter,
-    setPulsesPerLiter,
-    setTelemetryEnabled,
-    sendStageCommand,
-  } = useDispenseFlow();
+  const { pulsesPerLiter, setPulsesPerLiter, setTelemetryEnabled, sendStageCommand } = useDispenseFlow();
 
   const [loadingAction, setLoadingAction] = useState('');
   const [lastResponse, setLastResponse] = useState(null);
@@ -189,6 +184,7 @@ export default function WaterMonitor() {
   const [activeTab, setActiveTab] = useState('overview');
   const [darkMode, setDarkMode] = useState(false);
   const [selectedMachineId, setSelectedMachineId] = useState('');
+  const [telemetry, setTelemetry] = useState(emptyTelemetry);
 
   useEffect(() => {
     setTelemetryEnabled(true);
@@ -223,31 +219,10 @@ export default function WaterMonitor() {
     fetchMonitorSummary();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const currentStep = getTelemetryStepInfo(telemetry.currentStageCode);
-  const configuredPulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
-  const flowmeterLiters = pulsesToLiters(telemetry.flowmeterPulses, configuredPulsesPerLiter);
-  const targetPulseOptions = [5, 10, 20].map((liters) => ({
-    liters,
-    pulses: getTargetPulseCount(liters, configuredPulsesPerLiter),
-  }));
-
-  const telemetryMachine = useMemo(() => buildTelemetryMachineFallback(telemetry), [telemetry]);
-
-  const displayedMachines = useMemo(() => {
-    const machines = [...(monitorSummary.machines || [])];
-    if (!telemetryMachine) return machines;
-
-    const exists = machines.some((machine) => (
-      machine.id === telemetryMachine.id
-      || normalizeHardwareId(machine.hardwareId) === telemetryMachine.hardwareId
-    ));
-
-    if (!exists) {
-      machines.unshift(telemetryMachine);
-    }
-
-    return machines;
-  }, [monitorSummary.machines, telemetryMachine]);
+  const displayedMachines = useMemo(
+    () => [...(monitorSummary.machines || [])],
+    [monitorSummary.machines]
+  );
 
   useEffect(() => {
     if (!displayedMachines.length) return;
@@ -270,18 +245,71 @@ export default function WaterMonitor() {
     [displayedMachines]
   );
 
+  useEffect(() => {
+    if (!selectedMachineId) return undefined;
+
+    let cancelled = false;
+    let intervalId = 0;
+
+    const loadTelemetry = async () => {
+      try {
+        const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
+        const res = await fetch(`${API}/api/telemetry/machine/${selectedMachineId}`, {
+          headers: buildAuthHeaders(token),
+          cache: 'no-store',
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data) {
+          throw new Error(data?.error || 'No se pudo cargar la telemetria');
+        }
+        if (!cancelled) {
+          setTelemetry({
+            ...emptyTelemetry,
+            ...data,
+            hardwareId: data.hardwareId || '',
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setTelemetry((current) => ({
+            ...current,
+            machineOnline: false,
+            error: error?.message || 'No se pudo cargar la telemetria',
+          }));
+        }
+      }
+    };
+
+    loadTelemetry();
+    intervalId = window.setInterval(loadTelemetry, 2000);
+
+    return () => {
+      cancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [getToken, selectedMachineId]);
+
+  const currentStep = getTelemetryStepInfo(telemetry.currentStageCode);
+  const configuredPulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
+  const flowmeterLiters = pulsesToLiters(telemetry.flowmeterPulses, configuredPulsesPerLiter);
+  const targetPulseOptions = [5, 10, 20].map((liters) => ({
+    liters,
+    pulses: getTargetPulseCount(liters, configuredPulsesPerLiter),
+  }));
+
   const activePromotions = useMemo(
     () => (monitorSummary.promotions || []).filter((promotion) => promotion.isActive),
     [monitorSummary.promotions]
   );
 
   const selectedMachineHardwareId = normalizeHardwareId(selectedMachine?.hardwareId || selectedMachine?.id);
-  const telemetryHardwareId = normalizeHardwareId(telemetry.machineHardwareId);
+  const telemetryHardwareId = normalizeHardwareId(telemetry.hardwareId);
   const selectedMachineHasTelemetry = Boolean(
     telemetry.lastSeenAt
     && selectedMachineHardwareId
     && telemetryHardwareId
     && selectedMachineHardwareId === telemetryHardwareId
+    && Date.now() - new Date(telemetry.lastSeenAt).getTime() < 15000
   );
 
   const activeMachineLabel = useMemo(() => {
@@ -508,38 +536,23 @@ export default function WaterMonitor() {
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#42B9D4]">Panel del dueno</p>
               <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Monitor AGUA/24</h1>
               <p className={`mt-2 max-w-2xl text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                Cada maquina puede tener su propia vista, su propio QR y su propia telemetria.
+                Telemetria real por maquina recibida desde tu servicio C# hacia el backend.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 {MONITOR_TABS.map((tab) => (
-                  <Button
-                    key={tab.key}
-                    variant={activeTab === tab.key ? 'secondary' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveTab(tab.key)}
-                  >
+                  <Button key={tab.key} variant={activeTab === tab.key ? 'secondary' : 'outline'} size="sm" onClick={() => setActiveTab(tab.key)}>
                     <Icon name={tab.icon} size={15} /> {tab.label}
                   </Button>
                 ))}
               </div>
               <div className="mt-5 max-w-md">
-                <Select
-                  label="Maquina a administrar"
-                  options={machineSelectOptions}
-                  value={selectedMachineId}
-                  onChange={setSelectedMachineId}
-                  placeholder="Selecciona una maquina"
-                />
+                <Select label="Maquina a administrar" options={machineSelectOptions} value={selectedMachineId} onChange={setSelectedMachineId} placeholder="Selecciona una maquina" />
               </div>
             </div>
 
             <div className={`rounded-3xl border p-5 ${selectedMachineHasTelemetry ? (darkMode ? 'border-emerald-900 bg-emerald-950/40' : 'border-emerald-200 bg-emerald-50') : (darkMode ? 'border-amber-900 bg-amber-950/30' : 'border-amber-200 bg-amber-50')}`}>
               <div className="flex items-start gap-3">
-                <Icon
-                  name={selectedMachineHasTelemetry ? 'Wifi' : 'WifiOff'}
-                  size={24}
-                  className={selectedMachineHasTelemetry ? 'text-emerald-500' : 'text-amber-500'}
-                />
+                <Icon name={selectedMachineHasTelemetry ? 'Wifi' : 'WifiOff'} size={24} className={selectedMachineHasTelemetry ? 'text-emerald-500' : 'text-amber-500'} />
                 <div>
                   <p className={`font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{connectionHeadline}</p>
                   <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{connectionSubtitle}</p>
@@ -559,7 +572,7 @@ export default function WaterMonitor() {
               <Metric icon="ListChecks" label="Paso actual" value={`${currentStep.code}: ${currentStep.shortLabel || currentStep.label}`} hint={currentStep.instruction} darkMode={darkMode} />
               <Metric icon="Gauge" label="Caudalimetro" value={`${telemetry.flowmeterPulses ?? 0} pulsos`} hint={`${flowmeterLiters.toFixed(3)} litros estimados`} darkMode={darkMode} />
               <Metric icon="FlaskConical" label="pH" value={telemetry.phDecimal ?? '--'} hint={telemetry.phVoltage ? `${telemetry.phVoltage} V` : 'Sin voltaje'} darkMode={darkMode} />
-              <Metric icon="Factory" label="Maquina administrada" value={activeMachineLabel} hint="Selecciona otra maquina desde la parte superior." darkMode={darkMode} />
+              <Metric icon="Coins" label="Saldo detectado en maquina" value={`$${Number(telemetry.accumulatedMoney || 0).toFixed(2)} MXN`} hint={`Moneda: ${telemetry.insertedCoinAmount || 0}`} darkMode={darkMode} />
             </div>
 
             <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
@@ -575,15 +588,7 @@ export default function WaterMonitor() {
 
             <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-end">
-                <Input
-                  label="Calibracion del caudalimetro"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={pulsesPerLiterInput}
-                  onChange={(event) => setPulsesPerLiterInput(event.target.value)}
-                  description="Pulsos necesarios para medir 1 litro."
-                />
+                <Input label="Calibracion del caudalimetro" type="number" min="1" step="1" value={pulsesPerLiterInput} onChange={(event) => setPulsesPerLiterInput(event.target.value)} description="Pulsos necesarios para medir 1 litro." />
                 <Button onClick={handleSavePulsesPerLiter}>
                   <Icon name="Save" size={16} /> Guardar calibracion
                 </Button>
@@ -643,12 +648,7 @@ export default function WaterMonitor() {
                   <Input label="Hardware ID" value={machineForm.hardwareId} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
                   <Select label="Estado" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
                   <label className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm ${darkMode ? 'bg-slate-950/70 text-white' : 'bg-white text-text-primary'}`}>
-                    <input
-                      type="checkbox"
-                      checked={machineForm.isActive}
-                      onChange={(event) => handleMachineChange('isActive', event.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400"
-                    />
+                    <input type="checkbox" checked={machineForm.isActive} onChange={(event) => handleMachineChange('isActive', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400" />
                     Maquina activa
                   </label>
                   <div className="flex gap-3">
@@ -672,18 +672,10 @@ export default function WaterMonitor() {
                           <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${machine.isActive ? 'bg-success/10 text-success' : 'bg-slate-200 text-slate-600'}`}>
                             {machine.isActive ? 'Activa' : 'Inactiva'}
                           </span>
-                          {machine.detectedOnly ? (
-                            <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-500">
-                              Solo telemetria
-                            </span>
-                          ) : null}
                         </div>
                         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.name || 'Sin nombre'} · {machine.location || 'Sin ubicacion'}</p>
                         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.address || 'Sin direccion guardada'}</p>
                         <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware: {machine.hardwareId || machine.id || 'N/D'} · Estado: {machine.status || 'ONLINE'}</p>
-                        {selectedMachineId === machine.id ? (
-                          <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-sky-500">Maquina seleccionada en el panel del dueno</p>
-                        ) : null}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleMachineEdit(machine)}>
@@ -692,10 +684,10 @@ export default function WaterMonitor() {
                         <Button variant="secondary" size="sm" onClick={() => setSelectedMachineId(machine.id)}>
                           <Icon name="Monitor" size={14} /> Administrar
                         </Button>
-                        <Button variant="secondary" size="sm" onClick={() => handleGenerateQr(machine.id)} loading={qrLoadingId === machine.id} disabled={machine.detectedOnly}>
+                        <Button variant="secondary" size="sm" onClick={() => handleGenerateQr(machine.id)} loading={qrLoadingId === machine.id}>
                           <Icon name="QrCode" size={14} /> QR
                         </Button>
-                        <Button variant={machine.isActive ? 'warning' : 'success'} size="sm" onClick={() => handleMachineToggle(machine)} disabled={machine.detectedOnly}>
+                        <Button variant={machine.isActive ? 'warning' : 'success'} size="sm" onClick={() => handleMachineToggle(machine)}>
                           <Icon name={machine.isActive ? 'PauseCircle' : 'PlayCircle'} size={14} />
                           {machine.isActive ? 'Desactivar' : 'Activar'}
                         </Button>
@@ -721,12 +713,8 @@ export default function WaterMonitor() {
                   </div>
                   <div>
                     <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Sticker local de {selectedMachine.id}</h3>
-                    <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                      Si existe `Backend/stickers/{selectedMachine.id}.png`, lo mostramos aqui. Si no, usamos `AQ-001.png`.
-                    </p>
-                    <p className={`mt-3 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                      Esta vista ya funciona como pagina por maquina: seleccionas una y el panel superior queda apuntando a esa maquina.
-                    </p>
+                    <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Si existe `Backend/stickers/{selectedMachine.id}.png`, lo mostramos aqui.</p>
+                    <p className={`mt-3 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Esta vista ya funciona por maquina y consume la telemetria real que empuja tu C#.</p>
                   </div>
                 </div>
               </div>
@@ -764,14 +752,7 @@ export default function WaterMonitor() {
 
             <div className={`mb-5 rounded-3xl border p-4 ${mutedClass}`}>
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
-                <Input
-                  label="Puntos por litro"
-                  type="number"
-                  min="1"
-                  value={pointsPerLiterConfig}
-                  onChange={(event) => setPointsPerLiterConfig(event.target.value)}
-                  description="Aqui controlas cuantos puntos genera cada litro consumido."
-                />
+                <Input label="Puntos por litro" type="number" min="1" value={pointsPerLiterConfig} onChange={(event) => setPointsPerLiterConfig(event.target.value)} description="Aqui controlas cuantos puntos genera cada litro consumido." />
                 <Button onClick={handleSavePointsConfig} loading={promotionSavingKey === 'monthly_consumption_points'}>
                   <Icon name="Save" size={16} /> Guardar puntos/L
                 </Button>
@@ -797,11 +778,7 @@ export default function WaterMonitor() {
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center">
-                      <Button
-                        variant={promotion.isActive ? 'warning' : 'success'}
-                        onClick={() => handlePromotionToggle(promotion)}
-                        loading={promotionSavingKey === promotion.key}
-                      >
+                      <Button variant={promotion.isActive ? 'warning' : 'success'} onClick={() => handlePromotionToggle(promotion)} loading={promotionSavingKey === promotion.key}>
                         <Icon name={promotion.isActive ? 'PauseCircle' : 'PlayCircle'} size={16} />
                         {promotion.isActive ? 'Desactivar' : 'Activar'}
                       </Button>
