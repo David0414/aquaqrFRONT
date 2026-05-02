@@ -21,10 +21,10 @@ const MONITOR_THEME_KEY = 'agua24-monitor-dark-mode';
 
 const HARDWARE_COMMANDS = [
   { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]' },
-  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]' },
-  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]' },
   { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', className: 'bg-[#334155] text-white hover:bg-[#1e293b]' },
+  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]' },
   { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', className: 'bg-[#64748b] text-white hover:bg-[#475569]' },
+  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]' },
   { key: 'valvula_llenado_off', label: 'Llenado OFF', icon: 'CircleOff', className: 'bg-[#475569] text-white hover:bg-[#334155]' },
 ];
 
@@ -157,7 +157,7 @@ function CommandGrid({ title, description, commands, loadingAction, onCommand, d
         <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{title}</h3>
         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{description}</p>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-2">
         {commands.map((item) => (
           <Button
             key={item.key}
@@ -556,6 +556,8 @@ export default function WaterMonitor() {
   const panelClass = darkMode ? 'border-slate-800 bg-slate-950/70' : 'border-sky-100 bg-white/92';
   const cardClass = darkMode ? 'border-slate-800 bg-slate-950/65' : 'border-sky-100 bg-white';
   const mutedClass = darkMode ? 'border-slate-800 bg-slate-900/80' : 'border-sky-100 bg-slate-50';
+  const darkFieldClass = darkMode ? 'border-slate-700 bg-slate-950 text-white placeholder:text-slate-500' : '';
+  const darkSelectClass = darkMode ? '[&_button]:border-slate-700 [&_button]:bg-slate-950 [&_button]:text-white [&_label]:text-white [&_p]:text-slate-400' : '';
 
   return (
     <div className={shellClass}>
@@ -688,12 +690,12 @@ export default function WaterMonitor() {
               <div className={`rounded-3xl border p-4 ${mutedClass}`}>
                 <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Alta o edicion</h3>
                 <div className="mt-4 space-y-3">
-                  <Input label="ID de maquina" value={machineForm.id} onChange={(event) => handleMachineChange('id', event.target.value)} />
-                  <Input label="Nombre" value={machineForm.name} onChange={(event) => handleMachineChange('name', event.target.value)} />
-                  <Input label="Ubicacion" value={machineForm.location} onChange={(event) => handleMachineChange('location', event.target.value)} />
-                  <Input label="Direccion" value={machineForm.address} onChange={(event) => handleMachineChange('address', event.target.value)} />
-                  <Input label="Hardware ID" value={machineForm.hardwareId} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
-                  <Select label="Estado" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
+                  <Input label="ID de maquina" value={machineForm.id} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('id', event.target.value)} />
+                  <Input label="Nombre" value={machineForm.name} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('name', event.target.value)} />
+                  <Input label="Ubicacion" value={machineForm.location} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('location', event.target.value)} />
+                  <Input label="Direccion" value={machineForm.address} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('address', event.target.value)} />
+                  <Input label="Hardware ID" value={machineForm.hardwareId} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
+                  <Select className={darkSelectClass} label="Estado" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
                   <label className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm ${darkMode ? 'bg-slate-950/70 text-white' : 'bg-white text-text-primary'}`}>
                     <input type="checkbox" checked={machineForm.isActive} onChange={(event) => handleMachineChange('isActive', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400" />
                     Maquina activa
@@ -702,9 +704,9 @@ export default function WaterMonitor() {
                     <Button onClick={handleMachineSubmit} loading={machineSaving} className="flex-1">
                       <Icon name="Save" size={16} /> Guardar maquina
                     </Button>
-                    <Button variant="outline" onClick={() => setMachineForm(emptyMachineForm)}>
-                      Limpiar
-                    </Button>
+                      <Button variant="outline" className={darkMode ? 'border-slate-700 text-white hover:bg-slate-800' : ''} onClick={() => setMachineForm(emptyMachineForm)}>
+                        Limpiar
+                      </Button>
                   </div>
                 </div>
               </div>
