@@ -104,6 +104,13 @@ function formatSeenAt(value) {
   }).format(new Date(value));
 }
 
+function machinePreferenceScore(machine) {
+  const id = String(machine?.id || '').toUpperCase();
+  if (id.startsWith('AQ-')) return 3;
+  if (machine?.discoveredFrom === 'database') return 2;
+  return 1;
+}
+
 function StatusPill({ active, labelOn, labelOff, darkMode }) {
   return (
     <div className={`rounded-2xl border px-4 py-3 ${active ? 'border-emerald-300 bg-emerald-500/10' : darkMode ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-white'}`}>
@@ -241,7 +248,9 @@ export default function WaterMonitor() {
   const monitorMachines = useMemo(() => {
     if (!telemetryHardwareId) return displayedMachines;
     const filtered = displayedMachines.filter((machine) => normalizeHardwareId(machine.hardwareId || machine.id) === telemetryHardwareId);
-    return filtered.length ? filtered : displayedMachines;
+    if (!filtered.length) return displayedMachines;
+    const preferred = [...filtered].sort((left, right) => machinePreferenceScore(right) - machinePreferenceScore(left));
+    return preferred.length ? [preferred[0]] : filtered;
   }, [displayedMachines, telemetryHardwareId]);
 
   const machineSelectOptions = useMemo(
