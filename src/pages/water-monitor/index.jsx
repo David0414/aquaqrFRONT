@@ -5,6 +5,7 @@ import Agua24Brand from '../../components/Agua24Brand';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
 import NotificationToast, { showErrorToast, showSuccessToast } from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 import {
@@ -16,6 +17,43 @@ import {
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+
+const HARDWARE_COMMANDS = [
+  { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]' },
+  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]' },
+  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]' },
+  { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', className: 'bg-[#334155] text-white hover:bg-[#1e293b]' },
+  { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', className: 'bg-[#64748b] text-white hover:bg-[#475569]' },
+  { key: 'valvula_llenado_off', label: 'Llenado OFF', icon: 'CircleOff', className: 'bg-[#475569] text-white hover:bg-[#334155]' },
+];
+
+const SAFETY_COMMANDS = [
+  { key: 'apagar_valvulas_forzado', label: 'Apagar todo', icon: 'ShieldAlert', variant: 'warning' },
+  { key: 'reiniciar_sistema', label: 'Reiniciar a 00', icon: 'RotateCcw', variant: 'danger' },
+];
+
+const MONITOR_TABS = [
+  { key: 'overview', label: 'Resumen', icon: 'LayoutDashboard' },
+  { key: 'machines', label: 'Maquinas', icon: 'Factory' },
+  { key: 'promotions', label: 'Promociones', icon: 'Gift' },
+];
+
+const MACHINE_STATUS_OPTIONS = [
+  { value: 'ONLINE', label: 'Online' },
+  { value: 'OFFLINE', label: 'Offline' },
+  { value: 'MAINTENANCE', label: 'Mantenimiento' },
+  { value: 'INSTALLING', label: 'Instalacion' },
+];
+
+const emptyMachineForm = {
+  id: '',
+  name: '',
+  location: '',
+  address: '',
+  hardwareId: '',
+  status: 'ONLINE',
+  isActive: true,
+};
 
 function monitorAdminHeaders() {
   if (typeof window === 'undefined') return {};
@@ -46,6 +84,22 @@ function formatSeenAt(value) {
     minute: '2-digit',
     second: '2-digit',
   }).format(new Date(value));
+}
+
+function buildTelemetryMachineFallback(telemetry) {
+  const hardwareId = normalizeHardwareId(telemetry?.machineHardwareId);
+  if (!hardwareId) return null;
+
+  return {
+    id: hardwareId,
+    name: `Maquina ${hardwareId}`,
+    location: 'Detectada por telemetria',
+    address: 'Aun no registrada en el monitor',
+    hardwareId,
+    status: telemetry?.machineOnline ? 'ONLINE' : 'SINCRONIZANDO',
+    isActive: true,
+    detectedOnly: true,
+  };
 }
 
 function StatusPill({ active, labelOn, labelOff, darkMode }) {
@@ -110,52 +164,6 @@ function CommandGrid({ title, description, commands, loadingAction, onCommand, d
   );
 }
 
-const HARDWARE_COMMANDS = [
-  { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]' },
-  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]' },
-  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]' },
-  { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', className: 'bg-[#334155] text-white hover:bg-[#1e293b]' },
-  { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', className: 'bg-[#64748b] text-white hover:bg-[#475569]' },
-  { key: 'valvula_llenado_off', label: 'Llenado OFF', icon: 'CircleOff', className: 'bg-[#475569] text-white hover:bg-[#334155]' },
-];
-
-const SAFETY_COMMANDS = [
-  { key: 'apagar_valvulas_forzado', label: 'Apagar todo', icon: 'ShieldAlert', variant: 'warning' },
-  { key: 'reiniciar_sistema', label: 'Reiniciar a 00', icon: 'RotateCcw', variant: 'danger' },
-];
-
-const MONITOR_TABS = [
-  { key: 'overview', label: 'Resumen', icon: 'LayoutDashboard' },
-  { key: 'machines', label: 'Maquinas', icon: 'Factory' },
-  { key: 'promotions', label: 'Promociones', icon: 'Gift' },
-];
-
-const emptyMachineForm = {
-  id: '',
-  name: '',
-  location: '',
-  address: '',
-  hardwareId: '',
-  status: 'ONLINE',
-  isActive: true,
-};
-
-function buildTelemetryMachineFallback(telemetry) {
-  const hardwareId = normalizeHardwareId(telemetry?.machineHardwareId);
-  if (!hardwareId) return null;
-
-  return {
-    id: hardwareId,
-    name: `Maquina ${hardwareId}`,
-    location: 'Detectada por telemetria',
-    address: 'Aun no registrada en el monitor',
-    hardwareId,
-    status: telemetry?.machineOnline ? 'ONLINE' : 'SINCRONIZANDO',
-    isActive: true,
-    detectedOnly: true,
-  };
-}
-
 export default function WaterMonitor() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -179,6 +187,7 @@ export default function WaterMonitor() {
   const [pointsPerLiterConfig, setPointsPerLiterConfig] = useState('10');
   const [activeTab, setActiveTab] = useState('overview');
   const [darkMode, setDarkMode] = useState(false);
+  const [selectedMachineId, setSelectedMachineId] = useState('');
 
   useEffect(() => {
     setTelemetryEnabled(true);
@@ -239,23 +248,59 @@ export default function WaterMonitor() {
     return machines;
   }, [monitorSummary.machines, telemetryMachine]);
 
+  useEffect(() => {
+    if (!displayedMachines.length) return;
+    setSelectedMachineId((current) => {
+      if (current && displayedMachines.some((machine) => machine.id === current)) return current;
+      return displayedMachines[0]?.id || '';
+    });
+  }, [displayedMachines]);
+
+  const selectedMachine = useMemo(
+    () => displayedMachines.find((machine) => machine.id === selectedMachineId) || null,
+    [displayedMachines, selectedMachineId]
+  );
+
+  const machineSelectOptions = useMemo(
+    () => displayedMachines.map((machine) => ({
+      value: machine.id,
+      label: `${machine.id}${machine.name ? ` · ${machine.name}` : ''}`,
+    })),
+    [displayedMachines]
+  );
+
   const activePromotions = useMemo(
     () => (monitorSummary.promotions || []).filter((promotion) => promotion.isActive),
     [monitorSummary.promotions]
   );
 
+  const selectedMachineHardwareId = normalizeHardwareId(selectedMachine?.hardwareId || selectedMachine?.id);
+  const telemetryHardwareId = normalizeHardwareId(telemetry.machineHardwareId);
+  const selectedMachineHasTelemetry = Boolean(
+    telemetry.lastSeenAt
+    && selectedMachineHardwareId
+    && telemetryHardwareId
+    && selectedMachineHardwareId === telemetryHardwareId
+  );
+
   const activeMachineLabel = useMemo(() => {
-    const hardwareId = normalizeHardwareId(telemetry.machineHardwareId);
-    const matched = displayedMachines.find((machine) => (
-      machine.id === hardwareId || normalizeHardwareId(machine.hardwareId) === hardwareId
-    ));
-
-    if (matched) {
-      return `${matched.id}${matched.location ? ` · ${matched.location}` : ''}`;
+    if (selectedMachine) {
+      return `${selectedMachine.id}${selectedMachine.location ? ` · ${selectedMachine.location}` : ''}`;
     }
+    if (telemetryHardwareId) return `Maquina ${telemetryHardwareId}`;
+    return 'Sin maquina detectada';
+  }, [selectedMachine, telemetryHardwareId]);
 
-    return hardwareId ? `Maquina ${hardwareId}` : 'Sin maquina detectada';
-  }, [displayedMachines, telemetry.machineHardwareId]);
+  const connectionHeadline = selectedMachineHasTelemetry
+    ? 'Maquina conectada'
+    : selectedMachine
+      ? 'Sin telemetria reciente'
+      : 'Esperando maquina';
+  const connectionSubtitle = selectedMachineHasTelemetry
+    ? `Ultima lectura: ${formatSeenAt(telemetry.lastSeenAt)}`
+    : selectedMachine
+      ? `Estado configurado: ${selectedMachine.status || 'ONLINE'}`
+      : `Ultima lectura: ${formatSeenAt(telemetry.lastSeenAt)}`;
 
   const handleCommand = async (action) => {
     try {
@@ -462,7 +507,7 @@ export default function WaterMonitor() {
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#42B9D4]">Panel del dueno</p>
               <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Monitor AGUA/24</h1>
               <p className={`mt-2 max-w-2xl text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                Ahora el monitor esta dividido por secciones para que no todo viva en una sola pantalla.
+                Cada maquina puede tener su propia vista, su propio QR y su propia telemetria.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 {MONITOR_TABS.map((tab) => (
@@ -476,22 +521,29 @@ export default function WaterMonitor() {
                   </Button>
                 ))}
               </div>
+              <div className="mt-5 max-w-md">
+                <Select
+                  label="Maquina a administrar"
+                  options={machineSelectOptions}
+                  value={selectedMachineId}
+                  onChange={setSelectedMachineId}
+                  placeholder="Selecciona una maquina"
+                />
+              </div>
             </div>
 
-            <div className={`rounded-3xl border p-5 ${telemetry.machineOnline ? (darkMode ? 'border-emerald-900 bg-emerald-950/40' : 'border-emerald-200 bg-emerald-50') : (darkMode ? 'border-amber-900 bg-amber-950/30' : 'border-amber-200 bg-amber-50')}`}>
+            <div className={`rounded-3xl border p-5 ${selectedMachineHasTelemetry ? (darkMode ? 'border-emerald-900 bg-emerald-950/40' : 'border-emerald-200 bg-emerald-50') : (darkMode ? 'border-amber-900 bg-amber-950/30' : 'border-amber-200 bg-amber-50')}`}>
               <div className="flex items-start gap-3">
                 <Icon
-                  name={telemetry.machineOnline ? 'Wifi' : 'WifiOff'}
+                  name={selectedMachineHasTelemetry ? 'Wifi' : 'WifiOff'}
                   size={24}
-                  className={telemetry.machineOnline ? 'text-emerald-500' : 'text-amber-500'}
+                  className={selectedMachineHasTelemetry ? 'text-emerald-500' : 'text-amber-500'}
                 />
                 <div>
-                  <p className={`font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>
-                    {telemetry.machineOnline ? 'Maquina conectada' : 'Esperando maquina'}
-                  </p>
-                  <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Ultima lectura: {formatSeenAt(telemetry.lastSeenAt)}</p>
-                  <p className={`mt-2 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Detectada: {activeMachineLabel}</p>
-                  <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware ID: {normalizeHardwareId(telemetry.machineHardwareId) || 'Sin lectura'}</p>
+                  <p className={`font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{connectionHeadline}</p>
+                  <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{connectionSubtitle}</p>
+                  <p className={`mt-2 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Administrando: {activeMachineLabel}</p>
+                  <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware esperado: {selectedMachineHardwareId || 'Sin configurar'} · Hardware leido: {telemetryHardwareId || 'Sin lectura'}</p>
                 </div>
               </div>
             </div>
@@ -500,18 +552,13 @@ export default function WaterMonitor() {
 
         {activeTab === 'overview' ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader
-              eyebrow="Seccion 1"
-              title="Operacion en vivo"
-              description="Monitoreo de la trama, calibracion y acciones manuales del equipo."
-              darkMode={darkMode}
-            />
+            <SectionHeader eyebrow="Seccion 1" title="Operacion en vivo" description="Monitoreo, calibracion y control manual de la maquina seleccionada." darkMode={darkMode} />
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <Metric icon="ListChecks" label="Paso actual" value={`${currentStep.code}: ${currentStep.shortLabel || currentStep.label}`} hint={currentStep.instruction} darkMode={darkMode} />
               <Metric icon="Gauge" label="Caudalimetro" value={`${telemetry.flowmeterPulses ?? 0} pulsos`} hint={`${flowmeterLiters.toFixed(3)} litros estimados`} darkMode={darkMode} />
               <Metric icon="FlaskConical" label="pH" value={telemetry.phDecimal ?? '--'} hint={telemetry.phVoltage ? `${telemetry.phVoltage} V` : 'Sin voltaje'} darkMode={darkMode} />
-              <Metric icon="Factory" label="Maquina activa" value={activeMachineLabel} hint="Se detecta desde el byte 1 de la trama." darkMode={darkMode} />
+              <Metric icon="Factory" label="Maquina administrada" value={activeMachineLabel} hint="Selecciona otra maquina desde la parte superior." darkMode={darkMode} />
             </div>
 
             <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
@@ -582,12 +629,7 @@ export default function WaterMonitor() {
 
         {activeTab === 'machines' ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader
-              eyebrow="Seccion 2"
-              title="Administracion de maquinas"
-              description="Si tu maquina manda el byte 01 en la trama, aqui ya aparece aunque todavia no la hayas dado de alta."
-              darkMode={darkMode}
-            />
+            <SectionHeader eyebrow="Seccion 2" title="Administracion de maquinas" description="Aqui eliges la maquina del panel, configuras su estado y ves su sticker local." darkMode={darkMode} />
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
               <div className={`rounded-3xl border p-4 ${mutedClass}`}>
@@ -598,7 +640,7 @@ export default function WaterMonitor() {
                   <Input label="Ubicacion" value={machineForm.location} onChange={(event) => handleMachineChange('location', event.target.value)} />
                   <Input label="Direccion" value={machineForm.address} onChange={(event) => handleMachineChange('address', event.target.value)} />
                   <Input label="Hardware ID" value={machineForm.hardwareId} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
-                  <Input label="Status" value={machineForm.status} onChange={(event) => handleMachineChange('status', event.target.value)} />
+                  <Select label="Estado" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
                   <label className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm ${darkMode ? 'bg-slate-950/70 text-white' : 'bg-white text-text-primary'}`}>
                     <input
                       type="checkbox"
@@ -638,10 +680,16 @@ export default function WaterMonitor() {
                         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.name || 'Sin nombre'} · {machine.location || 'Sin ubicacion'}</p>
                         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.address || 'Sin direccion guardada'}</p>
                         <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware: {machine.hardwareId || machine.id || 'N/D'} · Estado: {machine.status || 'ONLINE'}</p>
+                        {selectedMachineId === machine.id ? (
+                          <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-sky-500">Maquina seleccionada en el panel del dueno</p>
+                        ) : null}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleMachineEdit(machine)}>
                           <Icon name="Pencil" size={14} /> Editar
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => setSelectedMachineId(machine.id)}>
+                          <Icon name="Monitor" size={14} /> Administrar
                         </Button>
                         <Button variant="secondary" size="sm" onClick={() => handleGenerateQr(machine.id)} loading={qrLoadingId === machine.id} disabled={machine.detectedOnly}>
                           <Icon name="QrCode" size={14} /> QR
@@ -657,11 +705,37 @@ export default function WaterMonitor() {
               </div>
             </div>
 
+            {selectedMachine ? (
+              <div className={`mt-6 rounded-3xl border p-5 ${mutedClass}`}>
+                <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+                  <div className="flex justify-center lg:justify-start">
+                    <img
+                      src={`${API}/stickers/${selectedMachine.id}.png`}
+                      alt={`Sticker ${selectedMachine.id}`}
+                      className="h-48 w-48 rounded-2xl border border-sky-100 bg-white p-2 object-contain"
+                      onError={(event) => {
+                        event.currentTarget.src = `${API}/stickers/AQ-001.png`;
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Sticker local de {selectedMachine.id}</h3>
+                    <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
+                      Si existe `Backend/stickers/{selectedMachine.id}.png`, lo mostramos aqui. Si no, usamos `AQ-001.png`.
+                    </p>
+                    <p className={`mt-3 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
+                      Esta vista ya funciona como pagina por maquina: seleccionas una y el panel superior queda apuntando a esa maquina.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {selectedQr ? (
               <div className={`mt-6 rounded-3xl border p-5 ${mutedClass}`}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>QR de la maquina {selectedQr.machineId}</h3>
+                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>QR generado de {selectedQr.machineId}</h3>
                     <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{selectedQr.machineLocation || 'Sin ubicacion registrada'}</p>
                     <p className={`mt-2 break-all text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{selectedQr.deepUrl}</p>
                   </div>
@@ -679,12 +753,7 @@ export default function WaterMonitor() {
 
         {activeTab === 'promotions' ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader
-              eyebrow="Seccion 3"
-              title="Promociones y recompensas"
-              description="Las deje mas explicadas para que se entienda rapido que hace cada una."
-              darkMode={darkMode}
-            />
+            <SectionHeader eyebrow="Seccion 3" title="Promociones y recompensas" description="Las deje mas claras para que se entiendan rapido." darkMode={darkMode} />
 
             <div className="mb-5 grid gap-4 md:grid-cols-3">
               <Metric icon="Sparkles" label="Promociones activas" value={monitorSummary.counts?.activePromotions || 0} hint="Las promociones 1, 2, 3 y 4 inician activas." darkMode={darkMode} />
@@ -709,7 +778,7 @@ export default function WaterMonitor() {
             </div>
 
             <div className="space-y-4">
-              {(monitorSummary.promotions || []).map((promotion) => (
+              {activePromotions.concat((monitorSummary.promotions || []).filter((promotion) => !promotion.isActive)).map((promotion) => (
                 <article key={promotion.key} className={`rounded-3xl border p-4 shadow-sm ${cardClass}`}>
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
@@ -722,15 +791,7 @@ export default function WaterMonitor() {
                       <p className={`mt-2 text-sm font-medium ${darkMode ? 'text-slate-100' : 'text-text-primary'}`}>{promotion.summary || 'Sin resumen configurado'}</p>
                       <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{promotion.description || 'Sin descripcion configurada'}</p>
                       <div className={`mt-3 rounded-2xl border p-3 text-xs ${mutedClass}`}>
-                        <p className={`font-semibold uppercase tracking-wide ${darkMode ? 'text-white' : 'text-text-primary'}`}>Como funciona</p>
-                        <p className={`mt-2 whitespace-pre-wrap ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                          {promotion.key === 'welcome_first_garrafon' ? 'Da una bonificacion de bienvenida al registrarse.' : ''}
-                          {promotion.key === 'topup_bonus' ? 'Agrega saldo extra automaticamente segun el monto de recarga.' : ''}
-                          {promotion.key === 'monthly_cashback' ? 'Bonifica al final del mes segun los garrafones consumidos.' : ''}
-                          {promotion.key === 'monthly_consumption_points' ? 'Cada litro suma puntos y esos puntos pueden convertirse en saldo extra mensual.' : ''}
-                          {promotion.key === 'premium_membership' ? 'Es informativa por ahora y no entra al flujo principal.' : ''}
-                        </p>
-                        <p className={`mt-3 font-semibold uppercase tracking-wide ${darkMode ? 'text-white' : 'text-text-primary'}`}>Configuracion</p>
+                        <p className={`font-semibold uppercase tracking-wide ${darkMode ? 'text-white' : 'text-text-primary'}`}>Configuracion</p>
                         <pre className={`mt-2 overflow-auto whitespace-pre-wrap ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{JSON.stringify(promotion.config || {}, null, 2)}</pre>
                       </div>
                     </div>
