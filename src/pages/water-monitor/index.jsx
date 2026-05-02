@@ -237,12 +237,19 @@ export default function WaterMonitor() {
     [displayedMachines, selectedMachineId]
   );
 
+  const telemetryHardwareId = normalizeHardwareId(telemetry.hardwareId);
+  const monitorMachines = useMemo(() => {
+    if (!telemetryHardwareId) return displayedMachines;
+    const filtered = displayedMachines.filter((machine) => normalizeHardwareId(machine.hardwareId || machine.id) === telemetryHardwareId);
+    return filtered.length ? filtered : displayedMachines;
+  }, [displayedMachines, telemetryHardwareId]);
+
   const machineSelectOptions = useMemo(
-    () => displayedMachines.map((machine) => ({
+    () => monitorMachines.map((machine) => ({
       value: machine.id,
       label: `${machine.id}${machine.name ? ` · ${machine.name}` : ''}`,
     })),
-    [displayedMachines]
+    [monitorMachines]
   );
 
   useEffect(() => {
@@ -303,7 +310,6 @@ export default function WaterMonitor() {
   );
 
   const selectedMachineHardwareId = normalizeHardwareId(selectedMachine?.hardwareId || selectedMachine?.id);
-  const telemetryHardwareId = normalizeHardwareId(telemetry.hardwareId);
   const selectedMachineHasTelemetry = Boolean(
     telemetry.lastSeenAt
     && selectedMachineHardwareId
