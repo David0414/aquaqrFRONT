@@ -26,6 +26,7 @@ const FLOWMETER_PULSES_PER_LITER_KEY = 'flowmeterPulsesPerLiter';
 const MONITOR_ADMIN_SESSION_KEY = 'agua24MonitorAdmin';
 const MONITOR_ADMIN_USER_KEY = 'agua24MonitorAdminUser';
 const MONITOR_ADMIN_PASSWORD_KEY = 'agua24MonitorAdminPassword';
+const DEFAULT_MONITOR_MACHINE_ID = '01';
 
 function monitorAdminHeaders() {
   if (typeof window === 'undefined') return {};
@@ -200,7 +201,7 @@ export default function FlowProvider({ children }) {
   const routeState = location.state || {};
 
   const machineFromRoute = useMemo(() => {
-    const fallbackId = 'AQ-2024-001';
+    const fallbackId = DEFAULT_MONITOR_MACHINE_ID;
     const machineId = String(routeState.machineId || fallbackId).trim();
     const machineLocation = String(
       routeState.machineLocation || 'Centro Comercial Plaza Norte, Local 15'
@@ -217,7 +218,7 @@ export default function FlowProvider({ children }) {
     return {
       id: machineId,
       location: machineLocation,
-      hardwareId: inferredHardwareId || String(routeState.hardwareId || '01').trim(),
+      hardwareId: inferredHardwareId || String(routeState.hardwareId || DEFAULT_MONITOR_MACHINE_ID).trim(),
     };
   }, [routeState.hardwareId, routeState.machineId, routeState.machineLocation]);
 

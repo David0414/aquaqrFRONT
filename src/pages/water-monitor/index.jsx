@@ -34,19 +34,10 @@ function buildAuthHeaders(token, extra = {}) {
   };
 }
 
-const HARDWARE_COMMANDS = [
-  { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]' },
-  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]' },
-  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]' },
-  { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]' },
-  { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]' },
-  { key: 'valvula_llenado_off', label: 'Llenado OFF', icon: 'CircleOff', className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]' },
-];
-
-const SAFETY_COMMANDS = [
-  { key: 'apagar_valvulas_forzado', label: 'Apagar todo', icon: 'ShieldAlert', variant: 'warning' },
-  { key: 'reiniciar_sistema', label: 'Reiniciar a 00', icon: 'RotateCcw', variant: 'danger' },
-];
+function normalizeHardwareId(value) {
+  const clean = String(value || '').trim().toUpperCase().replace(/[^0-9A-F]/g, '');
+  return clean ? clean.padStart(2, '0').slice(-2) : '';
+}
 
 function formatSeenAt(value) {
   if (!value) return 'Sin lectura';
@@ -57,56 +48,52 @@ function formatSeenAt(value) {
   }).format(new Date(value));
 }
 
-function moneyFromCents(amountCents) {
-  return (Number(amountCents || 0) / 100).toFixed(2);
-}
-
-function StatusPill({ active, labelOn, labelOff }) {
+function StatusPill({ active, labelOn, labelOff, darkMode }) {
   return (
-    <div className={`rounded-xl border px-4 py-3 ${active ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+    <div className={`rounded-2xl border px-4 py-3 ${active ? 'border-emerald-300 bg-emerald-500/10' : darkMode ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-white'}`}>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-text-primary">{active ? labelOn : labelOff}</span>
+        <span className={`text-sm font-medium ${darkMode ? 'text-slate-100' : 'text-text-primary'}`}>{active ? labelOn : labelOff}</span>
         <span className={`h-3 w-3 rounded-full ${active ? 'bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]' : 'bg-slate-300'}`} />
       </div>
     </div>
   );
 }
 
-function Metric({ icon, label, value, hint }) {
+function Metric({ icon, label, value, hint, darkMode }) {
   return (
-    <div className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
+    <div className={`rounded-3xl border p-4 shadow-sm ${darkMode ? 'border-slate-800 bg-slate-950/65' : 'border-sky-100 bg-white'}`}>
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50">
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${darkMode ? 'bg-slate-900' : 'bg-sky-50'}`}>
           <Icon name={icon} size={19} className="text-[#42B9D4]" />
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{label}</p>
-          <p className="mt-1 text-xl font-bold text-text-primary">{value}</p>
-          {hint ? <p className="mt-1 text-xs text-text-secondary">{hint}</p> : null}
+          <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{label}</p>
+          <p className={`mt-1 text-xl font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{value}</p>
+          {hint ? <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{hint}</p> : null}
         </div>
       </div>
     </div>
   );
 }
 
-function SectionHeader({ eyebrow, title, description }) {
+function SectionHeader({ eyebrow, title, description, darkMode }) {
   return (
-    <div className="mb-4">
+    <div className="mb-5">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#42B9D4]">{eyebrow}</p>
-      <h2 className="mt-2 text-2xl font-black text-text-primary">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-text-secondary">{description}</p>
+      <h2 className={`mt-2 text-2xl font-black ${darkMode ? 'text-white' : 'text-text-primary'}`}>{title}</h2>
+      <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{description}</p>
     </div>
   );
 }
 
-function CommandGrid({ title, description, commands, loadingAction, onCommand }) {
+function CommandGrid({ title, description, commands, loadingAction, onCommand, darkMode }) {
   return (
-    <section className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
+    <section className={`rounded-3xl border p-5 shadow-sm ${darkMode ? 'border-slate-800 bg-slate-950/65' : 'border-sky-100 bg-white'}`}>
       <div className="mb-4">
-        <h3 className="text-lg font-bold text-text-primary">{title}</h3>
-        <p className="mt-1 text-sm text-text-secondary">{description}</p>
+        <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{title}</h3>
+        <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{description}</p>
       </div>
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {commands.map((item) => (
           <Button
             key={item.key}
@@ -123,6 +110,26 @@ function CommandGrid({ title, description, commands, loadingAction, onCommand })
   );
 }
 
+const HARDWARE_COMMANDS = [
+  { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]' },
+  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]' },
+  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]' },
+  { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', className: 'bg-[#334155] text-white hover:bg-[#1e293b]' },
+  { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', className: 'bg-[#64748b] text-white hover:bg-[#475569]' },
+  { key: 'valvula_llenado_off', label: 'Llenado OFF', icon: 'CircleOff', className: 'bg-[#475569] text-white hover:bg-[#334155]' },
+];
+
+const SAFETY_COMMANDS = [
+  { key: 'apagar_valvulas_forzado', label: 'Apagar todo', icon: 'ShieldAlert', variant: 'warning' },
+  { key: 'reiniciar_sistema', label: 'Reiniciar a 00', icon: 'RotateCcw', variant: 'danger' },
+];
+
+const MONITOR_TABS = [
+  { key: 'overview', label: 'Resumen', icon: 'LayoutDashboard' },
+  { key: 'machines', label: 'Maquinas', icon: 'Factory' },
+  { key: 'promotions', label: 'Promociones', icon: 'Gift' },
+];
+
 const emptyMachineForm = {
   id: '',
   name: '',
@@ -132,6 +139,22 @@ const emptyMachineForm = {
   status: 'ONLINE',
   isActive: true,
 };
+
+function buildTelemetryMachineFallback(telemetry) {
+  const hardwareId = normalizeHardwareId(telemetry?.machineHardwareId);
+  if (!hardwareId) return null;
+
+  return {
+    id: hardwareId,
+    name: `Maquina ${hardwareId}`,
+    location: 'Detectada por telemetria',
+    address: 'Aun no registrada en el monitor',
+    hardwareId,
+    status: telemetry?.machineOnline ? 'ONLINE' : 'SINCRONIZANDO',
+    isActive: true,
+    detectedOnly: true,
+  };
+}
 
 export default function WaterMonitor() {
   const navigate = useNavigate();
@@ -154,6 +177,8 @@ export default function WaterMonitor() {
   const [qrLoadingId, setQrLoadingId] = useState('');
   const [promotionSavingKey, setPromotionSavingKey] = useState('');
   const [pointsPerLiterConfig, setPointsPerLiterConfig] = useState('10');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     setTelemetryEnabled(true);
@@ -186,8 +211,7 @@ export default function WaterMonitor() {
 
   useEffect(() => {
     fetchMonitorSummary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentStep = getTelemetryStepInfo(telemetry.currentStageCode);
   const configuredPulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
@@ -197,23 +221,53 @@ export default function WaterMonitor() {
     pulses: getTargetPulseCount(liters, configuredPulsesPerLiter),
   }));
 
+  const telemetryMachine = useMemo(() => buildTelemetryMachineFallback(telemetry), [telemetry]);
+
+  const displayedMachines = useMemo(() => {
+    const machines = [...(monitorSummary.machines || [])];
+    if (!telemetryMachine) return machines;
+
+    const exists = machines.some((machine) => (
+      machine.id === telemetryMachine.id
+      || normalizeHardwareId(machine.hardwareId) === telemetryMachine.hardwareId
+    ));
+
+    if (!exists) {
+      machines.unshift(telemetryMachine);
+    }
+
+    return machines;
+  }, [monitorSummary.machines, telemetryMachine]);
+
   const activePromotions = useMemo(
     () => (monitorSummary.promotions || []).filter((promotion) => promotion.isActive),
     [monitorSummary.promotions]
   );
 
-  const handleCommand = async (action) => {
-    const commandPulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
+  const activeMachineLabel = useMemo(() => {
+    const hardwareId = normalizeHardwareId(telemetry.machineHardwareId);
+    const matched = displayedMachines.find((machine) => (
+      machine.id === hardwareId || normalizeHardwareId(machine.hardwareId) === hardwareId
+    ));
 
+    if (matched) {
+      return `${matched.id}${matched.location ? ` · ${matched.location}` : ''}`;
+    }
+
+    return hardwareId ? `Maquina ${hardwareId}` : 'Sin maquina detectada';
+  }, [displayedMachines, telemetry.machineHardwareId]);
+
+  const handleCommand = async (action) => {
     try {
-      setPulsesPerLiter(commandPulsesPerLiter);
-      setPulsesPerLiterInput(String(commandPulsesPerLiter));
+      const nextPpl = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
+      setPulsesPerLiter(nextPpl);
+      setPulsesPerLiterInput(String(nextPpl));
       setLoadingAction(action);
-      const data = await sendStageCommand(action, { pulsesPerLiter: commandPulsesPerLiter });
+      const data = await sendStageCommand(action, { pulsesPerLiter: nextPpl });
       setLastResponse(data);
       showSuccessToast(`Comando enviado: ${action}`);
-    } catch (err) {
-      showErrorToast(err?.message || 'No se pudo enviar el comando');
+    } catch (error) {
+      showErrorToast(error?.message || 'No se pudo enviar el comando');
     } finally {
       setLoadingAction('');
     }
@@ -237,7 +291,6 @@ export default function WaterMonitor() {
       setLastResponse({
         action: 'calibracion_global',
         commandLine: `PULSOS ${data.pulsesPerLiter || nextValue}`,
-        pulsesPerLiter: data.pulsesPerLiter || nextValue,
         response: 'Calibracion guardada en backend para monitor y flujo normal.',
       });
       showSuccessToast(`Calibracion guardada: ${data.pulsesPerLiter || nextValue} pulsos/L`);
@@ -324,9 +377,7 @@ export default function WaterMonitor() {
     try {
       setPromotionSavingKey(promotion.key);
       const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const payload = {
-        isActive: !promotion.isActive,
-      };
+      const payload = { isActive: !promotion.isActive };
       if (promotion.key === 'monthly_consumption_points') {
         payload.config = { pointsPerLiter: sanitizePulsesPerLiter(pointsPerLiterConfig, 10) };
       }
@@ -377,12 +428,23 @@ export default function WaterMonitor() {
     navigate('/user-login?monitor=1', { replace: true });
   };
 
+  const shellClass = darkMode
+    ? 'min-h-screen bg-[radial-gradient(circle_at_top_left,#0f1a2c_0,#10182a_38%,#09111f_100%)] text-slate-100'
+    : 'min-h-screen bg-[radial-gradient(circle_at_top_left,#d8f7ff_0,#f8fdff_36%,#eef9ff_100%)] text-slate-900';
+  const topBarClass = darkMode ? 'border-slate-800 bg-slate-950/85' : 'border-sky-100 bg-white/85';
+  const panelClass = darkMode ? 'border-slate-800 bg-slate-950/70' : 'border-sky-100 bg-white/92';
+  const cardClass = darkMode ? 'border-slate-800 bg-slate-950/65' : 'border-sky-100 bg-white';
+  const mutedClass = darkMode ? 'border-slate-800 bg-slate-900/80' : 'border-sky-100 bg-slate-50';
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#d8f7ff_0,#f8fdff_36%,#eef9ff_100%)]">
-      <header className="sticky top-0 z-30 border-b border-sky-100 bg-white/85 backdrop-blur">
+    <div className={shellClass}>
+      <header className={`sticky top-0 z-30 border-b backdrop-blur ${topBarClass}`}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
           <Agua24Brand className="h-11" />
           <div className="flex items-center gap-2">
+            <Button variant={darkMode ? 'secondary' : 'outline'} size="sm" onClick={() => setDarkMode((current) => !current)}>
+              <Icon name={darkMode ? 'Sun' : 'Moon'} size={16} /> {darkMode ? 'Tema claro' : 'Tema oscuro'}
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => navigate('/home-dashboard')}>
               <Icon name="Home" size={16} /> App
             </Button>
@@ -393,343 +455,301 @@ export default function WaterMonitor() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
-        <section className="rounded-3xl border border-sky-100 bg-white/90 p-6 shadow-sm">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+        <section className={`rounded-3xl border p-6 shadow-sm ${panelClass}`}>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-center">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#42B9D4]">Panel del dueño</p>
-              <h1 className="mt-2 text-3xl font-black text-[#1E3F7A]">Monitor AGUA/24</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
-                Aqui administras la operacion, las maquinas y las promociones. Todas las promociones 1, 2, 3 y 4 inician activas.
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#42B9D4]">Panel del dueno</p>
+              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Monitor AGUA/24</h1>
+              <p className={`mt-2 max-w-2xl text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
+                Ahora el monitor esta dividido por secciones para que no todo viva en una sola pantalla.
               </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {MONITOR_TABS.map((tab) => (
+                  <Button
+                    key={tab.key}
+                    variant={activeTab === tab.key ? 'secondary' : 'outline'}
+                    size="sm"
+                    onClick={() => setActiveTab(tab.key)}
+                  >
+                    <Icon name={tab.icon} size={15} /> {tab.label}
+                  </Button>
+                ))}
+              </div>
             </div>
-            <div className={`rounded-2xl border p-4 ${telemetry.machineOnline ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
-              <div className="flex items-center gap-3">
+
+            <div className={`rounded-3xl border p-5 ${telemetry.machineOnline ? (darkMode ? 'border-emerald-900 bg-emerald-950/40' : 'border-emerald-200 bg-emerald-50') : (darkMode ? 'border-amber-900 bg-amber-950/30' : 'border-amber-200 bg-amber-50')}`}>
+              <div className="flex items-start gap-3">
                 <Icon
                   name={telemetry.machineOnline ? 'Wifi' : 'WifiOff'}
                   size={24}
-                  className={telemetry.machineOnline ? 'text-emerald-600' : 'text-amber-600'}
+                  className={telemetry.machineOnline ? 'text-emerald-500' : 'text-amber-500'}
                 />
                 <div>
-                  <p className="font-bold text-text-primary">
+                  <p className={`font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>
                     {telemetry.machineOnline ? 'Maquina conectada' : 'Esperando maquina'}
                   </p>
-                  <p className="text-sm text-text-secondary">Ultima lectura: {formatSeenAt(telemetry.lastSeenAt)}</p>
+                  <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Ultima lectura: {formatSeenAt(telemetry.lastSeenAt)}</p>
+                  <p className={`mt-2 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Detectada: {activeMachineLabel}</p>
+                  <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware ID: {normalizeHardwareId(telemetry.machineHardwareId) || 'Sin lectura'}</p>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-sky-100 bg-white p-6 shadow-sm">
-          <SectionHeader
-            eyebrow="Seccion 1"
-            title="Operacion de la maquina"
-            description="Monitoreo en vivo, calibracion y acciones manuales del equipo."
-          />
+        {activeTab === 'overview' ? (
+          <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
+            <SectionHeader
+              eyebrow="Seccion 1"
+              title="Operacion en vivo"
+              description="Monitoreo de la trama, calibracion y acciones manuales del equipo."
+              darkMode={darkMode}
+            />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Metric
-              icon="ListChecks"
-              label="Paso actual"
-              value={`${currentStep.code}: ${currentStep.shortLabel || currentStep.label}`}
-              hint={currentStep.instruction}
-            />
-            <Metric
-              icon="Gauge"
-              label="Caudalimetro"
-              value={`${telemetry.flowmeterPulses ?? 0} pulsos`}
-              hint={`${flowmeterLiters.toFixed(3)} litros estimados`}
-            />
-            <Metric
-              icon="FlaskConical"
-              label="pH"
-              value={telemetry.phDecimal ?? '--'}
-              hint={telemetry.phVoltage ? `${telemetry.phVoltage} V` : 'Sin voltaje'}
-            />
-            <Metric
-              icon="Sparkles"
-              label="Promociones activas"
-              value={monitorSummary.counts?.activePromotions || activePromotions.length}
-              hint="Las administras mas abajo."
-            />
-          </div>
-
-          <section className="mt-5 rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-text-primary">Actuadores</h3>
-              <p className="mt-1 text-sm text-text-secondary">Lectura inmediata de bomba y valvulas.</p>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Metric icon="ListChecks" label="Paso actual" value={`${currentStep.code}: ${currentStep.shortLabel || currentStep.label}`} hint={currentStep.instruction} darkMode={darkMode} />
+              <Metric icon="Gauge" label="Caudalimetro" value={`${telemetry.flowmeterPulses ?? 0} pulsos`} hint={`${flowmeterLiters.toFixed(3)} litros estimados`} darkMode={darkMode} />
+              <Metric icon="FlaskConical" label="pH" value={telemetry.phDecimal ?? '--'} hint={telemetry.phVoltage ? `${telemetry.phVoltage} V` : 'Sin voltaje'} darkMode={darkMode} />
+              <Metric icon="Factory" label="Maquina activa" value={activeMachineLabel} hint="Se detecta desde el byte 1 de la trama." darkMode={darkMode} />
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <StatusPill active={telemetry.pumpOn} labelOn="Bomba encendida" labelOff="Bomba apagada" />
-              <StatusPill active={telemetry.fillValveOn} labelOn="Llenado abierto" labelOff="Llenado cerrado" />
-              <StatusPill active={telemetry.rinseValveOn} labelOn="Enjuague abierto" labelOff="Enjuague cerrado" />
-            </div>
-          </section>
 
-          <section className="mt-5 rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-end">
-              <Input
-                label="Calibracion del caudalimetro"
-                type="number"
-                min="1"
-                step="1"
-                value={pulsesPerLiterInput}
-                onChange={(event) => setPulsesPerLiterInput(event.target.value)}
-                description="Pulsos necesarios para medir 1 litro. Este valor se envia con los comandos de llenado."
-              />
-              <Button onClick={handleSavePulsesPerLiter}>
-                <Icon name="Save" size={16} /> Guardar calibracion
-              </Button>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {targetPulseOptions.map((option) => (
-                <div key={option.liters} className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Meta {option.liters} L</p>
-                  <p className="mt-1 text-lg font-bold text-text-primary">{option.pulses} pulsos</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-            <CommandGrid
-              title="Control manual"
-              description="Activa o apaga componentes de forma individual."
-              commands={HARDWARE_COMMANDS}
-              loadingAction={loadingAction}
-              onCommand={handleCommand}
-            />
-            <CommandGrid
-              title="Seguridad"
-              description="Usalo para recuperar la maquina o apagar actuadores."
-              commands={SAFETY_COMMANDS}
-              loadingAction={loadingAction}
-              onCommand={handleCommand}
-            />
-          </div>
-
-          <section className="mt-5 rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
-            <h3 className="text-lg font-bold text-text-primary">Trama y respuesta</h3>
-            <div className="mt-3 grid gap-3 lg:grid-cols-2">
-              <div className="rounded-xl border border-sky-100 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Trama recibida</p>
-                <p className="mt-2 break-all font-data text-sm text-text-primary">{telemetry.rawFrame || 'Sin trama valida'}</p>
-                {telemetry.error ? <p className="mt-2 text-sm font-medium text-error">{telemetry.error}</p> : null}
+            <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
+              <div className="mb-4">
+                <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Actuadores</h3>
               </div>
-              <div className="rounded-xl border border-sky-100 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Ultimo comando</p>
-                {lastResponse ? (
-                  <div className="mt-2 space-y-1 text-sm text-text-secondary">
-                    <p>Accion: <span className="font-semibold text-text-primary">{lastResponse.action}</span></p>
-                    <p>Comando: <span className="font-semibold text-text-primary">{lastResponse.commandLine || lastResponse.command}</span></p>
-                    <p>Respuesta: <span className="font-semibold text-text-primary">{lastResponse.response || '-'}</span></p>
+              <div className="grid gap-3 md:grid-cols-3">
+                <StatusPill active={telemetry.pumpOn} labelOn="Bomba encendida" labelOff="Bomba apagada" darkMode={darkMode} />
+                <StatusPill active={telemetry.fillValveOn} labelOn="Llenado abierto" labelOff="Llenado cerrado" darkMode={darkMode} />
+                <StatusPill active={telemetry.rinseValveOn} labelOn="Enjuague abierto" labelOff="Enjuague cerrado" darkMode={darkMode} />
+              </div>
+            </section>
+
+            <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-end">
+                <Input
+                  label="Calibracion del caudalimetro"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={pulsesPerLiterInput}
+                  onChange={(event) => setPulsesPerLiterInput(event.target.value)}
+                  description="Pulsos necesarios para medir 1 litro."
+                />
+                <Button onClick={handleSavePulsesPerLiter}>
+                  <Icon name="Save" size={16} /> Guardar calibracion
+                </Button>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {targetPulseOptions.map((option) => (
+                  <div key={option.liters} className={`rounded-2xl border px-4 py-3 ${mutedClass}`}>
+                    <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Meta {option.liters} L</p>
+                    <p className={`mt-1 text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{option.pulses} pulsos</p>
                   </div>
-                ) : (
-                  <p className="mt-2 text-sm text-text-secondary">Sin comandos enviados.</p>
-                )}
+                ))}
+              </div>
+            </section>
+
+            <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+              <CommandGrid title="Control manual" description="Activa o apaga componentes de forma individual." commands={HARDWARE_COMMANDS} loadingAction={loadingAction} onCommand={handleCommand} darkMode={darkMode} />
+              <CommandGrid title="Seguridad" description="Usalo para recuperar la maquina o apagar actuadores." commands={SAFETY_COMMANDS} loadingAction={loadingAction} onCommand={handleCommand} darkMode={darkMode} />
+            </div>
+
+            <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
+              <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Trama y respuesta</h3>
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                <div className={`rounded-2xl border p-4 ${mutedClass}`}>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Trama recibida</p>
+                  <p className={`mt-2 break-all font-data text-sm ${darkMode ? 'text-white' : 'text-text-primary'}`}>{telemetry.rawFrame || 'Sin trama valida'}</p>
+                  {telemetry.error ? <p className="mt-2 text-sm font-medium text-error">{telemetry.error}</p> : null}
+                </div>
+                <div className={`rounded-2xl border p-4 ${mutedClass}`}>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Ultimo comando</p>
+                  {lastResponse ? (
+                    <div className={`mt-2 space-y-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
+                      <p>Accion: <span className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{lastResponse.action}</span></p>
+                      <p>Comando: <span className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{lastResponse.commandLine || lastResponse.command}</span></p>
+                      <p>Respuesta: <span className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{lastResponse.response || '-'}</span></p>
+                    </div>
+                  ) : (
+                    <p className={`mt-2 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Sin comandos enviados.</p>
+                  )}
+                </div>
+              </div>
+            </section>
+          </section>
+        ) : null}
+
+        {activeTab === 'machines' ? (
+          <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
+            <SectionHeader
+              eyebrow="Seccion 2"
+              title="Administracion de maquinas"
+              description="Si tu maquina manda el byte 01 en la trama, aqui ya aparece aunque todavia no la hayas dado de alta."
+              darkMode={darkMode}
+            />
+
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+              <div className={`rounded-3xl border p-4 ${mutedClass}`}>
+                <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Alta o edicion</h3>
+                <div className="mt-4 space-y-3">
+                  <Input label="ID de maquina" value={machineForm.id} onChange={(event) => handleMachineChange('id', event.target.value)} />
+                  <Input label="Nombre" value={machineForm.name} onChange={(event) => handleMachineChange('name', event.target.value)} />
+                  <Input label="Ubicacion" value={machineForm.location} onChange={(event) => handleMachineChange('location', event.target.value)} />
+                  <Input label="Direccion" value={machineForm.address} onChange={(event) => handleMachineChange('address', event.target.value)} />
+                  <Input label="Hardware ID" value={machineForm.hardwareId} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
+                  <Input label="Status" value={machineForm.status} onChange={(event) => handleMachineChange('status', event.target.value)} />
+                  <label className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm ${darkMode ? 'bg-slate-950/70 text-white' : 'bg-white text-text-primary'}`}>
+                    <input
+                      type="checkbox"
+                      checked={machineForm.isActive}
+                      onChange={(event) => handleMachineChange('isActive', event.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400"
+                    />
+                    Maquina activa
+                  </label>
+                  <div className="flex gap-3">
+                    <Button onClick={handleMachineSubmit} loading={machineSaving} className="flex-1">
+                      <Icon name="Save" size={16} /> Guardar maquina
+                    </Button>
+                    <Button variant="outline" onClick={() => setMachineForm(emptyMachineForm)}>
+                      Limpiar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {displayedMachines.map((machine) => (
+                  <article key={machine.id} className={`rounded-3xl border p-4 shadow-sm ${cardClass}`}>
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{machine.id}</h3>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${machine.isActive ? 'bg-success/10 text-success' : 'bg-slate-200 text-slate-600'}`}>
+                            {machine.isActive ? 'Activa' : 'Inactiva'}
+                          </span>
+                          {machine.detectedOnly ? (
+                            <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-500">
+                              Solo telemetria
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.name || 'Sin nombre'} · {machine.location || 'Sin ubicacion'}</p>
+                        <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.address || 'Sin direccion guardada'}</p>
+                        <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware: {machine.hardwareId || machine.id || 'N/D'} · Estado: {machine.status || 'ONLINE'}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleMachineEdit(machine)}>
+                          <Icon name="Pencil" size={14} /> Editar
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleGenerateQr(machine.id)} loading={qrLoadingId === machine.id} disabled={machine.detectedOnly}>
+                          <Icon name="QrCode" size={14} /> QR
+                        </Button>
+                        <Button variant={machine.isActive ? 'warning' : 'success'} size="sm" onClick={() => handleMachineToggle(machine)} disabled={machine.detectedOnly}>
+                          <Icon name={machine.isActive ? 'PauseCircle' : 'PlayCircle'} size={14} />
+                          {machine.isActive ? 'Desactivar' : 'Activar'}
+                        </Button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
               </div>
             </div>
-          </section>
-        </section>
 
-        <section className="rounded-3xl border border-sky-100 bg-white p-6 shadow-sm">
-          <SectionHeader
-            eyebrow="Seccion 2"
-            title="Administracion de maquinas"
-            description="Da de alta tus maquinas, guarda direccion y genera su codigo QR desde aqui."
-          />
-
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-            <div className="rounded-2xl border border-sky-100 bg-slate-50 p-4">
-              <h3 className="text-lg font-bold text-text-primary">Alta o edicion</h3>
-              <div className="mt-4 space-y-3">
-                <Input label="ID de maquina" value={machineForm.id} onChange={(event) => handleMachineChange('id', event.target.value)} />
-                <Input label="Nombre" value={machineForm.name} onChange={(event) => handleMachineChange('name', event.target.value)} />
-                <Input label="Ubicacion" value={machineForm.location} onChange={(event) => handleMachineChange('location', event.target.value)} />
-                <Input label="Direccion" value={machineForm.address} onChange={(event) => handleMachineChange('address', event.target.value)} />
-                <Input label="Hardware ID" value={machineForm.hardwareId} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
-                <Input label="Status" value={machineForm.status} onChange={(event) => handleMachineChange('status', event.target.value)} />
-                <label className="flex items-center gap-3 rounded-xl bg-white px-3 py-3 text-sm text-text-primary">
-                  <Input
-                    type="checkbox"
-                    checked={machineForm.isActive}
-                    onChange={(event) => handleMachineChange('isActive', event.target.checked)}
-                  />
-                  Maquina activa
-                </label>
-                <div className="flex gap-3">
-                  <Button onClick={handleMachineSubmit} loading={machineSaving} className="flex-1">
-                    <Icon name="Save" size={16} /> Guardar maquina
-                  </Button>
-                  <Button variant="outline" onClick={() => setMachineForm(emptyMachineForm)}>
-                    Limpiar
-                  </Button>
+            {selectedQr ? (
+              <div className={`mt-6 rounded-3xl border p-5 ${mutedClass}`}>
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>QR de la maquina {selectedQr.machineId}</h3>
+                    <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{selectedQr.machineLocation || 'Sin ubicacion registrada'}</p>
+                    <p className={`mt-2 break-all text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{selectedQr.deepUrl}</p>
+                  </div>
+                  <button type="button" onClick={() => setSelectedQr(null)} className="text-sm font-semibold text-[#42B9D4]">
+                    Cerrar
+                  </button>
                 </div>
+                <div className="mt-4 flex justify-center md:justify-start">
+                  <img src={selectedQr.qrPngDataUrl} alt={`QR ${selectedQr.machineId}`} className="h-48 w-48 rounded-2xl border border-sky-100 bg-white p-3" />
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
+        {activeTab === 'promotions' ? (
+          <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
+            <SectionHeader
+              eyebrow="Seccion 3"
+              title="Promociones y recompensas"
+              description="Las deje mas explicadas para que se entienda rapido que hace cada una."
+              darkMode={darkMode}
+            />
+
+            <div className="mb-5 grid gap-4 md:grid-cols-3">
+              <Metric icon="Sparkles" label="Promociones activas" value={monitorSummary.counts?.activePromotions || 0} hint="Las promociones 1, 2, 3 y 4 inician activas." darkMode={darkMode} />
+              <Metric icon="Factory" label="Maquinas activas" value={monitorSummary.counts?.activeMachines || 0} hint={`${monitorSummary.counts?.machines || 0} maquinas registradas`} darkMode={darkMode} />
+              <Metric icon="Gift" label="Puntos por litro" value={pointsPerLiterConfig} hint="Configurable para la promocion 4." darkMode={darkMode} />
+            </div>
+
+            <div className={`mb-5 rounded-3xl border p-4 ${mutedClass}`}>
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
+                <Input
+                  label="Puntos por litro"
+                  type="number"
+                  min="1"
+                  value={pointsPerLiterConfig}
+                  onChange={(event) => setPointsPerLiterConfig(event.target.value)}
+                  description="Aqui controlas cuantos puntos genera cada litro consumido."
+                />
+                <Button onClick={handleSavePointsConfig} loading={promotionSavingKey === 'monthly_consumption_points'}>
+                  <Icon name="Save" size={16} /> Guardar puntos/L
+                </Button>
               </div>
             </div>
 
             <div className="space-y-4">
-              {(monitorSummary.machines || []).map((machine) => (
-                <article key={machine.id} className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
+              {(monitorSummary.promotions || []).map((promotion) => (
+                <article key={promotion.key} className={`rounded-3xl border p-4 shadow-sm ${cardClass}`}>
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-bold text-text-primary">{machine.id}</h3>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${machine.isActive ? 'bg-success/10 text-success' : 'bg-slate-200 text-slate-600'}`}>
-                          {machine.isActive ? 'Activa' : 'Inactiva'}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{promotion.sortOrder}. {promotion.title}</h3>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${promotion.isActive ? 'bg-success/10 text-success' : 'bg-slate-200 text-slate-600'}`}>
+                          {promotion.isActive ? 'Activa' : 'Inactiva'}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm text-text-secondary">{machine.name || 'Sin nombre'} · {machine.location || 'Sin ubicacion'}</p>
-                      <p className="mt-1 text-sm text-text-secondary">{machine.address || 'Sin direccion guardada'}</p>
-                      <p className="mt-1 text-xs text-text-secondary">Hardware: {machine.hardwareId || 'N/D'} · Estado: {machine.status || 'ONLINE'}</p>
+                      <p className={`mt-2 text-sm font-medium ${darkMode ? 'text-slate-100' : 'text-text-primary'}`}>{promotion.summary || 'Sin resumen configurado'}</p>
+                      <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{promotion.description || 'Sin descripcion configurada'}</p>
+                      <div className={`mt-3 rounded-2xl border p-3 text-xs ${mutedClass}`}>
+                        <p className={`font-semibold uppercase tracking-wide ${darkMode ? 'text-white' : 'text-text-primary'}`}>Como funciona</p>
+                        <p className={`mt-2 whitespace-pre-wrap ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
+                          {promotion.key === 'welcome_first_garrafon' ? 'Da una bonificacion de bienvenida al registrarse.' : ''}
+                          {promotion.key === 'topup_bonus' ? 'Agrega saldo extra automaticamente segun el monto de recarga.' : ''}
+                          {promotion.key === 'monthly_cashback' ? 'Bonifica al final del mes segun los garrafones consumidos.' : ''}
+                          {promotion.key === 'monthly_consumption_points' ? 'Cada litro suma puntos y esos puntos pueden convertirse en saldo extra mensual.' : ''}
+                          {promotion.key === 'premium_membership' ? 'Es informativa por ahora y no entra al flujo principal.' : ''}
+                        </p>
+                        <p className={`mt-3 font-semibold uppercase tracking-wide ${darkMode ? 'text-white' : 'text-text-primary'}`}>Configuracion</p>
+                        <pre className={`mt-2 overflow-auto whitespace-pre-wrap ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{JSON.stringify(promotion.config || {}, null, 2)}</pre>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleMachineEdit(machine)}>
-                        <Icon name="Pencil" size={14} /> Editar
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={() => handleGenerateQr(machine.id)} loading={qrLoadingId === machine.id}>
-                        <Icon name="QrCode" size={14} /> QR
-                      </Button>
-                      <Button variant={machine.isActive ? 'warning' : 'success'} size="sm" onClick={() => handleMachineToggle(machine)}>
-                        <Icon name={machine.isActive ? 'PauseCircle' : 'PlayCircle'} size={14} />
-                        {machine.isActive ? 'Desactivar' : 'Activar'}
+                    <div className="flex shrink-0 items-center">
+                      <Button
+                        variant={promotion.isActive ? 'warning' : 'success'}
+                        onClick={() => handlePromotionToggle(promotion)}
+                        loading={promotionSavingKey === promotion.key}
+                      >
+                        <Icon name={promotion.isActive ? 'PauseCircle' : 'PlayCircle'} size={16} />
+                        {promotion.isActive ? 'Desactivar' : 'Activar'}
                       </Button>
                     </div>
                   </div>
                 </article>
               ))}
             </div>
-          </div>
-
-          {selectedQr ? (
-            <div className="mt-6 rounded-2xl border border-sky-100 bg-slate-50 p-5">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-text-primary">QR de la maquina {selectedQr.machineId}</h3>
-                  <p className="mt-1 text-sm text-text-secondary">{selectedQr.machineLocation || 'Sin ubicacion registrada'}</p>
-                  <p className="mt-2 break-all text-xs text-text-secondary">{selectedQr.deepUrl}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedQr(null)}
-                  className="text-sm font-semibold text-[#1E3F7A]"
-                >
-                  Cerrar
-                </button>
-              </div>
-              <div className="mt-4 flex justify-center md:justify-start">
-                <img src={selectedQr.qrPngDataUrl} alt={`QR ${selectedQr.machineId}`} className="h-48 w-48 rounded-2xl border border-sky-100 bg-white p-3" />
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="rounded-3xl border border-sky-100 bg-white p-6 shadow-sm">
-          <SectionHeader
-            eyebrow="Seccion 3"
-            title="Promociones y recompensas"
-            description="Activa o desactiva promociones. La membresia premium sigue fuera por ahora."
-          />
-
-          <div className="mb-5 grid gap-4 md:grid-cols-3">
-            <Metric
-              icon="Sparkles"
-              label="Promociones activas"
-              value={monitorSummary.counts?.activePromotions || 0}
-              hint="Las promociones 1, 2, 3 y 4 inician activas."
-            />
-            <Metric
-              icon="Factory"
-              label="Maquinas activas"
-              value={monitorSummary.counts?.activeMachines || 0}
-              hint={`${monitorSummary.counts?.machines || 0} maquinas registradas`}
-            />
-            <Metric
-              icon="Gift"
-              label="Puntos por litro"
-              value={pointsPerLiterConfig}
-              hint="Configurable para la promocion 4."
-            />
-          </div>
-
-          <div className="rounded-2xl border border-sky-100 bg-slate-50 p-4 mb-5">
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
-              <Input
-                label="Puntos por litro para recompensa por consumo mensual"
-                type="number"
-                min="1"
-                value={pointsPerLiterConfig}
-                onChange={(event) => setPointsPerLiterConfig(event.target.value)}
-                description="Como en tu imagen no estaba definido, aqui lo dejas administrable desde monitoreo."
-              />
-              <Button onClick={handleSavePointsConfig} loading={promotionSavingKey === 'monthly_consumption_points'}>
-                <Icon name="Save" size={16} /> Guardar puntos/L
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {(monitorSummary.promotions || []).map((promotion) => (
-              <article key={promotion.key} className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-bold text-text-primary">{promotion.sortOrder}. {promotion.title}</h3>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${promotion.isActive ? 'bg-success/10 text-success' : 'bg-slate-200 text-slate-600'}`}>
-                        {promotion.isActive ? 'Activa' : 'Inactiva'}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-text-secondary">{promotion.description || promotion.summary}</p>
-
-                    {promotion.key === 'topup_bonus' && Array.isArray(promotion.config?.tiers) ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {promotion.config.tiers.map((tier) => (
-                          <span key={`${promotion.key}-${tier.amountCents}`} className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-[#1E3F7A]">
-                            {tier.label || `${moneyFromCents(tier.amountCents)} + ${moneyFromCents(tier.bonusCents)}`}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {promotion.key === 'monthly_cashback' && Array.isArray(promotion.config?.tiers) ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {promotion.config.tiers.map((tier, index) => (
-                          <span key={`${promotion.key}-${index}`} className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-[#1E3F7A]">
-                            {tier.label}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {promotion.key === 'monthly_consumption_points' && Array.isArray(promotion.config?.tiers) ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {promotion.config.tiers.map((tier, index) => (
-                          <span key={`${promotion.key}-${index}`} className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-[#1E3F7A]">
-                            {tier.label}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={promotion.isActive ? 'warning' : 'success'}
-                      size="sm"
-                      onClick={() => handlePromotionToggle(promotion)}
-                      loading={promotionSavingKey === promotion.key}
-                      disabled={promotion.key === 'premium_membership'}
-                    >
-                      <Icon name={promotion.isActive ? 'ToggleRight' : 'ToggleLeft'} size={14} />
-                      {promotion.isActive ? 'Desactivar' : 'Activar'}
-                    </Button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+          </section>
+        ) : null}
       </main>
 
       <NotificationToast />

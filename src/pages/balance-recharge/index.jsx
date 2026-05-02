@@ -1,5 +1,5 @@
 // src/pages/balance-recharge/index.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -86,15 +86,38 @@ const BalanceRecharge = () => {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
     if (!token) throw new Error('No se pudo obtener token de sesion');
 
-    const res = await fetch(`${API}/api/rewards/summary`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!res.ok) {
-      const data = await safeJson(res);
-      throw new Error(data?.error || 'No se pudo obtener el contexto de recarga');
+    let data = null;
+
+    try {
+      const res = await fetch(`${API}/api/rewards/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const errorData = await safeJson(res);
+        throw new Error(errorData?.error || 'No se pudo obtener el contexto de recarga');
+      }
+      data = await res.json();
+    } catch (_error) {
+      const walletRes = await fetch(`${API}/api/me/wallet`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      const walletData = await safeJson(walletRes);
+      if (!walletRes.ok) {
+        throw new Error(walletData?.error || 'No se pudo obtener el saldo');
+      }
+      data = {
+        wallet: {
+          totalAvailableCents: walletData.balanceCents ?? 0,
+          balanceCents: walletData.balanceCents ?? 0,
+          realBalanceCents: walletData.balanceCents ?? 0,
+          bonusBalanceCents: 0,
+        },
+        promotions: [],
+      };
     }
-    const data = await res.json();
+
     const totalBalance = moneyFromCents(data.wallet?.totalAvailableCents ?? data.wallet?.balanceCents ?? 0);
     const realBalance = moneyFromCents(data.wallet?.realBalanceCents ?? 0);
     const bonusBalance = moneyFromCents(data.wallet?.bonusBalanceCents ?? 0);
