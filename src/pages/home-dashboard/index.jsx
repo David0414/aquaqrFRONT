@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 
@@ -32,7 +32,11 @@ const HomeDashboard = () => {
 
   const [dashboard, setDashboard] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
+  const [dashboardError, setDashboardError] = useState('');
   const [dispenseLoading, setDispenseLoading] = useState(false);
+  const hasLoadedDashboardRef = useRef(false);
+  const refreshTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -43,6 +47,7 @@ const HomeDashboard = () => {
       if (parsed?.wallet && parsed?.promotions) {
         setDashboard(parsed);
         setDashboardLoading(false);
+        hasLoadedDashboardRef.current = true;
       }
     } catch {
       // Ignorado a proposito
@@ -60,9 +65,17 @@ const HomeDashboard = () => {
     return base.split(' ')[0];
   }, [user]);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async ({ silent = false } = {}) => {
+    const shouldKeepCurrentView = silent || hasLoadedDashboardRef.current || Boolean(dashboard);
+
     try {
-      setDashboardLoading(true);
+      setDashboardError('');
+      if (shouldKeepCurrentView) {
+        setDashboardRefreshing(true);
+      } else {
+        setDashboardLoading(true);
+      }
+
       const token = await getToken({ template: CLERK_JWT_TEMPLATE });
       if (!token) throw new Error('No se pudo obtener token de sesion');
 
@@ -74,21 +87,28 @@ const HomeDashboard = () => {
         throw new Error(data?.error || 'No se pudo cargar tu resumen');
       }
       setDashboard(data);
+      hasLoadedDashboardRef.current = true;
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(data));
       }
     } catch (error) {
       console.error(error);
-      window.showToast?.(error.message || 'Error cargando dashboard', 'error');
-      setDashboard(null);
+      const message = error.message || 'Error cargando dashboard';
+      setDashboardError(message);
+      if (!shouldKeepCurrentView) {
+        setDashboard(null);
+      } else {
+        window.showToast?.(message, 'error');
+      }
     } finally {
       setDashboardLoading(false);
+      setDashboardRefreshing(false);
     }
   };
 
   useEffect(() => {
     if (isClerkLoaded && isSignedIn) {
-      fetchDashboard();
+      fetchDashboard({ silent: hasLoadedDashboardRef.current });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClerkLoaded, isSignedIn]);
@@ -121,22 +141,35 @@ const HomeDashboard = () => {
   }, [isClerkLoaded, isSignedIn, pollInputs, setTelemetryEnabled]);
 
   useEffect(() => {
-    const onFocus = () => {
-      fetchDashboard();
+    const scheduleRefresh = () => {
+      if (refreshTimeoutRef.current) {
+        window.clearTimeout(refreshTimeoutRef.current);
+      }
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        fetchDashboard({ silent: true });
+      }, 250);
+    };
+
+    const onVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      scheduleRefresh();
       if (isClerkLoaded && isSignedIn) {
         pollInputs({ force: true }).catch(() => {});
       }
     };
 
     const onWalletUpdated = () => {
-      fetchDashboard();
+      scheduleRefresh();
     };
 
-    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('wallet:updated', onWalletUpdated);
     return () => {
-      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('wallet:updated', onWalletUpdated);
+      if (refreshTimeoutRef.current) {
+        window.clearTimeout(refreshTimeoutRef.current);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClerkLoaded, isSignedIn, pollInputs]);
@@ -155,12 +188,35 @@ const HomeDashboard = () => {
     });
   };
 
-  if (!isClerkLoaded || !isSignedIn || dashboardLoading || !dashboard) {
+  if (!isClerkLoaded || !isSignedIn || (dashboardLoading && !dashboard)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
           <p className="text-text-secondary text-body-sm">Cargando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboard) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+        <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+            <Icon name="AlertTriangle" size={24} />
+          </div>
+          <h1 className="mt-4 text-2xl font-black text-slate-900">No pudimos abrir tu dashboard</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            {dashboardError || 'Intenta de nuevo. Si estas en celular, esta pantalla ya no debe quedarse trabada cargando.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => fetchDashboard()}
+            className="mt-5 inline-flex items-center justify-center rounded-2xl bg-[#1E3F7A] px-5 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-[#17325f]"
+          >
+            Reintentar
+          </button>
         </div>
       </div>
     );
@@ -187,7 +243,9 @@ const HomeDashboard = () => {
               />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-text-primary">Hola, {displayName}</p>
-                <p className="text-xs text-text-secondary">Saldo real + bonificacion separados</p>
+                <p className="text-xs text-text-secondary">
+                  {dashboardRefreshing ? 'Actualizando datos...' : 'Saldo real + bonificacion separados'}
+                </p>
               </div>
             </div>
             <button
