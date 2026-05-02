@@ -99,6 +99,7 @@ function buildTelemetryMachineFallback(telemetry) {
     status: telemetry?.machineOnline ? 'ONLINE' : 'SINCRONIZANDO',
     isActive: true,
     detectedOnly: true,
+    stickerUrl: null,
   };
 }
 
@@ -710,7 +711,7 @@ export default function WaterMonitor() {
                 <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
                   <div className="flex justify-center lg:justify-start">
                     <img
-                      src={`${API}/stickers/${selectedMachine.id}.png`}
+                      src={selectedMachine.stickerUrl ? `${API}${selectedMachine.stickerUrl}` : `${API}/stickers/${selectedMachine.id}.png`}
                       alt={`Sticker ${selectedMachine.id}`}
                       className="h-48 w-48 rounded-2xl border border-sky-100 bg-white p-2 object-contain"
                       onError={(event) => {
