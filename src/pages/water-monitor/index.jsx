@@ -17,6 +17,7 @@ import {
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+const MONITOR_THEME_KEY = 'agua24-monitor-dark-mode';
 
 const HARDWARE_COMMANDS = [
   { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]' },
@@ -189,7 +190,10 @@ export default function WaterMonitor() {
   const [promotionSavingKey, setPromotionSavingKey] = useState('');
   const [pointsPerLiterConfig, setPointsPerLiterConfig] = useState('10');
   const [activeTab, setActiveTab] = useState('overview');
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(MONITOR_THEME_KEY) === 'true';
+  });
   const [selectedMachineId, setSelectedMachineId] = useState('');
   const [telemetry, setTelemetry] = useState(emptyTelemetry);
 
@@ -197,6 +201,11 @@ export default function WaterMonitor() {
     setTelemetryEnabled(true);
     return () => setTelemetryEnabled(false);
   }, [setTelemetryEnabled]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(MONITOR_THEME_KEY, String(darkMode));
+  }, [darkMode]);
 
   useEffect(() => {
     setPulsesPerLiterInput(String(pulsesPerLiter || 360));
@@ -254,11 +263,11 @@ export default function WaterMonitor() {
   }, [displayedMachines, telemetryHardwareId]);
 
   const machineSelectOptions = useMemo(
-    () => monitorMachines.map((machine) => ({
+    () => displayedMachines.map((machine) => ({
       value: machine.id,
       label: `${machine.id}${machine.name ? ` · ${machine.name}` : ''}`,
     })),
-    [monitorMachines]
+    [displayedMachines]
   );
 
   useEffect(() => {
@@ -442,6 +451,29 @@ export default function WaterMonitor() {
       fetchMonitorSummary();
     } catch (error) {
       showErrorToast(error?.message || 'No se pudo actualizar la maquina');
+    }
+  };
+
+  const handleMachineDelete = async (machine) => {
+    try {
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
+      const res = await fetch(`${API}/api/monitor-admin/machines/${machine.id}`, {
+        method: 'DELETE',
+        headers: buildAuthHeaders(token),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo eliminar la maquina');
+
+      showSuccessToast(`Maquina ${machine.id} eliminada`);
+      if (selectedMachineId === machine.id) {
+        setSelectedMachineId('');
+      }
+      if (machineForm.id === machine.id) {
+        setMachineForm(emptyMachineForm);
+      }
+      fetchMonitorSummary();
+    } catch (error) {
+      showErrorToast(error?.message || 'No se pudo eliminar la maquina');
     }
   };
 
@@ -705,6 +737,9 @@ export default function WaterMonitor() {
                         <Button variant={machine.isActive ? 'warning' : 'success'} size="sm" onClick={() => handleMachineToggle(machine)}>
                           <Icon name={machine.isActive ? 'PauseCircle' : 'PlayCircle'} size={14} />
                           {machine.isActive ? 'Desactivar' : 'Activar'}
+                        </Button>
+                        <Button variant="danger" size="sm" onClick={() => handleMachineDelete(machine)}>
+                          <Icon name="Trash2" size={14} /> Eliminar
                         </Button>
                       </div>
                     </div>
