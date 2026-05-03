@@ -22,6 +22,7 @@ import TransactionHistory from "./pages/transaction-history";
 import BalanceRecharge from "./pages/balance-recharge";
 import QRScannerLanding from "./pages/qr-scanner-landing";
 import UserProfileSettings from "./pages/user-profile-settings";
+import PromotionsCenter from "./pages/promotions-center";
 import FillingProgress from "./pages/filling-progress";
 import WaterMonitor from "./pages/water-monitor";
 
@@ -187,6 +188,15 @@ const Routes = () => {
                   <WaterMonitor />
                 </FlowProvider>
               </MonitorAdminProtected>
+            }
+          />
+
+          <Route
+            path="/promotions"
+            element={
+              <Protected>
+                <PromotionsCenter />
+              </Protected>
             }
           />
 

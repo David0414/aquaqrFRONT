@@ -329,12 +329,12 @@ const HomeDashboard = () => {
 
                   <button
                     type="button"
-                    onClick={() => navigate('/user-profile-settings')}
+                    onClick={() => navigate('/promotions')}
                     className="flex w-full items-center justify-between rounded-2xl bg-[#1E3F7A] px-4 py-4 text-left text-white shadow-sm transition-colors duration-200 hover:bg-[#17325f]"
                   >
                     <div>
                       <p className="text-sm font-semibold text-white/80">Mas detalle</p>
-                      <p className="mt-1 text-lg font-black">Ver tu cuenta</p>
+                      <p className="mt-1 text-lg font-black">Ver promociones</p>
                     </div>
                     <Icon name="ArrowRight" size={18} className="text-white" />
                   </button>
@@ -362,10 +362,10 @@ const HomeDashboard = () => {
               </div>
               <button
                 type="button"
-                onClick={() => navigate('/user-profile-settings')}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3F7A]"
-              >
-                Ver estadisticas <Icon name="ArrowRight" size={16} />
+                onClick={() => navigate('/promotions')}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3F7A]"
+            >
+                Ver promociones <Icon name="ArrowRight" size={16} />
               </button>
             </div>
 

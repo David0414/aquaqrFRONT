@@ -11,32 +11,32 @@ const BottomTabNavigation = ({ isVisible = true, className = '', onNavigate = nu
       label: 'Inicio',
       path: '/home-dashboard',
       icon: 'Home',
-      tooltip: 'Panel principal y saldo'
+      tooltip: 'Panel principal y saldo',
     },
     {
       label: 'Dispensar',
       path: '/qr-scanner-landing',
       icon: 'Droplets',
-      tooltip: 'Control de dispensado'
+      tooltip: 'Control de dispensado',
     },
     {
       label: 'Recargar',
       path: '/balance-recharge',
       icon: 'CreditCard',
-      tooltip: 'Recargar saldo'
+      tooltip: 'Recargar saldo',
     },
     {
       label: 'Historial',
       path: '/transaction-history',
       icon: 'History',
-      tooltip: 'Historial de transacciones'
+      tooltip: 'Historial de transacciones',
     },
     {
-      label: 'Perfil',
-      path: '/user-profile-settings',
-      icon: 'User',
-      tooltip: 'Configuración de perfil'
-    }
+      label: 'Promos',
+      path: '/promotions',
+      icon: 'Gift',
+      tooltip: 'Promociones y beneficios',
+    },
   ];
 
   const handleTabClick = (path) => {
@@ -71,11 +71,11 @@ const BottomTabNavigation = ({ isVisible = true, className = '', onNavigate = nu
 
   return (
     <nav
-      className={`fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50 ${className}`}
+      className={`fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background ${className}`}
       role="navigation"
-      aria-label="Navegación principal"
+      aria-label="Navegacion principal"
     >
-      <div className="flex items-center justify-around h-14 md:h-16 px-2">
+      <div className="flex h-14 items-center justify-around px-2 md:h-16">
         {tabs?.map((tab) => {
           const isActive = isActiveTab(tab?.path);
 
@@ -84,7 +84,7 @@ const BottomTabNavigation = ({ isVisible = true, className = '', onNavigate = nu
               key={tab?.path}
               onClick={() => handleTabClick(tab?.path)}
               className={`
-                flex flex-col items-center justify-center min-w-0 flex-1 py-1 px-2 rounded-md
+                flex min-w-0 flex-1 flex-col items-center justify-center rounded-md px-2 py-1
                 transition-all duration-200 ease-out-custom
                 hover:bg-muted active:scale-95
                 ${isActive
@@ -106,7 +106,7 @@ const BottomTabNavigation = ({ isVisible = true, className = '', onNavigate = nu
                 />
               </div>
               <span className={`
-                text-xs font-caption leading-none truncate max-w-full
+                max-w-full truncate text-xs font-caption leading-none
                 ${isActive ? 'font-medium' : 'font-normal'}
               `}>
                 {tab?.label}

@@ -252,7 +252,7 @@ const UserProfileSettings = () => {
     { id: 'personal', title: 'Personal', icon: 'User', component: PersonalInfoSection },
     { id: 'security', title: 'Seguridad', icon: 'Shield', component: SecuritySection },
     { id: 'notifications', title: 'Notificaciones', icon: 'Bell', component: NotificationPreferences },
-    { id: 'statistics', title: 'Estadisticas', icon: 'BarChart3', component: AccountStatistics },
+    { id: 'statistics', title: 'Promociones', icon: 'Gift', component: AccountStatistics },
     { id: 'session', title: 'Sesion', icon: 'LogOut', component: SessionSection },
   ];
   const ActiveComponent = sections.find((section) => section.id === activeSection)?.component;
@@ -285,7 +285,7 @@ const UserProfileSettings = () => {
               <div>
                 <h1 className="text-heading-lg font-bold text-text-primary">Configuracion</h1>
                 <p className="text-body-sm text-text-secondary">
-                  Gestiona tu cuenta, estadisticas y recompensas.
+                  Gestiona tu cuenta y promociones.
                 </p>
               </div>
             </div>
