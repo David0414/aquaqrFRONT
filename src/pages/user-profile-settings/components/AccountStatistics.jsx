@@ -90,10 +90,10 @@ const AccountStatistics = ({ user }) => {
         </div>
         <div>
           <h2 className="text-heading-base font-semibold text-text-primary">
-            Estadisticas de Cuenta
+            Tu cuenta
           </h2>
           <p className="text-body-sm text-text-secondary">
-            Una vista mas visual de tu actividad, tus recompensas y tu progreso.
+            Resumen simple de uso, bonos y promociones.
           </p>
         </div>
       </div>
@@ -102,11 +102,11 @@ const AccountStatistics = ({ user }) => {
         <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Resumen visual</p>
-              <h3 className="mt-2 text-2xl font-black text-slate-900">Tu mes en progreso</h3>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Este mes</p>
+              <h3 className="mt-2 text-2xl font-black text-slate-900">Tu avance</h3>
             </div>
             <div className="rounded-2xl bg-sky-50 px-4 py-3 text-right">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Garrafones este mes</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Garrafones</p>
               <p className="mt-1 text-2xl font-black text-sky-700">{garrafones.toFixed(1)}</p>
             </div>
           </div>
@@ -133,7 +133,7 @@ const AccountStatistics = ({ user }) => {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">Meta de puntos</p>
           <h3 className="mt-2 text-2xl font-black">{currentPoints} puntos</h3>
           <p className="mt-2 text-sm text-white/80">
-            Tu siguiente referencia visible esta en {pointsGoal} puntos.
+            Siguiente meta: {pointsGoal} puntos.
           </p>
 
           <div className="mt-5 rounded-3xl bg-white/10 p-4 backdrop-blur-sm">
@@ -155,7 +155,7 @@ const AccountStatistics = ({ user }) => {
           </div>
 
           <div className="mt-4 rounded-2xl bg-white/10 px-4 py-3 text-sm text-white/85">
-            Nivel actual: <span className="font-bold text-white">{monthlyProgress?.pointsLabel || 'Sin beneficio'}</span>
+            Nivel: <span className="font-bold text-white">{monthlyProgress?.pointsLabel || 'Sin beneficio'}</span>
           </div>
         </div>
       </div>
@@ -191,10 +191,10 @@ const AccountStatistics = ({ user }) => {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-body-base font-semibold text-text-primary">
-                  Un vistazo general de promociones
+                  Promociones activas
                 </h3>
                 <p className="text-body-sm text-text-secondary">
-                  {activePromotions.length} promociones activas para tu cuenta.
+                  {activePromotions.length} disponibles para tu cuenta.
                 </p>
               </div>
               <div className="rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
@@ -230,13 +230,13 @@ const AccountStatistics = ({ user }) => {
               </div>
               <div>
                 <h3 className="text-body-base font-semibold text-text-primary">
-                  Proyeccion de recompensas del mes
+                  Estimado del mes
                 </h3>
                 <p className="text-body-sm text-text-secondary">
-                  Cashback estimado: ${moneyFromCents(monthlyProgress?.estimatedCashbackCents)}
+                  Cashback: ${moneyFromCents(monthlyProgress?.estimatedCashbackCents)}
                 </p>
                 <p className="text-body-sm text-text-secondary">
-                  Saldo extra por puntos: ${moneyFromCents(monthlyProgress?.estimatedPointsBonusCents)}
+                  Bono por puntos: ${moneyFromCents(monthlyProgress?.estimatedPointsBonusCents)}
                 </p>
               </div>
             </div>
@@ -247,10 +247,10 @@ const AccountStatistics = ({ user }) => {
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
               <h3 className="text-body-base font-semibold text-text-primary">
-                Bonificaciones recientes
+                Bonos recientes
               </h3>
               <p className="text-body-sm text-text-secondary">
-                Historial corto de saldo de regalo acreditado.
+                Ultimos saldos promocionales aplicados.
               </p>
             </div>
             <div className="rounded-lg bg-success/10 px-3 py-2 text-sm font-semibold text-success">

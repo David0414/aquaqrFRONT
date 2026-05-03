@@ -24,10 +24,10 @@ const BalanceCard = ({
             <span className="text-text-secondary text-body-sm">MXN</span>
           </div>
           <div className="mt-3 rounded-xl bg-white/80 px-4 py-3">
-            <p className="text-sm text-text-secondary">
-              Este saldo se forma con <span className="font-semibold text-text-primary">${safeReal.toFixed(2)}</span> que recargaste
-              {' '}y <span className="font-semibold text-[#0F9F6E]">${safeBonus.toFixed(2)}</span> que te dio el sistema en promociones.
-            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-secondary">
+              <span>Recargado: <span className="font-semibold text-text-primary">${safeReal.toFixed(2)}</span></span>
+              <span>Promociones: <span className="font-semibold text-[#0F9F6E]">${safeBonus.toFixed(2)}</span></span>
+            </div>
           </div>
         </div>
         <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
