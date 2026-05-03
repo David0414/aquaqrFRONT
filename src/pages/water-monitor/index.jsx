@@ -34,9 +34,9 @@ const SAFETY_COMMANDS = [
 ];
 
 const MONITOR_TABS = [
-  { key: 'overview', label: 'Resumen', icon: 'LayoutDashboard' },
-  { key: 'machines', label: 'Maquinas', icon: 'Factory' },
-  { key: 'promotions', label: 'Promociones', icon: 'Gift' },
+  { key: 'overview', label: 'Resumen', icon: 'LayoutDashboard', description: 'Operacion en vivo y control manual.' },
+  { key: 'machines', label: 'Maquinas', icon: 'Factory', description: 'Catalogo, edicion y administracion.' },
+  { key: 'promotions', label: 'Promociones', icon: 'Gift', description: 'Beneficios activos y configuracion.' },
 ];
 
 const MACHINE_STATUS_OPTIONS = [
@@ -565,6 +565,12 @@ export default function WaterMonitor() {
   const mutedClass = darkMode ? 'border-slate-800 bg-slate-900/80' : 'border-sky-100 bg-slate-50';
   const darkFieldClass = darkMode ? 'border-slate-700 bg-slate-950 text-white placeholder:text-slate-500' : '';
   const darkSelectClass = darkMode ? '[&_button]:border-slate-700 [&_button]:bg-slate-950 [&_button]:text-white [&_label]:text-white [&_p]:text-slate-400' : '';
+  const activeTabMeta = MONITOR_TABS.find((tab) => tab.key === activeTab) || MONITOR_TABS[0];
+  const machineFormMode = machineForm.id ? 'Editando borrador' : 'Nueva maquina';
+  const machineStatusLabel = selectedMachine?.isActive ? 'Activa en catalogo' : 'Pendiente o inactiva';
+  const machineStatusTone = selectedMachine?.isActive
+    ? darkMode ? 'border-emerald-900 bg-emerald-950/30 text-emerald-300' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : darkMode ? 'border-amber-900 bg-amber-950/30 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700';
 
   return (
     <div className={shellClass}>
@@ -585,24 +591,107 @@ export default function WaterMonitor() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[290px_minmax(0,1fr)]">
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <section className={`overflow-hidden rounded-[28px] border shadow-sm ${panelClass}`}>
+            <div className={`border-b px-5 py-5 ${darkMode ? 'border-slate-800 bg-slate-950/50' : 'border-sky-100 bg-[linear-gradient(135deg,#effbff_0%,#ffffff_55%,#f2f8ff_100%)]'}`}>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#42B9D4]">Centro de control</p>
+              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Monitor AGUA/24</h1>
+              <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
+                Navegacion lateral, seleccion de maquina y estado del monitor en un solo lugar.
+              </p>
+            </div>
+
+            <div className="space-y-3 p-4">
+              {MONITOR_TABS.map((tab) => {
+                const selected = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${selected
+                      ? darkMode
+                        ? 'border-sky-500/40 bg-sky-500/10 shadow-[0_12px_30px_rgba(14,165,233,0.12)]'
+                        : 'border-sky-200 bg-sky-50 shadow-[0_14px_32px_rgba(66,185,212,0.16)]'
+                      : darkMode
+                        ? 'border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900/80'
+                        : 'border-slate-200 bg-white hover:border-sky-200 hover:bg-sky-50/70'
+                    }`}
+                  >
+                    <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${selected
+                      ? darkMode ? 'bg-sky-500/15 text-sky-300' : 'bg-sky-100 text-[#1E3F7A]'
+                      : darkMode ? 'bg-slate-900 text-slate-300' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      <Icon name={tab.icon} size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{tab.label}</p>
+                      <p className={`mt-1 text-xs leading-5 ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{tab.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className={`rounded-[28px] border p-5 shadow-sm ${cardClass}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#42B9D4]">Maquina activa</p>
+                <h2 className={`mt-2 text-xl font-black ${darkMode ? 'text-white' : 'text-text-primary'}`}>{activeMachineLabel}</h2>
+              </div>
+              <div className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${machineStatusTone}`}>
+                {machineStatusLabel}
+              </div>
+            </div>
+            <div className="mt-4">
+              <Select
+                label="Selecciona maquina"
+                options={machineSelectOptions}
+                value={selectedMachineId}
+                onChange={setSelectedMachineId}
+                placeholder="Selecciona una maquina"
+                className={darkSelectClass}
+              />
+            </div>
+            <div className={`mt-4 rounded-2xl border p-4 ${selectedMachineHasTelemetry ? (darkMode ? 'border-emerald-900 bg-emerald-950/30' : 'border-emerald-200 bg-emerald-50') : (darkMode ? 'border-amber-900 bg-amber-950/20' : 'border-amber-200 bg-amber-50')}`}>
+              <div className="flex items-start gap-3">
+                <Icon name={selectedMachineHasTelemetry ? 'Wifi' : 'WifiOff'} size={20} className={selectedMachineHasTelemetry ? 'text-emerald-500' : 'text-amber-500'} />
+                <div className="min-w-0">
+                  <p className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{connectionHeadline}</p>
+                  <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{connectionSubtitle}</p>
+                  <p className={`mt-2 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>HW esperado: {selectedMachineHardwareId || 'Sin configurar'}</p>
+                  <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>HW leido: {telemetryHardwareId || 'Sin lectura'}</p>
+                </div>
+              </div>
+            </div>
+            <div className={`mt-4 rounded-2xl border p-4 ${mutedClass}`}>
+              <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Modulo actual</p>
+              <p className={`mt-2 text-base font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{activeTabMeta.label}</p>
+              <p className={`mt-1 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{activeTabMeta.description}</p>
+            </div>
+          </section>
+        </aside>
+
+        <div className="space-y-6">
         <section className={`rounded-3xl border p-6 shadow-sm ${panelClass}`}>
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-center">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#42B9D4]">Panel del dueno</p>
-              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Monitor AGUA/24</h1>
+              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Operacion clara, acciones separadas</h1>
               <p className={`mt-2 max-w-2xl text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                Telemetria real por maquina recibida desde tu servicio C# hacia el backend.
+                Esta cabecera deja el monitor principal para trabajo operativo y mueve la navegacion a una barra lateral mas ordenada.
               </p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                {MONITOR_TABS.map((tab) => (
-                  <Button key={tab.key} variant={activeTab === tab.key ? 'secondary' : 'outline'} size="sm" onClick={() => setActiveTab(tab.key)}>
-                    <Icon name={tab.icon} size={15} /> {tab.label}
-                  </Button>
-                ))}
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <Metric icon="Factory" label="Maquinas" value={monitorSummary.counts?.machines || 0} hint={`${monitorSummary.counts?.activeMachines || 0} activas`} darkMode={darkMode} />
+                <Metric icon="Wifi" label="Conexion" value={selectedMachineHasTelemetry ? 'En linea' : 'Sin lectura'} hint={formatSeenAt(telemetry.lastSeenAt)} darkMode={darkMode} />
+                <Metric icon="Gift" label="Promociones" value={monitorSummary.counts?.activePromotions || 0} hint="Activas en sistema" darkMode={darkMode} />
               </div>
-              <div className="mt-5 max-w-md">
-                <Select label="Maquina a administrar" options={machineSelectOptions} value={selectedMachineId} onChange={setSelectedMachineId} placeholder="Selecciona una maquina" />
+              <div className="mt-5 max-w-2xl">
+                <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
+                  La seleccion de maquina y la navegacion principal ahora viven en la barra lateral para que esta zona quede enfocada en supervision.
+                </p>
               </div>
             </div>
 
@@ -691,49 +780,81 @@ export default function WaterMonitor() {
 
         {activeTab === 'machines' ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader eyebrow="Seccion 2" title="Administracion de maquinas" description="Aqui eliges la maquina del panel, configuras su estado y ves su sticker local." darkMode={darkMode} />
+            <SectionHeader eyebrow="Seccion 2" title="Administracion de maquinas" description="El area de edicion ahora funciona como un workspace: ficha de maquina, lista operativa y recursos visuales separados." darkMode={darkMode} />
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-              <div className={`rounded-3xl border p-4 ${mutedClass}`}>
-                <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Alta o edicion</h3>
-                <div className="mt-4 space-y-3">
+            <div className="mb-6 grid gap-4 md:grid-cols-3">
+              <Metric icon="Factory" label="Registradas" value={monitorSummary.counts?.machines || 0} hint="Catalogo total" darkMode={darkMode} />
+              <Metric icon="BadgeCheck" label="Activas" value={monitorSummary.counts?.activeMachines || 0} hint="Listas para operar" darkMode={darkMode} />
+              <Metric icon="PencilRuler" label="Formulario" value={machineFormMode} hint={machineForm.id ? `ID: ${machineForm.id}` : 'Lista para alta nueva'} darkMode={darkMode} />
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)]">
+              <div className={`overflow-hidden rounded-[28px] border shadow-sm ${mutedClass}`}>
+                <div className={`border-b px-5 py-4 ${darkMode ? 'border-slate-800 bg-slate-950/50' : 'border-sky-100 bg-white/80'}`}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#42B9D4]">Ficha editable</p>
+                  <h3 className={`mt-2 text-xl font-black ${darkMode ? 'text-white' : 'text-text-primary'}`}>Configuracion de maquina</h3>
+                  <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
+                    Usa esta tarjeta para alta, ajustes operativos y correccion de datos.
+                  </p>
+                </div>
+                <div className="space-y-4 p-5">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className={`rounded-2xl border px-4 py-3 ${darkMode ? 'border-slate-800 bg-slate-950/70' : 'border-slate-200 bg-white'}`}>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Modo</p>
+                      <p className={`mt-1 text-sm font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{machineFormMode}</p>
+                    </div>
+                    <div className={`rounded-2xl border px-4 py-3 ${darkMode ? 'border-slate-800 bg-slate-950/70' : 'border-slate-200 bg-white'}`}>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Monitoreo</p>
+                      <p className={`mt-1 text-sm font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{selectedMachineHasTelemetry ? 'Con lectura reciente' : 'Sin lectura reciente'}</p>
+                    </div>
+                  </div>
                   <Input label="ID de maquina" value={machineForm.id} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('id', event.target.value)} />
-                  <Input label="Nombre" value={machineForm.name} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('name', event.target.value)} />
-                  <Input label="Ubicacion" value={machineForm.location} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('location', event.target.value)} />
+                  <Input label="Nombre comercial" value={machineForm.name} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('name', event.target.value)} />
+                  <Input label="Ubicacion visible" value={machineForm.location} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('location', event.target.value)} />
                   <Input label="Direccion" value={machineForm.address} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('address', event.target.value)} />
                   <Input label="Hardware ID" value={machineForm.hardwareId} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
-                  <Select className={darkSelectClass} label="Estado" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
-                  <label className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm ${darkMode ? 'bg-slate-950/70 text-white' : 'bg-white text-text-primary'}`}>
+                  <Select className={darkSelectClass} label="Estado operativo" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
+                  <label className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-sm ${darkMode ? 'border-slate-800 bg-slate-950/70 text-white' : 'border-slate-200 bg-white text-text-primary'}`}>
                     <input type="checkbox" checked={machineForm.isActive} onChange={(event) => handleMachineChange('isActive', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400" />
-                    Maquina activa
+                    Publicar maquina como activa en catalogo
                   </label>
-                  <div className="flex gap-3">
-                    <Button onClick={handleMachineSubmit} loading={machineSaving} className="flex-1">
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <Button onClick={handleMachineSubmit} loading={machineSaving} className="flex-1 justify-center">
                       <Icon name="Save" size={16} /> Guardar maquina
                     </Button>
-                      <Button variant="outline" className={darkMode ? 'border-slate-700 text-white hover:bg-slate-800' : ''} onClick={() => setMachineForm(emptyMachineForm)}>
-                        Limpiar
-                      </Button>
+                    <Button variant="outline" className={darkMode ? 'border-slate-700 text-white hover:bg-slate-800' : ''} onClick={() => setMachineForm(emptyMachineForm)}>
+                      <Icon name="RefreshCcw" size={15} /> Limpiar
+                    </Button>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
                 {displayedMachines.map((machine) => (
-                  <article key={machine.id} className={`rounded-3xl border p-4 shadow-sm ${cardClass}`}>
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
+                  <article key={machine.id} className={`rounded-[28px] border p-5 shadow-sm transition ${machine.id === selectedMachineId
+                    ? darkMode
+                      ? 'border-sky-500/40 bg-slate-950/85 shadow-[0_16px_34px_rgba(14,165,233,0.15)]'
+                      : 'border-sky-200 bg-white shadow-[0_16px_34px_rgba(66,185,212,0.16)]'
+                    : cardClass
+                  }`}>
+                    <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                      <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{machine.id}</h3>
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${machine.isActive ? 'bg-success/10 text-success' : 'bg-slate-200 text-slate-600'}`}>
+                          <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${machine.isActive ? 'bg-success/10 text-success' : 'bg-slate-200 text-slate-600'}`}>
                             {machine.isActive ? 'Activa' : 'Inactiva'}
                           </span>
+                          {machine.id === selectedMachineId ? (
+                            <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${darkMode ? 'bg-sky-500/10 text-sky-300' : 'bg-sky-100 text-[#1E3F7A]'}`}>
+                              En gestion
+                            </span>
+                          ) : null}
                         </div>
                         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.name || 'Sin nombre'} · {machine.location || 'Sin ubicacion'}</p>
                         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.address || 'Sin direccion guardada'}</p>
                         <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware: {machine.hardwareId || machine.id || 'N/D'} · Estado: {machine.status || 'ONLINE'}</p>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 xl:max-w-[260px] xl:justify-end">
                         <Button variant="outline" size="sm" onClick={() => handleMachineEdit(machine)}>
                           <Icon name="Pencil" size={14} /> Editar
                         </Button>
@@ -758,7 +879,7 @@ export default function WaterMonitor() {
             </div>
 
             {selectedMachine ? (
-              <div className={`mt-6 rounded-3xl border p-5 ${mutedClass}`}>
+              <div className={`mt-6 rounded-[28px] border p-5 ${mutedClass}`}>
                 <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
                   <div className="flex justify-center lg:justify-start">
                     <img
@@ -771,16 +892,16 @@ export default function WaterMonitor() {
                     />
                   </div>
                   <div>
-                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Sticker local de {selectedMachine.id}</h3>
-                    <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Si existe `Backend/stickers/{selectedMachine.id}.png`, lo mostramos aqui.</p>
-                    <p className={`mt-3 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Esta vista ya funciona por maquina y consume la telemetria real que empuja tu C#.</p>
+                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Centro visual de {selectedMachine.id}</h3>
+                    <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Si existe `Backend/stickers/{selectedMachine.id}.png`, lo mostramos aqui para soporte, impresion y validacion local.</p>
+                    <p className={`mt-3 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Tambien sirve como referencia rapida para revisar que la maquina seleccionada coincida con la operacion en vivo.</p>
                   </div>
                 </div>
               </div>
             ) : null}
 
             {selectedQr ? (
-              <div className={`mt-6 rounded-3xl border p-5 ${mutedClass}`}>
+              <div className={`mt-6 rounded-[28px] border p-5 ${mutedClass}`}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>QR generado de {selectedQr.machineId}</h3>
@@ -844,6 +965,7 @@ export default function WaterMonitor() {
             </div>
           </section>
         ) : null}
+        </div>
       </main>
 
       <NotificationToast />
