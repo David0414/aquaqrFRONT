@@ -5,7 +5,6 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import BalanceCard from './components/BalanceCard';
-import PromotionalBanner from './components/PromotionalBanner';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
 import Icon from '../../components/AppIcon';
@@ -17,11 +16,6 @@ const DASHBOARD_CACHE_KEY = 'agua24-home-dashboard-cache';
 
 function moneyFromCents(amountCents) {
   return (Number(amountCents || 0) / 100).toFixed(2);
-}
-
-function clampPercent(value, max) {
-  if (!max) return 0;
-  return Math.max(0, Math.min(100, (Number(value || 0) / Number(max)) * 100));
 }
 
 const HomeDashboard = () => {
@@ -226,11 +220,6 @@ const HomeDashboard = () => {
   const realBalance = Number(dashboard.wallet?.realBalanceCents || 0);
   const bonusBalance = Number(dashboard.wallet?.bonusBalanceCents || 0);
   const activePromotions = (dashboard.promotions || []).filter((promotion) => promotion.isActive && promotion.key !== 'premium_membership');
-  const currentMonthPoints = dashboard.monthlyProgress?.points || 0;
-  const currentMonthGarrafones = Number(dashboard.monthlyProgress?.garrafones || 0);
-  const nextPointsGoal = currentMonthPoints >= 500 ? 1000 : currentMonthPoints >= 200 ? 500 : 200;
-  const pointsPercent = clampPercent(currentMonthPoints, nextPointsGoal);
-  const cashbackPercent = clampPercent(currentMonthGarrafones, 10);
 
   return (
     <div className="min-h-screen bg-background">
@@ -262,131 +251,45 @@ const HomeDashboard = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20">
         <div className="space-y-6">
-          <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.15),_transparent_32%),linear-gradient(135deg,_#ffffff_0%,_#f1f9ff_42%,_#f8fcff_100%)] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
-            <div className="absolute -right-12 -top-10 h-36 w-36 rounded-full bg-sky-200/30 blur-3xl" />
-            <div className="absolute bottom-0 left-0 h-24 w-24 rounded-full bg-emerald-200/30 blur-2xl" />
+          <section className="relative overflow-hidden rounded-[2.25rem] border border-sky-100 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.15),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.16),_transparent_30%),linear-gradient(135deg,_#f8fdff_0%,_#eef8ff_52%,_#ffffff_100%)] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
+            <div className="absolute -left-10 top-10 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
+            <div className="absolute right-10 top-8 h-16 w-16 rounded-[38%] bg-amber-200/40 rotate-12 blur-xl" />
+            <div className="absolute bottom-0 right-0 h-36 w-36 rounded-full bg-emerald-200/30 blur-3xl" />
 
-            <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
-              <div className="grid grid-cols-1 gap-6">
-            <BalanceCard
-              totalBalance={totalBalance / 100}
-              realBalance={realBalance / 100}
-              bonusBalance={bonusBalance / 100}
-              onRecharge={handleRecharge}
-              onDispense={handleDispense}
-              dispenseLoading={dispenseLoading}
-            />
+            <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+              <BalanceCard
+                totalBalance={totalBalance / 100}
+                realBalance={realBalance / 100}
+                bonusBalance={bonusBalance / 100}
+                onRecharge={handleRecharge}
+                onDispense={handleDispense}
+                dispenseLoading={dispenseLoading}
+              />
 
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Saldo de promociones</p>
+              <div className="rounded-[2rem] border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Promociones</p>
+                <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Entiende fácil lo que ya ganaste</h2>
+                <div className="mt-5 space-y-3">
+                  <div className="rounded-[1.6rem] bg-[linear-gradient(135deg,_rgba(16,185,129,0.12),_rgba(45,212,191,0.08))] p-4">
+                    <p className="text-sm font-semibold text-slate-700">Saldo de promociones</p>
                     <p className="mt-2 text-3xl font-black text-emerald-600">${moneyFromCents(bonusBalance)}</p>
-                    <p className="mt-1 text-sm text-slate-500">Ya disponible en tu saldo.</p>
                   </div>
-                  <div className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Puntos actuales</p>
-                    <p className="mt-2 text-3xl font-black text-sky-700">{currentMonthPoints}</p>
-                    <p className="mt-1 text-sm text-slate-500">Meta siguiente: {nextPointsGoal}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Bonos recibidos</p>
-                    <p className="mt-2 text-3xl font-black text-indigo-700">${moneyFromCents(dashboard.bonusSummary?.totalBonusEarnedCents)}</p>
-                    <p className="mt-1 text-sm text-slate-500">{dashboard.bonusSummary?.bonusRewardsCount || 0} bonos aplicados.</p>
+                  <div className="rounded-[1.6rem] bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-700">Promos activas</p>
+                    <p className="mt-2 text-3xl font-black text-[#1E3F7A]">{activePromotions.length}</p>
                   </div>
                 </div>
-              </div>
-
-              <div className="rounded-[1.75rem] border border-white/80 bg-white/75 p-5 shadow-sm backdrop-blur">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Avance del mes</p>
-                <h2 className="mt-2 text-2xl font-black text-slate-900">Lo que ya llevas</h2>
-
-                <div className="mt-5 space-y-4">
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Cashback</p>
-                        <p className="mt-1 text-sm text-slate-500">{currentMonthGarrafones.toFixed(1)} de 10 garrafones</p>
-                      </div>
-                      <Icon name="BadgePercent" size={18} className="text-emerald-600" />
-                    </div>
-                    <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200">
-                      <div className="h-full rounded-full bg-[linear-gradient(90deg,_#10b981_0%,_#2dd4bf_100%)]" style={{ width: `${cashbackPercent}%` }} />
-                    </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/promotions')}
+                  className="mt-5 flex w-full items-center justify-between rounded-[1.5rem] bg-[#1E3F7A] px-4 py-4 text-left text-white shadow-sm transition-colors duration-200 hover:bg-[#17325f]"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-white/75">Ver explicado</p>
+                    <p className="mt-1 text-lg font-black">Ir a promociones</p>
                   </div>
-
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Puntos</p>
-                        <p className="mt-1 text-sm text-slate-500">{currentMonthPoints} de {nextPointsGoal} puntos</p>
-                      </div>
-                      <Icon name="Sparkles" size={18} className="text-sky-700" />
-                    </div>
-                    <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200">
-                      <div className="h-full rounded-full bg-[linear-gradient(90deg,_#2563eb_0%,_#22d3ee_100%)]" style={{ width: `${pointsPercent}%` }} />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => navigate('/promotions')}
-                    className="flex w-full items-center justify-between rounded-2xl bg-[#1E3F7A] px-4 py-4 text-left text-white shadow-sm transition-colors duration-200 hover:bg-[#17325f]"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-white/80">Mas detalle</p>
-                      <p className="mt-1 text-lg font-black">Ver promociones</p>
-                    </div>
-                    <Icon name="ArrowRight" size={18} className="text-white" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <PromotionalBanner
-            promotions={activePromotions}
-            monthlyProgress={dashboard.monthlyProgress}
-            welcomeReward={dashboard.welcomeReward}
-            bonusBalanceCents={bonusBalance}
-            recentBonusCredits={dashboard.recentBonusCredits}
-          />
-
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.04)]">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Resumen rapido</p>
-                <h2 className="mt-2 text-2xl font-black text-text-primary">Lo importante de tu mes</h2>
-                <p className="mt-2 text-sm text-text-secondary">
-                  Un resumen corto para entender tu avance sin complicarlo.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate('/promotions')}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3F7A]"
-            >
-                Ver promociones <Icon name="ArrowRight" size={16} />
-              </button>
-            </div>
-
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-[1.5rem] bg-[linear-gradient(135deg,_rgba(16,185,129,0.08)_0%,_rgba(255,255,255,1)_100%)] p-5">
-                <p className="text-sm font-semibold text-text-primary">Consumo del mes</p>
-                <p className="mt-2 text-3xl font-black text-[#0F9F6E]">
-                  {currentMonthGarrafones.toFixed(1)} garrafones
-                </p>
-                <p className="mt-2 text-sm text-text-secondary">
-                  Base para tu cashback mensual.
-                </p>
-              </div>
-              <div className="rounded-[1.5rem] bg-[linear-gradient(135deg,_rgba(14,165,233,0.08)_0%,_rgba(255,255,255,1)_100%)] p-5">
-                <p className="text-sm font-semibold text-text-primary">Puntos del mes</p>
-                <p className="mt-2 text-3xl font-black text-[#42B9D4]">
-                  {currentMonthPoints}
-                </p>
-                <p className="mt-2 text-sm text-text-secondary">
-                  Nivel actual: {dashboard.monthlyProgress?.pointsLabel || 'Sin beneficio'}.
-                </p>
+                  <Icon name="ArrowRight" size={18} className="text-white" />
+                </button>
               </div>
             </div>
           </section>

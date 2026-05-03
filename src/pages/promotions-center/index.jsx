@@ -72,7 +72,7 @@ export default function PromotionsCenter() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-text-primary">Promociones de {displayName}</p>
-            <p className="text-xs text-text-secondary">Beneficios, avance y siguiente recompensa</p>
+            <p className="text-xs text-text-secondary">Qué haces, qué ganas y cuándo lo recibes</p>
           </div>
           <button
             onClick={() => navigate('/user-profile-settings')}
@@ -85,23 +85,28 @@ export default function PromotionsCenter() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 space-y-6">
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.04)]">
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Saldo de promociones</p>
-              <p className="mt-2 text-3xl font-black text-emerald-600">${moneyFromCents(bonusBalance)}</p>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Promociones activas</p>
-              <p className="mt-2 text-3xl font-black text-[#1E3F7A]">{activePromotions.length}</p>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Cashback del mes</p>
-              <p className="mt-2 text-3xl font-black text-emerald-600">${moneyFromCents(monthlyProgress?.estimatedCashbackCents)}</p>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Puntos del mes</p>
-              <p className="mt-2 text-3xl font-black text-sky-700">{monthlyProgress?.points || 0}</p>
+        <section className="relative overflow-hidden rounded-[2.2rem] border border-sky-100 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.18),_transparent_30%),linear-gradient(135deg,_#ffffff_0%,_#f5fbff_55%,_#ffffff_100%)] p-6 shadow-[0_18px_45px_rgba(15,23,42,0.04)]">
+          <div className="absolute -left-8 top-10 h-20 w-20 rounded-full bg-sky-200/40 blur-xl" />
+          <div className="absolute right-8 top-5 h-16 w-16 rounded-[38%] bg-amber-200/40 rotate-12 blur-xl" />
+
+          <div className="relative">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Lo importante hoy</p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Tus promociones sin enredos</h1>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <div className="rounded-[1.7rem] bg-white/90 p-4 shadow-sm">
+                <p className="text-sm font-semibold text-slate-700">Saldo de promociones</p>
+                <p className="mt-2 text-3xl font-black text-emerald-600">${moneyFromCents(bonusBalance)}</p>
+              </div>
+              <div className="rounded-[1.7rem] bg-white/90 p-4 shadow-sm">
+                <p className="text-sm font-semibold text-slate-700">Cashback que llevas</p>
+                <p className="mt-2 text-3xl font-black text-emerald-600">${moneyFromCents(monthlyProgress?.estimatedCashbackCents)}</p>
+                <p className="mt-1 text-sm text-slate-500">Se deposita al final del mes.</p>
+              </div>
+              <div className="rounded-[1.7rem] bg-white/90 p-4 shadow-sm">
+                <p className="text-sm font-semibold text-slate-700">Puntos de este mes</p>
+                <p className="mt-2 text-3xl font-black text-sky-700">{monthlyProgress?.points || 0}</p>
+                <p className="mt-1 text-sm text-slate-500">{activePromotions.length} promociones activas.</p>
+              </div>
             </div>
           </div>
         </section>
