@@ -42,17 +42,17 @@ export default function PlaceBottleUp() {
   const hasStartedFlow = Boolean(shouldGuardExit);
   const fillHint =
     currentStageCode === '05'
-      ? 'La maquina ya habilito el llenado.'
-      : currentStageCode === '03' || currentStageCode === '04'
-        ? 'La maquina puede estar reproduciendo indicaciones. Puedes iniciar llenado cuando terminen.'
-        : `Espera el paso 05 para iniciar llenado. Paso actual: ${currentStageCode}.`;
+    ? 'Llenado listo.'
+    : currentStageCode === '03' || currentStageCode === '04'
+        ? 'Listo para avanzar.'
+        : `Espera paso 05. Actual: ${currentStageCode}.`;
 
   React.useEffect(() => {
     if (hasPendingQrStart) return;
     if (currentStageCode !== '00') return;
     if (!displayTelemetry.lastSeenAt) return;
 
-    showInfoToast('La maquina regreso a espera. Reinicia el flujo cuando estes listo.');
+    showInfoToast('Maquina en espera.');
     navigate('/home-dashboard', {
       replace: true,
       state: {
@@ -66,11 +66,11 @@ export default function PlaceBottleUp() {
     try {
       setMachineBusyError(null);
       if (!telemetryFresh) {
-        showErrorToast('La maquina no esta conectada o no esta enviando trama.');
+        showErrorToast('Maquina sin conexion.');
         return;
       }
       if (!canStartFilling) {
-        showErrorToast(`Espera el paso 05 para iniciar llenado. Paso actual: ${currentStageCode}.`);
+        showErrorToast(`Espera paso 05. Actual: ${currentStageCode}.`);
         return;
       }
 
@@ -106,7 +106,7 @@ export default function PlaceBottleUp() {
 
   return (
     <div className="space-y-8">
-      <h2 className="text-xl font-semibold text-text-primary">Acomodar Garrafon</h2>
+      <h2 className="text-xl font-semibold text-text-primary">Acomodar garrafon</h2>
 
       <div className="bg-card border border-border rounded-2xl p-8 flex flex-col items-center text-center">
         <motion.div
@@ -116,19 +116,14 @@ export default function PlaceBottleUp() {
         >
           <Icon name="Target" size={44} className="text-success" />
         </motion.div>
-        <h3 className="text-2xl font-bold text-text-primary mb-2">
-          Colocalo <span className="text-success">boca arriba y centrado</span>
-        </h3>
-        <p className="text-text-secondary max-w-md">
-          Asegurate de que el cuello quede firme en el centro para evitar derrames.
-        </p>
+        <h3 className="mb-2 text-2xl font-bold text-text-primary">Boca arriba y centrado</h3>
       </div>
 
-      <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
+      <TelemetryStatusCard telemetry={displayTelemetry} title="Estado" compact />
 
       {!telemetryFresh ? (
         <div className="rounded-xl border border-error/20 bg-error/10 px-4 py-3 text-sm font-medium text-error">
-          Maquina sin conexion o sin trama reciente. No se puede iniciar llenado.
+          Maquina sin conexion.
         </div>
       ) : null}
 

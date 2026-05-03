@@ -34,9 +34,9 @@ const SAFETY_COMMANDS = [
 ];
 
 const MONITOR_TABS = [
-  { key: 'overview', label: 'Resumen', icon: 'LayoutDashboard', description: 'Operacion en vivo y control manual.' },
-  { key: 'machines', label: 'Maquinas', icon: 'Factory', description: 'Catalogo, edicion y administracion.' },
-  { key: 'promotions', label: 'Promociones', icon: 'Gift', description: 'Beneficios activos y configuracion.' },
+  { key: 'overview', label: 'Resumen', icon: 'LayoutDashboard' },
+  { key: 'machines', label: 'Maquinas', icon: 'Factory' },
+  { key: 'promotions', label: 'Promociones', icon: 'Gift' },
 ];
 
 const MACHINE_STATUS_OPTIONS = [
@@ -143,9 +143,9 @@ function Metric({ icon, label, value, hint, darkMode }) {
 function SectionHeader({ eyebrow, title, description, darkMode }) {
   return (
     <div className="mb-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#42B9D4]">{eyebrow}</p>
+      {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#42B9D4]">{eyebrow}</p> : null}
       <h2 className={`mt-2 text-2xl font-black ${darkMode ? 'text-white' : 'text-text-primary'}`}>{title}</h2>
-      <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{description}</p>
+      {description ? <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{description}</p> : null}
     </div>
   );
 }
@@ -565,7 +565,6 @@ export default function WaterMonitor() {
   const mutedClass = darkMode ? 'border-slate-800 bg-slate-900/80' : 'border-sky-100 bg-slate-50';
   const darkFieldClass = darkMode ? 'border-slate-700 bg-slate-950 text-white placeholder:text-slate-500' : '';
   const darkSelectClass = darkMode ? '[&_button]:border-slate-700 [&_button]:bg-slate-950 [&_button]:text-white [&_label]:text-white [&_p]:text-slate-400' : '';
-  const activeTabMeta = MONITOR_TABS.find((tab) => tab.key === activeTab) || MONITOR_TABS[0];
   const machineFormMode = machineForm.id ? 'Editando borrador' : 'Nueva maquina';
   const machineStatusLabel = selectedMachine?.isActive ? 'Activa en catalogo' : 'Pendiente o inactiva';
   const machineStatusTone = selectedMachine?.isActive
@@ -595,11 +594,7 @@ export default function WaterMonitor() {
         <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
           <section className={`overflow-hidden rounded-[28px] border shadow-sm ${panelClass}`}>
             <div className={`border-b px-5 py-5 ${darkMode ? 'border-slate-800 bg-slate-950/50' : 'border-sky-100 bg-[linear-gradient(135deg,#effbff_0%,#ffffff_55%,#f2f8ff_100%)]'}`}>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#42B9D4]">Centro de control</p>
               <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Monitor AGUA/24</h1>
-              <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                Navegacion lateral, seleccion de maquina y estado del monitor en un solo lugar.
-              </p>
             </div>
 
             <div className="space-y-3 p-4">
@@ -627,7 +622,6 @@ export default function WaterMonitor() {
                     </div>
                     <div className="min-w-0">
                       <p className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{tab.label}</p>
-                      <p className={`mt-1 text-xs leading-5 ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{tab.description}</p>
                     </div>
                   </button>
                 );
@@ -666,11 +660,6 @@ export default function WaterMonitor() {
                 </div>
               </div>
             </div>
-            <div className={`mt-4 rounded-2xl border p-4 ${mutedClass}`}>
-              <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Modulo actual</p>
-              <p className={`mt-2 text-base font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{activeTabMeta.label}</p>
-              <p className={`mt-1 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{activeTabMeta.description}</p>
-            </div>
           </section>
         </aside>
 
@@ -678,20 +667,11 @@ export default function WaterMonitor() {
         <section className={`rounded-3xl border p-6 shadow-sm ${panelClass}`}>
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-center">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#42B9D4]">Panel del dueno</p>
-              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Operacion clara, acciones separadas</h1>
-              <p className={`mt-2 max-w-2xl text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                Esta cabecera deja el monitor principal para trabajo operativo y mueve la navegacion a una barra lateral mas ordenada.
-              </p>
+              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Monitor AGUA/24</h1>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <Metric icon="Factory" label="Maquinas" value={monitorSummary.counts?.machines || 0} hint={`${monitorSummary.counts?.activeMachines || 0} activas`} darkMode={darkMode} />
                 <Metric icon="Wifi" label="Conexion" value={selectedMachineHasTelemetry ? 'En linea' : 'Sin lectura'} hint={formatSeenAt(telemetry.lastSeenAt)} darkMode={darkMode} />
                 <Metric icon="Gift" label="Promociones" value={monitorSummary.counts?.activePromotions || 0} hint="Activas en sistema" darkMode={darkMode} />
-              </div>
-              <div className="mt-5 max-w-2xl">
-                <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                  La seleccion de maquina y la navegacion principal ahora viven en la barra lateral para que esta zona quede enfocada en supervision.
-                </p>
               </div>
             </div>
 
@@ -711,7 +691,7 @@ export default function WaterMonitor() {
 
         {activeTab === 'overview' ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader eyebrow="Seccion 1" title="Operacion en vivo" description="Monitoreo, calibracion y control manual de la maquina seleccionada." darkMode={darkMode} />
+            <SectionHeader eyebrow="" title="Operacion en vivo" description="" darkMode={darkMode} />
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <Metric icon="ListChecks" label="Paso actual" value={`${currentStep.code}: ${currentStep.shortLabel || currentStep.label}`} hint={currentStep.instruction} darkMode={darkMode} />
@@ -780,7 +760,7 @@ export default function WaterMonitor() {
 
         {activeTab === 'machines' ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader eyebrow="Seccion 2" title="Administracion de maquinas" description="El area de edicion ahora funciona como un workspace: ficha de maquina, lista operativa y recursos visuales separados." darkMode={darkMode} />
+            <SectionHeader eyebrow="" title="Administracion de maquinas" description="" darkMode={darkMode} />
 
             <div className="mb-6 grid gap-4 md:grid-cols-3">
               <Metric icon="Factory" label="Registradas" value={monitorSummary.counts?.machines || 0} hint="Catalogo total" darkMode={darkMode} />
@@ -791,11 +771,7 @@ export default function WaterMonitor() {
             <div className="grid gap-6 xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)]">
               <div className={`overflow-hidden rounded-[28px] border shadow-sm ${mutedClass}`}>
                 <div className={`border-b px-5 py-4 ${darkMode ? 'border-slate-800 bg-slate-950/50' : 'border-sky-100 bg-white/80'}`}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#42B9D4]">Ficha editable</p>
                   <h3 className={`mt-2 text-xl font-black ${darkMode ? 'text-white' : 'text-text-primary'}`}>Configuracion de maquina</h3>
-                  <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                    Usa esta tarjeta para alta, ajustes operativos y correccion de datos.
-                  </p>
                 </div>
                 <div className="space-y-4 p-5">
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -892,9 +868,7 @@ export default function WaterMonitor() {
                     />
                   </div>
                   <div>
-                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Centro visual de {selectedMachine.id}</h3>
-                    <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Si existe `Backend/stickers/{selectedMachine.id}.png`, lo mostramos aqui para soporte, impresion y validacion local.</p>
-                    <p className={`mt-3 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Tambien sirve como referencia rapida para revisar que la maquina seleccionada coincida con la operacion en vivo.</p>
+                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Sticker {selectedMachine.id}</h3>
                   </div>
                 </div>
               </div>
@@ -922,7 +896,7 @@ export default function WaterMonitor() {
 
         {activeTab === 'promotions' ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader eyebrow="Seccion 3" title="Promociones y recompensas" description="Las deje mas claras para que se entiendan rapido." darkMode={darkMode} />
+            <SectionHeader eyebrow="" title="Promociones y recompensas" description="" darkMode={darkMode} />
 
             <div className="mb-5 grid gap-4 md:grid-cols-3">
               <Metric icon="Sparkles" label="Promociones activas" value={monitorSummary.counts?.activePromotions || 0} hint="Las promociones 1, 2, 3 y 4 inician activas." darkMode={darkMode} />

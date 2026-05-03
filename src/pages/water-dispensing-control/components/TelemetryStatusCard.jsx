@@ -10,19 +10,18 @@ function StatusDot({ active, activeClassName, inactiveClassName }) {
   );
 }
 
-function MetricItem({ label, value, hint }) {
+function MetricItem({ label, value }) {
   return (
     <div className="rounded-xl border border-border bg-background px-3 py-2">
       <p className="text-xs uppercase tracking-wide text-text-secondary">{label}</p>
       <p className="mt-1 text-sm font-semibold text-text-primary">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-text-secondary">{hint}</p> : null}
     </div>
   );
 }
 
 export default function TelemetryStatusCard({
   telemetry,
-  title = 'Estado actual',
+  title = 'Estado',
   compact = false,
   showCoinMetrics = false,
   showStageMetric = false,
@@ -37,31 +36,27 @@ export default function TelemetryStatusCard({
 
   if (showStageMetric) {
     metrics.push({
-      label: 'Paso actual',
-      value: stepInfo.label || 'Sin etapa',
-      hint: `Byte 9: ${stepInfo.code || '--'}`,
+      label: 'Paso',
+      value: stepInfo.code ? `${stepInfo.code} · ${stepInfo.label || 'Sin etapa'}` : (stepInfo.label || 'Sin etapa'),
     });
   }
 
   if (showFlowmeterMetric) {
     metrics.push({
-      label: 'Caudalimetro',
-      value: `${telemetry.flowmeterPulses ?? 0} pulsos`,
-      hint: `Hex ${telemetry.flowmeterHex || '--'}`,
+      label: 'Pulsos',
+      value: `${telemetry.flowmeterPulses ?? 0}`,
     });
   }
 
   if (showCoinMetrics) {
     metrics.push(
       {
-        label: 'Moneda insertada',
+        label: 'Moneda',
         value: telemetry.insertedCoinLabel || 'Sin moneda',
-        hint: `Hex ${telemetry.coinHex || '--'}`,
       },
       {
-        label: 'Dinero acumulado',
+        label: 'Acumulado',
         value: formatMoneyAmount(telemetry.accumulatedMoney),
-        hint: `Hex ${telemetry.accumulatedMoneyHex || '--'}`,
       },
     );
   }
@@ -72,26 +67,16 @@ export default function TelemetryStatusCard({
         <div>
           <h3 className="text-base font-semibold text-text-primary">{title}</h3>
           <p className="text-sm text-text-secondary">
-            Paso {stepInfo.code || '--'}: {stepInfo.label || 'Sin etapa'}
+            {stepInfo.code || '--'} · {stepInfo.label || 'Sin etapa'}
           </p>
         </div>
-        <div className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-text-secondary">
-          Monitor en vivo
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-text-primary">
-        <span className="font-medium">Indicacion:</span>{' '}
-        <span className="text-text-secondary">
-          {telemetry.currentStageInstruction || stepInfo.instruction}
-        </span>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
           <div>
             <p className="text-sm font-medium text-text-primary">Bomba</p>
-            <p className="text-xs text-text-secondary">{telemetry.pumpOn ? 'Encendida' : 'Apagada'}</p>
+            <p className="text-xs text-text-secondary">{telemetry.pumpOn ? 'On' : 'Off'}</p>
           </div>
           <StatusDot
             active={telemetry.pumpOn}
@@ -102,8 +87,8 @@ export default function TelemetryStatusCard({
 
         <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
           <div>
-            <p className="text-sm font-medium text-text-primary">Valvula de llenado</p>
-            <p className="text-xs text-text-secondary">{telemetry.fillValveOn ? 'Encendida' : 'Apagada'}</p>
+            <p className="text-sm font-medium text-text-primary">Llenado</p>
+            <p className="text-xs text-text-secondary">{telemetry.fillValveOn ? 'On' : 'Off'}</p>
           </div>
           <StatusDot
             active={telemetry.fillValveOn}
@@ -114,8 +99,8 @@ export default function TelemetryStatusCard({
 
         <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
           <div>
-            <p className="text-sm font-medium text-text-primary">Valvula de enjuague</p>
-            <p className="text-xs text-text-secondary">{telemetry.rinseValveOn ? 'Encendida' : 'Apagada'}</p>
+            <p className="text-sm font-medium text-text-primary">Enjuague</p>
+            <p className="text-xs text-text-secondary">{telemetry.rinseValveOn ? 'On' : 'Off'}</p>
           </div>
           <StatusDot
             active={telemetry.rinseValveOn}
@@ -132,7 +117,6 @@ export default function TelemetryStatusCard({
               key={metric.label}
               label={metric.label}
               value={metric.value}
-              hint={metric.hint}
             />
           ))}
         </div>

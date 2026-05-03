@@ -320,7 +320,7 @@ function FillingProgressView({ tx }) {
 
     completionScheduledRef.current = true;
     setIsDispensing(false);
-    setCompletionStatus("Generando ticket...");
+    setCompletionStatus("Finalizando...");
     const finalDispensedLiters = Math.max(snapshot.dispensedLiters, dispensedLiters, liters);
     const finalDispensedPulseCount = Math.max(liveDispensedPulseCount, targetPulseCount);
 
@@ -361,7 +361,7 @@ function FillingProgressView({ tx }) {
           return;
         }
 
-        showErrorToast(error?.message || "No se pudo cobrar el dispensado finalizado");
+        showErrorToast(error?.message || "No se pudo finalizar");
       }
     };
 
@@ -393,8 +393,8 @@ function FillingProgressView({ tx }) {
       const refunded = Number(data?.refundedCents || 0) / 100;
       showWarningToast(
         refunded > 0
-          ? `Dispensado cancelado. Reembolso de ${money(refunded)} procesado.`
-          : "Dispensado cancelado. Se envio reinicio a la maquina."
+          ? `Cancelado. Reembolso ${money(refunded)}.`
+          : "Cancelado."
       );
 
       navigate("/home-dashboard", {
@@ -458,7 +458,7 @@ function FillingProgressView({ tx }) {
         ) : null}
 
         {displayTelemetry ? (
-          <TelemetryStatusCard telemetry={displayTelemetry} title="Telemetria del dispensado" compact />
+          <TelemetryStatusCard telemetry={displayTelemetry} title="Telemetria" compact />
         ) : null}
 
         <TransactionDetails
@@ -495,7 +495,7 @@ function FillingProgressView({ tx }) {
             onClick={() => setIsHelpModalOpen(true)}
             className="inline-flex items-center space-x-2 px-6 py-3 bg-muted rounded-full hover:bg-muted/80 transition-colors duration-200"
           >
-            <span className="text-body-sm font-medium text-text-primary">¿Necesitas ayuda?</span>
+            <span className="text-body-sm font-medium text-text-primary">Ayuda</span>
           </button>
         </div>
       </div>

@@ -1,12 +1,11 @@
-// src/pages/water-dispensing-control/components/MachineInfoCard.jsx
 import React from 'react';
 import Icon from '../../../components/AppIcon';
 
 const MachineInfoCard = ({
   machineId,
   location,
-  connectionStatus,         // 'connected' | 'connecting' | 'disconnected'
-  pricePerGarrafon = 35,    // MXN
+  connectionStatus,
+  pricePerGarrafon = 35,
   garrafonLiters = 20,
   className = '',
 }) => {
@@ -35,7 +34,7 @@ const MachineInfoCard = ({
           bgColor: 'bg-warning/10',
           borderColor: 'border-warning/20',
           icon: 'Loader',
-          text: 'Conectando...',
+          text: 'Conectando',
         };
       default:
         return {
@@ -43,7 +42,7 @@ const MachineInfoCard = ({
           bgColor: 'bg-error/10',
           borderColor: 'border-error/20',
           icon: 'WifiOff',
-          text: 'Desconectado',
+          text: 'Sin conexion',
         };
     }
   };
@@ -51,49 +50,37 @@ const MachineInfoCard = ({
   const status = getStatusConfig(connectionStatus);
 
   return (
-    <div className={`bg-card border border-border rounded-xl p-4 ${className}`}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-text-primary truncate">
-            Dispensador #{machineId}
-          </h3>
-          <div className="flex items-center space-x-2 text-text-secondary mt-0.5">
+    <div className={`rounded-xl border border-border bg-card p-4 ${className}`}>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-lg font-semibold text-text-primary">Maquina #{machineId}</h3>
+          <div className="mt-0.5 flex items-center space-x-2 text-text-secondary">
             <Icon name="MapPin" size={16} />
-            <span className="text-sm truncate">{location}</span>
+            <span className="truncate text-sm">{location}</span>
           </div>
         </div>
 
-        <div
-          className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border ${status.bgColor} ${status.borderColor}`}
-        >
+        <div className={`flex items-center space-x-2 rounded-lg border px-3 py-1.5 ${status.bgColor} ${status.borderColor}`}>
           <Icon
             name={status.icon}
             size={16}
             className={`${status.color} ${connectionStatus === 'connecting' ? 'animate-spin' : ''}`}
           />
-          <span className={`text-sm font-medium ${status.color}`}>
-            {status.text}
-          </span>
+          <span className={`text-sm font-medium ${status.color}`}>{status.text}</span>
         </div>
       </div>
 
-      {/* Prices */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-border">
-        {/* Garrafón */}
-        <div className="flex flex-col items-end sm:items-end text-right">
-          <span className="text-xs text-text-secondary">
-            Precio por garrafón ({garrafonLiters}L)
-          </span>
-          <span className="text-xl font-semibold text-primary tabular-nums leading-tight">
+      <div className="grid grid-cols-1 gap-4 border-t border-border pt-3 sm:grid-cols-2">
+        <div className="flex flex-col items-end text-right">
+          <span className="text-xs text-text-secondary">Precio {garrafonLiters}L</span>
+          <span className="text-xl font-semibold leading-tight text-primary tabular-nums">
             {money(pricePerGarrafon)}
           </span>
         </div>
 
-        {/* Litro */}
-        <div className="flex flex-col items-end sm:items-end text-right">
-          <span className="text-xs text-text-secondary">Precio por litro</span>
-          <span className="text-xl font-semibold text-text-primary tabular-nums leading-tight">
+        <div className="flex flex-col items-end text-right">
+          <span className="text-xs text-text-secondary">Precio/L</span>
+          <span className="text-xl font-semibold leading-tight text-text-primary tabular-nums">
             {money(pricePerLiter)}
           </span>
         </div>

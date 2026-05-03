@@ -66,7 +66,7 @@ export default function SelectAmount() {
       setMachineBusyError(null);
 
       if (!telemetryFresh) {
-        showErrorToast('La maquina no esta conectada o no esta enviando trama.');
+        showErrorToast('Maquina sin conexion.');
         return;
       }
 
@@ -75,7 +75,7 @@ export default function SelectAmount() {
           const nextTelemetry = await pollInputs({ force: true }).catch(() => null);
           const nextStageCode = nextTelemetry?.currentStageCode || currentStageCode;
           if (nextStageCode === '01' || nextStageCode === '02') {
-            showSuccessToast('La maquina confirmo el inicio. Ya puedes elegir botella.');
+            showSuccessToast('Inicio confirmado.');
             return;
           }
           if (nextStageCode === '03' || nextStageCode === '04') {
@@ -86,12 +86,12 @@ export default function SelectAmount() {
             nav('/water/position-up');
             return;
           }
-          showInfoToast('El QR ya activo el flujo. Espera a que la maquina confirme el paso 01 o 02.');
+          showInfoToast('Inicio pendiente.');
           return;
         }
         await sendStageCommand('qr_inicio');
         await pollInputs({ force: true }).catch(() => {});
-        showSuccessToast('Inicio enviado. Espera el paso 01 o 02 para elegir botella.');
+        showSuccessToast('Inicio enviado.');
         return;
       }
 
@@ -101,7 +101,7 @@ export default function SelectAmount() {
       }
 
       if (!canChooseBottle) {
-        showErrorToast(`No puedes avanzar desde el paso ${currentStageCode}.`);
+        showErrorToast(`Paso ${currentStageCode} no valido.`);
         return;
       }
 
@@ -143,10 +143,7 @@ export default function SelectAmount() {
               <Icon name="AlertTriangle" size={28} />
             </div>
             <div className="mt-5 text-center">
-              <h2 className="text-2xl font-black text-slate-900">No pudimos conectar con la maquina</h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                La maquina no tiene conexion o no envio una trama reciente. Por seguridad, no puedes continuar con este flujo en este momento.
-              </p>
+              <h2 className="text-2xl font-black text-slate-900">Maquina sin conexion</h2>
             </div>
             <div className="mt-6">
               <Button
@@ -184,7 +181,7 @@ export default function SelectAmount() {
         currentBalance={(balanceCents ?? 0) / 100}
       />
 
-      <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
+      <TelemetryStatusCard telemetry={displayTelemetry} title="Estado" compact />
 
       <MachineBusyAlert
         error={machineBusyError}

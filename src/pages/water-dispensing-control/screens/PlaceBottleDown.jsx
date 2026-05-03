@@ -27,7 +27,7 @@ export default function PlaceBottleDown() {
     pollInputs,
   } = useDispenseFlow();
   const [rinseStatus, setRinseStatus] = useState('idle');
-  const [rinseMessage, setRinseMessage] = useState('El enjuague se habilita cuando el paso sea 03.');
+  const [rinseMessage, setRinseMessage] = useState('Listo');
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [machineBusyError, setMachineBusyError] = useState(null);
 
@@ -59,7 +59,7 @@ export default function PlaceBottleDown() {
     if (currentStageCode !== '00') return;
     if (!displayTelemetry.lastSeenAt) return;
 
-    showInfoToast('La maquina regreso a espera. Reinicia el flujo cuando estes listo.');
+    showInfoToast('Maquina en espera.');
     nav('/home-dashboard', {
       replace: true,
       state: {
@@ -96,19 +96,19 @@ export default function PlaceBottleDown() {
       await delay(RINSE_ACCEPT_POLL_MS);
     }
 
-    throw new Error(`La maquina no confirmo enjuague. Ultimo paso leido: ${lastStageCode}.`);
+      throw new Error(`Enjuague no confirmado. Paso ${lastStageCode}.`);
   };
 
   const triggerRinse = async () => {
     try {
       setMachineBusyError(null);
       if (!telemetryFresh) {
-        throw new Error('La maquina no esta conectada o no esta enviando trama.');
+        throw new Error('Maquina sin conexion.');
       }
       setRinseStatus('sending');
-      setRinseMessage('Activando enjuague por 3 segundos...');
+      setRinseMessage('Activando...');
       await sendStageCommand('enjuague');
-      setRinseMessage('Esperando confirmacion de la maquina...');
+      setRinseMessage('Esperando confirmacion...');
       const acceptedStageCode = await waitForRinseAccepted();
       setRinseMessage('Enjuagando...');
       await delay(RINSE_DURATION_MS);
@@ -117,17 +117,17 @@ export default function PlaceBottleDown() {
       setRinseStatus('success');
       setRinseMessage(
         latestStageCode === '06'
-          ? 'La maquina ya esta en llenado. Vamos a continuar.'
-          : 'Enjuague confirmado. Vamos a iniciar llenado.'
+          ? 'Llenado listo.'
+          : 'Enjuague confirmado.'
       );
     } catch (err) {
       if (err?.code === 'MACHINE_BUSY') {
         setMachineBusyError(err);
         setRinseStatus('error');
-        setRinseMessage('Esta maquina esta en uso por otro usuario.');
+        setRinseMessage('Maquina en uso.');
         throw err;
       }
-      const message = err?.message || 'No se pudo activar el enjuague';
+      const message = err?.message || 'No se pudo activar';
       setRinseStatus('error');
       setRinseMessage(message);
       showErrorToast(message);
@@ -141,7 +141,7 @@ export default function PlaceBottleDown() {
       setIsAdvancing(true);
 
       if (!telemetryFresh) {
-        showErrorToast('La maquina no esta conectada o no esta enviando trama.');
+        showErrorToast('Maquina sin conexion.');
         return;
       }
 
@@ -151,7 +151,7 @@ export default function PlaceBottleDown() {
       }
 
       if (!canTriggerRinse) {
-        showErrorToast(`Espera el paso 03 para activar enjuague. Paso actual: ${currentStageCode}.`);
+        showErrorToast(`Espera paso 03. Actual: ${currentStageCode}.`);
         return;
       }
 
@@ -187,7 +187,7 @@ export default function PlaceBottleDown() {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-text-primary">Preparar Garrafon</h2>
+        <h2 className="text-xl font-semibold text-text-primary">Preparar garrafon</h2>
         <span className="text-sm text-text-secondary">Maquina #{machine.id}</span>
       </div>
 
@@ -200,12 +200,7 @@ export default function PlaceBottleDown() {
           <Icon name="Droplets" size={44} className="text-primary" />
         </motion.div>
 
-        <h3 className="mb-2 text-2xl font-bold text-text-primary">
-          garrafon <span className="text-primary">boca abajo</span>
-        </h3>
-        <p className="mx-auto max-w-md text-text-secondary">
-          Al tocar Enjuagar se prende el enjuague 3 segundos y luego se apaga automaticamente.
-        </p>
+        <h3 className="mb-2 text-2xl font-bold text-text-primary">Garrafon boca abajo</h3>
 
         <div className={`mx-auto mt-6 max-w-lg rounded-xl border px-4 py-3 text-sm ${statusClasses}`}>
           <div className="flex items-center justify-center gap-2">
@@ -215,11 +210,11 @@ export default function PlaceBottleDown() {
         </div>
       </div>
 
-      <TelemetryStatusCard telemetry={displayTelemetry} title="Estado de la maquina" compact />
+      <TelemetryStatusCard telemetry={displayTelemetry} title="Estado" compact />
 
       {!telemetryFresh ? (
         <div className="rounded-xl border border-error/20 bg-error/10 px-4 py-3 text-sm font-medium text-error">
-          Maquina sin conexion o sin trama reciente. No se puede continuar el flujo.
+          Maquina sin conexion.
         </div>
       ) : null}
 
@@ -249,7 +244,7 @@ export default function PlaceBottleDown() {
 
       {rinseStatus === 'error' ? (
         <Button variant="outline" onClick={triggerRinse} disabled={!canTriggerRinse}>
-          Reintentar enjuague
+          Reintentar
         </Button>
       ) : null}
     </div>

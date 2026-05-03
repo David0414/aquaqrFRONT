@@ -60,9 +60,7 @@ const ProgressIndicator = ({
           <span className="text-4xl font-bold text-text-primary">
             {Math.round(progress)}%
           </span>
-          <span className="text-body-sm text-text-secondary mt-1">
-            Completado
-          </span>
+          <span className="text-body-sm text-text-secondary mt-1">Progreso</span>
           <span className="text-xs text-text-secondary mt-1">
             {Number(dispensedLiters).toFixed(2)} / {Number(targetLiters).toFixed(2)} L
           </span>
@@ -73,7 +71,7 @@ const ProgressIndicator = ({
       <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
         <div className="text-center p-3 bg-muted rounded-lg">
           <div className="text-body-xs text-text-secondary mb-1">
-            Tiempo restante
+            Tiempo
           </div>
           <div className="text-heading-xs font-semibold text-text-primary">
             {formatTime(remainingTime)}
@@ -82,7 +80,7 @@ const ProgressIndicator = ({
 
         <div className="text-center p-3 bg-muted rounded-lg">
           <div className="text-body-xs text-text-secondary mb-1">
-            Flujo actual
+            Flujo
           </div>
           <div className="text-heading-xs font-semibold text-text-primary">
             {Number.isFinite(flowRate) && flowRate > 0 ? `${Number(flowRate).toFixed(2)} L/min` : '--'}
@@ -91,7 +89,7 @@ const ProgressIndicator = ({
 
         <div className="text-center p-3 bg-muted rounded-lg">
           <div className="text-body-xs text-text-secondary mb-1">
-            Pulsos medidos
+            Pulsos
           </div>
           <div className="text-heading-xs font-semibold text-text-primary">
             {dispensedPulseCount} / {targetPulseCount}
@@ -100,7 +98,7 @@ const ProgressIndicator = ({
 
         <div className="text-center p-3 bg-muted rounded-lg">
           <div className="text-body-xs text-text-secondary mb-1">
-            Calibracion
+            Calib.
           </div>
           <div className="text-heading-xs font-semibold text-text-primary">
             {pulsesPerLiter} p/L
