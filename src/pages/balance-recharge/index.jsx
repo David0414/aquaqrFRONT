@@ -158,7 +158,9 @@ const BalanceRecharge = () => {
   const [errors, setErrors] = useState({});
 
   const topUpPromotion = useMemo(
-    () => availablePromotions.find((promotion) => promotion.key === 'topup_bonus' && promotion.isActive) || null,
+    () => availablePromotions.find(
+      (promotion) => promotion.key === 'topup_bonus' && promotion.isActive && promotion.isEnabledForUserThisMonth
+    ) || null,
     [availablePromotions]
   );
 

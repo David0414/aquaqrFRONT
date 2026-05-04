@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
@@ -19,27 +19,30 @@ export default function PromotionsCenter() {
   const { user } = useUser();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPromotionKeys, setSelectedPromotionKeys] = useState([]);
+  const [savingSelection, setSavingSelection] = useState(false);
+
+  const loadDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      const res = await fetch(`${API}/api/rewards/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo cargar promociones');
+      setDashboard(data);
+      setSelectedPromotionKeys(data?.selection?.selectedPromotionKeys || []);
+    } catch (error) {
+      window.showToast?.(error?.message || 'No se pudo cargar promociones', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken]);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-        const res = await fetch(`${API}/api/rewards/summary`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data) throw new Error(data?.error || 'No se pudo cargar promociones');
-        setDashboard(data);
-      } catch (error) {
-        window.showToast?.(error?.message || 'No se pudo cargar promociones', 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-  }, [getToken]);
+    loadDashboard();
+  }, [loadDashboard]);
 
   const displayName = useMemo(() => {
     const base =
@@ -54,6 +57,43 @@ export default function PromotionsCenter() {
   const monthlyProgress = dashboard?.monthlyProgress || {};
   const bonusBalance = Number(dashboard?.wallet?.bonusBalanceCents || 0);
   const activePromotions = (dashboard?.promotions || []).filter((promotion) => promotion.isActive && promotion.key !== 'premium_membership');
+  const selection = dashboard?.selection || { requiredCount: 0, selectedPromotionKeys: [], complete: true, selectablePromotions: [] };
+
+  const toggleSelection = (promotionKey) => {
+    const requiredCount = Number(selection?.requiredCount || 0);
+    setSelectedPromotionKeys((current) => {
+      if (current.includes(promotionKey)) {
+        return current.filter((key) => key !== promotionKey);
+      }
+      if (current.length >= requiredCount) {
+        return current;
+      }
+      return [...current, promotionKey];
+    });
+  };
+
+  const handleSaveSelection = async () => {
+    try {
+      setSavingSelection(true);
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      const res = await fetch(`${API}/api/rewards/selection`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ promotionKeys: selectedPromotionKeys }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo guardar tu seleccion');
+      window.showToast?.('Tus promociones del mes fueron guardadas', 'success');
+      await loadDashboard();
+    } catch (error) {
+      window.showToast?.(error?.message || 'No se pudo guardar tu seleccion', 'error');
+    } finally {
+      setSavingSelection(false);
+    }
+  };
 
   if (loading && !dashboard) {
     return (
@@ -114,9 +154,12 @@ export default function PromotionsCenter() {
         <PromotionalBanner
           promotions={activePromotions}
           monthlyProgress={dashboard?.monthlyProgress}
-          welcomeReward={dashboard?.welcomeReward}
           bonusBalanceCents={bonusBalance}
-          recentBonusCredits={dashboard?.recentBonusCredits}
+          selection={selection}
+          selectedPromotionKeys={selectedPromotionKeys}
+          onToggleSelection={toggleSelection}
+          onSaveSelection={handleSaveSelection}
+          savingSelection={savingSelection}
         />
       </main>
 

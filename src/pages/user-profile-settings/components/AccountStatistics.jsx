@@ -21,7 +21,7 @@ const PROMOTION_LABELS = {
 
 const AccountStatistics = ({ user }) => {
   const activePromotions = (user?.promotions || []).filter(
-    (promotion) => promotion.isActive && promotion.key !== 'premium_membership'
+    (promotion) => promotion.isActive && promotion.key !== 'premium_membership' && (!promotion.requiresMonthlySelection || promotion.isSelectedForMonth)
   );
   const recentBonusCredits = (user?.recentBonusCredits || []).slice(0, 4);
   const monthlyProgress = user?.monthlyProgress || null;

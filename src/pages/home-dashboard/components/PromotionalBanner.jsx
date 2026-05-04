@@ -1,5 +1,6 @@
 import React from 'react';
 import Icon from '../../../components/AppIcon';
+import Button from '../../../components/ui/Button';
 
 const PROMOTION_ICONS = {
   welcome_first_garrafon: 'Gift',
@@ -31,36 +32,6 @@ function getCashbackTierInfo(garrafones, promotion) {
   const tiers = Array.isArray(promotion?.config?.tiers) ? [...promotion.config.tiers] : [];
   const current = tiers.find((tier) => tier.maxGarrafones == null || garrafones <= Number(tier.maxGarrafones)) || null;
   return { current, tiers };
-}
-
-function getNextAction(promotions, monthlyProgress) {
-  const topup = promotions.find((promotion) => promotion.key === 'topup_bonus');
-  const pointsPromo = promotions.find((promotion) => promotion.key === 'monthly_consumption_points');
-  const cashbackPromo = promotions.find((promotion) => promotion.key === 'monthly_cashback');
-  const points = Number(monthlyProgress?.points || 0);
-  const garrafones = Number(monthlyProgress?.garrafones || 0);
-
-  if (pointsPromo?.isActive) {
-    const { next } = getPointsTierInfo(points, pointsPromo);
-    if (next) {
-      const missing = Math.max(0, Number(next.minPoints || 0) - points);
-      return `Te faltan ${missing} puntos para llegar a ${next.bonusPercent}% extra.`;
-    }
-  }
-
-  if (cashbackPromo?.isActive && garrafones < 10) {
-    const missing = Math.max(0, 10 - garrafones);
-    return `Te faltan ${missing.toFixed(1)} garrafones para mejorar tu cashback.`;
-  }
-
-  if (topup?.isActive) {
-    const recommendedTier = Array.isArray(topup.config?.tiers) ? topup.config.tiers[1] || topup.config.tiers[0] : null;
-    if (recommendedTier) {
-      return `Recarga ${recommendedTier.label.replace('Recarga ', '')}.`;
-    }
-  }
-
-  return 'Ya tienes promociones activas para usar.';
 }
 
 function StatusPill({ children, tone = 'slate' }) {
@@ -123,6 +94,87 @@ function SimpleTable({ columns, rows, accent = 'sky' }) {
   );
 }
 
+function SelectionChooser({
+  selection,
+  selectablePromotions,
+  selectedPromotionKeys,
+  onToggleSelection,
+  onSaveSelection,
+  savingSelection,
+}) {
+  const requiredCount = Number(selection?.requiredCount || 0);
+  const canSave = requiredCount === 0 || selectedPromotionKeys.length === requiredCount;
+
+  if (requiredCount === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-[1.9rem] border border-sky-100 bg-[linear-gradient(135deg,_#eff6ff_0%,_#ffffff_100%)] p-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Tus promociones del mes</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-900">Elige {requiredCount} promociones</h3>
+          <p className="mt-2 text-sm text-slate-500">
+            Estas serán las que funcionen para ti durante este mes.
+          </p>
+        </div>
+        <div className="rounded-[1.3rem] bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Elegidas</p>
+          <p className="mt-1 text-2xl font-black text-[#1E3F7A]">{selectedPromotionKeys.length}/{requiredCount}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
+        {selectablePromotions.map((promotion) => {
+          const selected = selectedPromotionKeys.includes(promotion.key);
+          const disabled = !selected && selectedPromotionKeys.length >= requiredCount;
+
+          return (
+            <button
+              key={promotion.key}
+              type="button"
+              onClick={() => onToggleSelection?.(promotion.key)}
+              disabled={disabled}
+              className={`rounded-[1.6rem] border p-4 text-left transition-all duration-200 ${
+                selected
+                  ? 'border-[#1E3F7A] bg-[#1E3F7A] text-white shadow-[0_14px_30px_rgba(30,63,122,0.18)]'
+                  : disabled
+                    ? 'border-slate-200 bg-slate-100 text-slate-400'
+                    : 'border-white bg-white text-slate-900 shadow-sm hover:-translate-y-0.5'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-[1.2rem] ${selected ? 'bg-white/15 text-white' : 'bg-sky-50 text-[#1E3F7A]'}`}>
+                  <Icon name={PROMOTION_ICONS[promotion.key] || 'Gift'} size={20} />
+                </div>
+                <div className={`flex h-6 w-6 items-center justify-center rounded-full border ${selected ? 'border-white bg-white text-[#1E3F7A]' : 'border-slate-300 bg-white text-transparent'}`}>
+                  <Icon name="Check" size={14} />
+                </div>
+              </div>
+              <p className="mt-4 text-lg font-black">{promotion.title}</p>
+              <p className={`mt-2 text-sm ${selected ? 'text-white/80' : 'text-slate-500'}`}>
+                {promotion.summary || promotion.description}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-slate-500">
+          {selection.complete
+            ? 'Ya tienes promociones activas para este mes.'
+            : 'Elige tus promociones para activar sus beneficios.'}
+        </p>
+        <Button onClick={onSaveSelection} disabled={!canSave} loading={savingSelection}>
+          Guardar mis promociones
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 function WelcomePromotionCard({ promotion }) {
   const available = promotion?.status?.available;
   const used = promotion?.status?.used;
@@ -156,7 +208,7 @@ function TopupPromotionCard({ promotion }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-white text-sky-700 shadow-sm">
           <Icon name={PROMOTION_ICONS.topup_bonus} size={20} />
         </div>
-        <StatusPill tone="sky">Disponible</StatusPill>
+        <StatusPill tone="sky">Elegida</StatusPill>
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">Bono por recarga</h3>
       <p className="mt-2 text-sm text-slate-600">Recargas saldo y recibes más dinero en ese momento.</p>
@@ -191,7 +243,7 @@ function CashbackPromotionCard({ promotion, monthlyProgress }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-white text-emerald-600 shadow-sm">
           <Icon name={PROMOTION_ICONS.monthly_cashback} size={20} />
         </div>
-        <StatusPill tone="emerald">En progreso</StatusPill>
+        <StatusPill tone="emerald">Elegida</StatusPill>
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">Cashback mensual</h3>
       <p className="mt-2 text-sm text-slate-600">Compras agua durante el mes y al final del mes recibes saldo extra.</p>
@@ -249,7 +301,7 @@ function PointsPromotionCard({ promotion, monthlyProgress }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-white text-sky-700 shadow-sm">
           <Icon name={PROMOTION_ICONS.monthly_consumption_points} size={20} />
         </div>
-        <StatusPill tone="sky">En progreso</StatusPill>
+        <StatusPill tone="sky">Elegida</StatusPill>
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">Puntos del mes</h3>
       <p className="mt-2 text-sm text-slate-600">Cada litro que compras te da puntos. Entre más puntos, más porcentaje extra ganas.</p>
@@ -289,20 +341,26 @@ function PointsPromotionCard({ promotion, monthlyProgress }) {
 export default function PromotionalBanner({
   promotions = [],
   monthlyProgress = null,
-  welcomeReward = null,
   bonusBalanceCents = 0,
+  selection = null,
+  selectedPromotionKeys = [],
+  onToggleSelection,
+  onSaveSelection,
+  savingSelection = false,
 }) {
-  const orderedPromotions = promotions.slice(0, 4);
-  const nextAction = getNextAction(orderedPromotions, monthlyProgress);
+  const selectablePromotions = (selection?.selectablePromotions || []).slice().sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+  const visiblePromotions = promotions
+    .filter((promotion) => !promotion.requiresMonthlySelection || promotion.isSelectedForMonth)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
 
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.04)]">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Promociones</p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Así funcionan tus promociones</h2>
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Elige tus 2 promociones del mes</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Aquí ves qué haces, qué ganas y cuándo te llega el beneficio.
+            Lo que elijas aquí será lo que sí funcione para ti durante este mes.
           </p>
         </div>
 
@@ -312,15 +370,21 @@ export default function PromotionalBanner({
         </div>
       </div>
 
-      <div className="mt-5 rounded-[1.75rem] border border-sky-100 bg-[linear-gradient(135deg,_#eff6ff_0%,_#f8fafc_100%)] p-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Lo importante hoy</p>
-        <p className="mt-2 text-xl font-black text-slate-900">{nextAction}</p>
+      <div className="mt-5">
+        <SelectionChooser
+          selection={selection}
+          selectablePromotions={selectablePromotions}
+          selectedPromotionKeys={selectedPromotionKeys}
+          onToggleSelection={onToggleSelection}
+          onSaveSelection={onSaveSelection}
+          savingSelection={savingSelection}
+        />
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        {orderedPromotions.map((promotion) => {
+        {visiblePromotions.map((promotion) => {
           if (promotion.key === 'welcome_first_garrafon') {
-            return <WelcomePromotionCard key={promotion.key} promotion={promotion} welcomeReward={welcomeReward} />;
+            return <WelcomePromotionCard key={promotion.key} promotion={promotion} />;
           }
           if (promotion.key === 'topup_bonus') {
             return <TopupPromotionCard key={promotion.key} promotion={promotion} />;

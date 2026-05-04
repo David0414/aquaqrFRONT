@@ -219,7 +219,8 @@ const HomeDashboard = () => {
   const totalBalance = Number(dashboard.wallet?.totalAvailableCents || dashboard.wallet?.balanceCents || 0);
   const realBalance = Number(dashboard.wallet?.realBalanceCents || 0);
   const bonusBalance = Number(dashboard.wallet?.bonusBalanceCents || 0);
-  const activePromotions = (dashboard.promotions || []).filter((promotion) => promotion.isActive && promotion.key !== 'premium_membership');
+  const selection = dashboard.selection || { requiredCount: 0, selectedPromotionKeys: [], complete: true };
+  const selectedCount = Number(selection.selectedPromotionKeys?.length || 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -275,8 +276,11 @@ const HomeDashboard = () => {
                     <p className="mt-2 text-3xl font-black text-emerald-600">${moneyFromCents(bonusBalance)}</p>
                   </div>
                   <div className="rounded-[1.6rem] bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-700">Promos activas</p>
-                    <p className="mt-2 text-3xl font-black text-[#1E3F7A]">{activePromotions.length}</p>
+                    <p className="text-sm font-semibold text-slate-700">Tus promos del mes</p>
+                    <p className="mt-2 text-3xl font-black text-[#1E3F7A]">{selectedCount}/{selection.requiredCount || 0}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {selection.complete ? 'Ya elegiste tus promociones.' : 'Todavia te falta elegir tus promociones.'}
+                    </p>
                   </div>
                 </div>
                 <button
