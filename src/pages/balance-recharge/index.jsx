@@ -244,13 +244,29 @@ const BalanceRecharge = () => {
     if (!Number.isFinite(balanceCents)) return;
     setWalletBreakdown((current) => ({
       ...current,
-      totalBalance: balanceCents / 100,
-      realBalance: balanceCents / 100,
+      totalBalance: Number(balanceCents) / 100,
     }));
   }, [balanceCents]);
 
   useEffect(() => {
-    const onWalletUpdated = () => {
+    const onWalletUpdated = (event) => {
+      const nextTotalCents = event?.detail?.balanceCents;
+      const nextRealCents = event?.detail?.realBalanceCents;
+      const nextBonusCents = event?.detail?.bonusBalanceCents;
+
+      if (
+        Number.isFinite(nextTotalCents)
+        || Number.isFinite(nextRealCents)
+        || Number.isFinite(nextBonusCents)
+      ) {
+        setWalletBreakdown((current) => ({
+          totalBalance: Number.isFinite(nextTotalCents) ? Number(nextTotalCents) / 100 : current.totalBalance,
+          realBalance: Number.isFinite(nextRealCents) ? Number(nextRealCents) / 100 : current.realBalance,
+          bonusBalance: Number.isFinite(nextBonusCents) ? Number(nextBonusCents) / 100 : current.bonusBalance,
+        }));
+        return;
+      }
+
       fetchRechargeContext().catch(() => {});
     };
 

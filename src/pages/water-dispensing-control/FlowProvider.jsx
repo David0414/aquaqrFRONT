@@ -241,7 +241,7 @@ export default function FlowProvider({ children }) {
   const pricePerLiter = useMemo(() => (pricePerLiterCents || 0) / 100, [pricePerLiterCents]);
 
   const [selectedLiters, setSelectedLiters] = useState(20);
-  const [balanceCents, setBalanceCents] = useState(0);
+  const [balanceCents, setBalanceCents] = useState(null);
   const [pulsesPerLiter, setPulsesPerLiterState] = useState(() => {
     if (typeof window === 'undefined') return DEFAULT_PULSES_PER_LITER;
     return sanitizePulsesPerLiter(window.localStorage.getItem(FLOWMETER_PULSES_PER_LITER_KEY));
@@ -411,7 +411,17 @@ export default function FlowProvider({ children }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'No se pudo obtener el saldo');
-      setBalanceCents(data.balanceCents ?? 0);
+      if (typeof data?.balanceCents === 'number') {
+        setBalanceCents(data.balanceCents);
+        window.dispatchEvent(new CustomEvent('wallet:updated', {
+          detail: {
+            balanceCents: data.balanceCents,
+            realBalanceCents: data.realBalanceCents,
+            bonusBalanceCents: data.bonusBalanceCents,
+            source: 'wallet-fetch',
+          },
+        }));
+      }
     } catch (e) {
       showErrorToast(e.message || 'Error cargando saldo');
     }
@@ -607,6 +617,8 @@ export default function FlowProvider({ children }) {
         window.dispatchEvent(new CustomEvent('wallet:updated', {
           detail: {
             balanceCents: data.balanceCents,
+            realBalanceCents: data.realBalanceCents,
+            bonusBalanceCents: data.bonusBalanceCents,
             source: 'telemetry',
             machineId,
           },
@@ -728,6 +740,8 @@ export default function FlowProvider({ children }) {
       window.dispatchEvent(new CustomEvent('wallet:updated', {
         detail: {
           balanceCents: data.newBalanceCents,
+          realBalanceCents: data.realBalanceCents,
+          bonusBalanceCents: data.bonusBalanceCents,
           source: 'dispense',
           machineId: machine.id,
         },

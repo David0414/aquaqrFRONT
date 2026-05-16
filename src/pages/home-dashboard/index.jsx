@@ -152,7 +152,37 @@ const HomeDashboard = () => {
       }
     };
 
-    const onWalletUpdated = () => {
+    const onWalletUpdated = (event) => {
+      const nextTotalCents = event?.detail?.balanceCents;
+      const nextRealCents = event?.detail?.realBalanceCents;
+      const nextBonusCents = event?.detail?.bonusBalanceCents;
+
+      if (
+        Number.isFinite(nextTotalCents)
+        || Number.isFinite(nextRealCents)
+        || Number.isFinite(nextBonusCents)
+      ) {
+        setDashboard((current) => (
+          current
+            ? {
+                ...current,
+                wallet: {
+                  ...current.wallet,
+                  ...(Number.isFinite(nextTotalCents)
+                    ? {
+                        balanceCents: nextTotalCents,
+                        totalAvailableCents: nextTotalCents,
+                      }
+                    : {}),
+                  ...(Number.isFinite(nextRealCents) ? { realBalanceCents: nextRealCents } : {}),
+                  ...(Number.isFinite(nextBonusCents) ? { bonusBalanceCents: nextBonusCents } : {}),
+                },
+              }
+            : current
+        ));
+        return;
+      }
+
       scheduleRefresh();
     };
 
