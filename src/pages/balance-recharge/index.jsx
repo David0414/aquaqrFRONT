@@ -37,6 +37,9 @@ const CoinRechargeScreen = ({
   insertedThisSession,
   latestCoinAmount,
   machineAccumulatedAmount,
+  totalBalance,
+  realBalance,
+  bonusBalance,
   onSave,
   onClose,
   saving = false,
@@ -94,6 +97,23 @@ const CoinRechargeScreen = ({
             ${Number(machineAccumulatedAmount || 0).toFixed(2)}
           </p>
           <p className="mt-1 text-sm text-slate-500">Lectura acumulada actual de la maquina.</p>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Tu saldo actual</p>
+            <p className="mt-2 text-3xl font-black text-slate-900">
+              ${Number(totalBalance || 0).toFixed(2)}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Saldo real</p>
+            <p className="mt-1 text-xl font-black text-slate-900">${Number(realBalance || 0).toFixed(2)}</p>
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Promociones</p>
+            <p className="mt-1 text-lg font-black text-emerald-600">${Number(bonusBalance || 0).toFixed(2)}</p>
+          </div>
         </div>
       </div>
 
@@ -222,8 +242,8 @@ const BalanceRecharge = () => {
         wallet: {
           totalAvailableCents: walletData.balanceCents ?? 0,
           balanceCents: walletData.balanceCents ?? 0,
-          realBalanceCents: walletData.balanceCents ?? 0,
-          bonusBalanceCents: 0,
+          realBalanceCents: walletData.realBalanceCents ?? walletData.balanceCents ?? 0,
+          bonusBalanceCents: walletData.bonusBalanceCents ?? 0,
         },
         promotions: [],
       };
@@ -253,6 +273,11 @@ const BalanceRecharge = () => {
       totalBalance: Number(balanceCents) / 100,
     }));
   }, [balanceCents]);
+
+  useEffect(() => {
+    if (!Number.isFinite(balanceCents)) return;
+    fetchRechargeContext().catch(() => {});
+  }, [balanceCents, fetchRechargeContext]);
 
   useEffect(() => {
     const onWalletUpdated = (event) => {
@@ -533,6 +558,9 @@ const BalanceRecharge = () => {
               insertedThisSession={liveInsertedSessionAmount}
               latestCoinAmount={latestCoinAmount}
               machineAccumulatedAmount={machineAccumulatedAmount}
+              totalBalance={walletBreakdown.totalBalance}
+              realBalance={walletBreakdown.realBalance}
+              bonusBalance={walletBreakdown.bonusBalance}
               onSave={handleSaveCoinRecharge}
               onClose={closeCoinRechargeScreen}
               saving={coinScreenSaving}
