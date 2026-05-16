@@ -1,5 +1,5 @@
 // src/pages/balance-recharge/index.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -43,10 +43,29 @@ const CoinRechargeScreen = ({
   onSave,
   onClose,
   saving = false,
-}) => (
+}) => {
+  const [coinPulseActive, setCoinPulseActive] = useState(false);
+  const previousInsertedRef = useRef(Number(insertedThisSession || 0));
+
+  useEffect(() => {
+    const currentInserted = Number(insertedThisSession || 0);
+    const previousInserted = previousInsertedRef.current;
+
+    if (currentInserted > previousInserted) {
+      setCoinPulseActive(true);
+      const timer = window.setTimeout(() => setCoinPulseActive(false), 520);
+      previousInsertedRef.current = currentInserted;
+      return () => window.clearTimeout(timer);
+    }
+
+    previousInsertedRef.current = currentInserted;
+    return undefined;
+  }, [insertedThisSession]);
+
+  return (
   <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.18),_transparent_34%),linear-gradient(135deg,_#f8fffb_0%,_#eefcff_42%,_#ffffff_100%)] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
-    <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-emerald-200/40 blur-3xl" />
-    <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
+    <div className={`absolute -right-10 -top-10 h-36 w-36 rounded-full bg-emerald-200/40 blur-3xl transition-transform duration-500 ${coinPulseActive ? 'scale-125' : 'scale-100'}`} />
+    <div className={`absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl transition-transform duration-500 ${coinPulseActive ? 'scale-110' : 'scale-100'}`} />
 
     <div className="relative">
       <div className="flex items-center justify-between gap-3">
@@ -71,12 +90,14 @@ const CoinRechargeScreen = ({
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-white/70">Saldo detectado en esta recarga</p>
         <div className="mt-4 flex items-end justify-between gap-4">
           <div>
-            <p className="text-5xl font-black tracking-tight">
+            <p className={`text-5xl font-black tracking-tight transition-all duration-300 ${coinPulseActive ? 'scale-[1.08] text-emerald-100 drop-shadow-[0_0_18px_rgba(255,255,255,0.35)]' : 'scale-100'}`}>
               ${Number(insertedThisSession || 0).toFixed(2)}
             </p>
-            <p className="mt-2 text-sm text-white/80">Se actualiza solo conforme entren monedas.</p>
+            <p className={`mt-2 text-sm transition-colors duration-300 ${coinPulseActive ? 'text-emerald-50' : 'text-white/80'}`}>
+              {coinPulseActive ? 'Moneda detectada. Saldo en actualizacion.' : 'Se actualiza solo conforme entren monedas.'}
+            </p>
           </div>
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/20 bg-white/10 backdrop-blur animate-pulse">
+          <div className={`flex h-20 w-20 items-center justify-center rounded-full border border-white/20 bg-white/10 backdrop-blur transition-all duration-300 ${coinPulseActive ? 'scale-110 bg-white/20 shadow-[0_0_28px_rgba(52,211,153,0.35)]' : 'animate-pulse'}`}>
             <Icon name="Coins" size={34} className="text-white" />
           </div>
         </div>
@@ -152,7 +173,8 @@ const CoinRechargeScreen = ({
       </div>
     </div>
   </section>
-);
+  );
+};
 
 const BalanceRecharge = () => {
   const navigate = useNavigate();
