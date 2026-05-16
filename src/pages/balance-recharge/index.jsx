@@ -138,7 +138,13 @@ const BalanceRecharge = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { getToken } = useAuth();
-  const { telemetry, balanceCents, setTelemetryEnabled, sendStageCommand } = useDispenseFlow();
+  const {
+    telemetry,
+    balanceCents,
+    setTelemetryEnabled,
+    sendStageCommand,
+    setCoinRechargeSyncEnabled,
+  } = useDispenseFlow();
 
   const [walletBreakdown, setWalletBreakdown] = useState({
     totalBalance: 0,
@@ -287,8 +293,11 @@ const BalanceRecharge = () => {
 
   useEffect(() => {
     setTelemetryEnabled(true);
-    return () => setTelemetryEnabled(false);
-  }, [setTelemetryEnabled]);
+    return () => {
+      setTelemetryEnabled(false);
+      setCoinRechargeSyncEnabled(false);
+    };
+  }, [setCoinRechargeSyncEnabled, setTelemetryEnabled]);
 
   const handlePresetAmountSelect = (amount) => {
     setSelectedAmount(amount);
@@ -321,6 +330,7 @@ const BalanceRecharge = () => {
       const baseline = Number(telemetry.accumulatedMoney || 0);
       setCoinBaselineAmount(baseline);
       setCoinScreenOpen(true);
+      setCoinRechargeSyncEnabled(true);
       setSelectedPaymentMethod('');
       setClientSecret('');
       setRechargeId(null);
@@ -329,12 +339,14 @@ const BalanceRecharge = () => {
       setErrors((prev) => ({ ...prev, paymentMethod: '' }));
       await sendStageCommand('recarga_monedas');
     } catch (e) {
+      setCoinRechargeSyncEnabled(false);
       setCoinScreenOpen(false);
       showErrorToast(e?.message || 'No se pudo activar recarga con monedas');
     }
   };
 
   const closeCoinRechargeScreen = () => {
+    setCoinRechargeSyncEnabled(false);
     setCoinScreenOpen(false);
   };
 
@@ -342,9 +354,14 @@ const BalanceRecharge = () => {
     try {
       setCoinScreenSaving(true);
       await fetchRechargeContext();
+      setCoinRechargeSyncEnabled(false);
       showSuccessToast('Saldo actualizado correctamente');
       setCoinBaselineAmount(Number(telemetry.accumulatedMoney || 0));
       setCoinScreenOpen(false);
+      navigate('/home-dashboard', {
+        replace: true,
+        state: { walletUpdatedAt: Date.now(), source: 'coin-recharge' },
+      });
     } catch (e) {
       showErrorToast(e?.message || 'No se pudo actualizar el saldo');
     } finally {
@@ -534,6 +551,7 @@ const BalanceRecharge = () => {
                     method="coins"
                     isSelected={false}
                     onClick={openCoinRechargeScreen}
+                    pressable
                   />
                 </div>
                 {errors?.paymentMethod ? (

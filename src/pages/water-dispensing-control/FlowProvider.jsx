@@ -281,6 +281,7 @@ export default function FlowProvider({ children }) {
     error: '',
   });
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
+  const [coinRechargeSyncEnabled, setCoinRechargeSyncEnabled] = useState(false);
   const pollingRef = useRef(false);
   const pollingCooldownUntilRef = useRef(0);
   const telemetryCreditSyncRef = useRef('');
@@ -334,6 +335,7 @@ export default function FlowProvider({ children }) {
     setHasActiveSession(Boolean(routeState.fromActiveSession || routeState.tx || qrStartFromRouteAt));
     setPendingQrStartAt(qrStartFromRouteAt);
     setTelemetryEnabled(false);
+    setCoinRechargeSyncEnabled(false);
     setTelemetry({
       status: 'idle',
       rawResponse: '',
@@ -857,6 +859,8 @@ export default function FlowProvider({ children }) {
     guidedTelemetry,
     telemetryEnabled,
     setTelemetryEnabled,
+    coinRechargeSyncEnabled,
+    setCoinRechargeSyncEnabled,
     fetchConfig,
     fetchWallet,
     pollInputs,
@@ -905,12 +909,12 @@ export default function FlowProvider({ children }) {
   }, [telemetryEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!telemetryEnabled) return;
+    if (!telemetryEnabled || !coinRechargeSyncEnabled) return;
     if (!telemetry?.machineOnline) return;
     if (!telemetry?.rawFrame) return;
 
     syncTelemetryCredit(telemetry).catch(() => {});
-  }, [telemetryEnabled, telemetry]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [coinRechargeSyncEnabled, telemetryEnabled, telemetry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -6,6 +6,7 @@ const PaymentMethodCard = ({
   method, 
   isSelected = false, 
   onClick,
+  pressable = false,
   className = '' 
 }) => {
   const paymentMethods = {
@@ -35,11 +36,13 @@ const PaymentMethodCard = ({
     <button
       onClick={() => onClick(method)}
       className={`
-        w-full p-4 rounded-xl border-2 transition-all duration-200 text-left
+        w-full p-4 rounded-xl border-2 text-left
+        transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out
         ${isSelected 
           ? 'border-primary bg-primary/5 shadow-soft-md' 
           : 'border-border bg-card hover:border-primary/30 hover:bg-primary/2'
         }
+        ${pressable ? 'shadow-[0_10px_22px_rgba(15,23,42,0.10)] hover:-translate-y-0.5 active:translate-y-[2px] active:scale-[0.985] active:shadow-[0_4px_10px_rgba(15,23,42,0.16)]' : ''}
         ${className}
       `}
     >
