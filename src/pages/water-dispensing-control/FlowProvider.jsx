@@ -910,7 +910,6 @@ export default function FlowProvider({ children }) {
 
   useEffect(() => {
     if (!telemetryEnabled || !coinRechargeSyncEnabled) return;
-    if (!telemetry?.machineOnline) return;
     if (!telemetry?.rawFrame) return;
 
     syncTelemetryCredit(telemetry).catch(() => {});
