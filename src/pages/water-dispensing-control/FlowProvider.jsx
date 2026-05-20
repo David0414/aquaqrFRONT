@@ -556,7 +556,7 @@ export default function FlowProvider({ children }) {
         throw err;
       }
       if (!res.ok) throw new Error(data?.detail || data?.message || data?.error || `No se pudo enviar ${action}`);
-      if (action !== 'inputs' && action !== 'recarga_monedas') {
+      if (action !== 'inputs' && action !== 'recargar' && action !== 'recarga_monedas') {
         setHasActiveSession(true);
       }
       return data;

@@ -202,6 +202,7 @@ const BalanceRecharge = () => {
   const [coinScreenOpen, setCoinScreenOpen] = useState(false);
   const [coinScreenSaving, setCoinScreenSaving] = useState(false);
   const [coinBaselineAmount, setCoinBaselineAmount] = useState(0);
+  const rechargeCommandSentRef = useRef(false);
   const [clientSecret, setClientSecret] = useState('');
   const [rechargeId, setRechargeId] = useState(null);
   const [creatingPI, setCreatingPI] = useState(false);
@@ -347,6 +348,15 @@ const BalanceRecharge = () => {
       setCoinRechargeSyncEnabled(false);
     };
   }, [setCoinRechargeSyncEnabled, setTelemetryEnabled]);
+
+  useEffect(() => {
+    if (rechargeCommandSentRef.current) return;
+    rechargeCommandSentRef.current = true;
+    if (location?.state?.rechargeCommandSent) return;
+    sendStageCommand('recargar').catch((e) => {
+      showErrorToast(e?.message || 'No se pudo activar recarga');
+    });
+  }, [location?.state?.rechargeCommandSent, sendStageCommand]);
 
   const handlePresetAmountSelect = (amount) => {
     setSelectedAmount(amount);

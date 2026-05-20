@@ -23,7 +23,7 @@ const HomeDashboard = () => {
   const location = useLocation();
   const { isLoaded: isClerkLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
-  const { balanceCents, setTelemetryEnabled, pollInputs } = useDispenseFlow();
+  const { balanceCents, setTelemetryEnabled, pollInputs, sendStageCommand } = useDispenseFlow();
 
   const [dashboard, setDashboard] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -237,7 +237,17 @@ const HomeDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClerkLoaded, isSignedIn, pollInputs]);
 
-  const handleRecharge = () => navigate('/balance-recharge');
+  const handleRecharge = () => {
+    sendStageCommand('recargar').catch((error) => {
+      window.showToast?.(error?.message || 'No se pudo activar recarga', 'error');
+    });
+    navigate('/balance-recharge', {
+      state: {
+        rechargeCommandSent: true,
+        rechargeCommandSentAt: Date.now(),
+      },
+    });
+  };
   const handleDispense = () => {
     if (dispenseLoading) return;
     setDispenseLoading(true);
