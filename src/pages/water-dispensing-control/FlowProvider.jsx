@@ -635,6 +635,10 @@ export default function FlowProvider({ children }) {
     }
   }
 
+  function resetTelemetryCreditSync() {
+    telemetryCreditSyncRef.current = '';
+  }
+
   // Inicia el llenado en la maquina. El cobro se confirma al finalizar.
   async function startDispense() {
     if (startDispenseInFlightRef.current) {
@@ -868,6 +872,7 @@ export default function FlowProvider({ children }) {
     fetchWallet,
     pollInputs,
     syncTelemetryCredit,
+    resetTelemetryCreditSync,
     sendStageCommand,
     startDispense,
     completeDispense,

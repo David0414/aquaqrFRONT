@@ -187,6 +187,7 @@ const BalanceRecharge = () => {
     setTelemetryEnabled,
     sendStageCommand,
     syncTelemetryCredit,
+    resetTelemetryCreditSync,
     setCoinRechargeSyncEnabled,
     pollInputs,
   } = useDispenseFlow();
@@ -420,6 +421,7 @@ const BalanceRecharge = () => {
       setErrors((prev) => ({ ...prev, paymentMethod: '' }));
       await sendStageCommand('recarga_monedas');
       await resetCoinRechargeCheckpoint();
+      resetTelemetryCreditSync();
       setCoinRechargeSyncEnabled(true);
       pollInputs({ force: true }).catch(() => {});
     } catch (e) {
