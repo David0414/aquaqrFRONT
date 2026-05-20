@@ -182,6 +182,7 @@ const BalanceRecharge = () => {
   const { getToken } = useAuth();
   const {
     telemetry,
+    machine,
     balanceCents,
     setTelemetryEnabled,
     sendStageCommand,
@@ -202,6 +203,9 @@ const BalanceRecharge = () => {
   const [coinScreenOpen, setCoinScreenOpen] = useState(false);
   const [coinScreenSaving, setCoinScreenSaving] = useState(false);
   const [coinBaselineAmount, setCoinBaselineAmount] = useState(0);
+  const [coinSessionStartBalanceCents, setCoinSessionStartBalanceCents] = useState(null);
+  const [coinSessionCreditedCents, setCoinSessionCreditedCents] = useState(0);
+  const [latestSessionCoinAmount, setLatestSessionCoinAmount] = useState(0);
   const rechargeCommandSentRef = useRef(false);
   const [clientSecret, setClientSecret] = useState('');
   const [rechargeId, setRechargeId] = useState(null);
@@ -289,15 +293,26 @@ const BalanceRecharge = () => {
 
   useEffect(() => {
     fetchRechargeContext().catch((e) => showErrorToast(e.message || 'Error cargando saldo'));
-  }, [fetchRechargeContext]);
+  }, [coinScreenOpen, coinSessionStartBalanceCents, fetchRechargeContext]);
 
   useEffect(() => {
+    if (coinScreenOpen) {
+      const latestCoin = Number(telemetry?.insertedCoinAmount || 0);
+      if (latestCoin > 0) {
+        setLatestSessionCoinAmount(latestCoin);
+      }
+    }
+
     if (!Number.isFinite(balanceCents)) return;
     setWalletBreakdown((current) => ({
       ...current,
       totalBalance: Number(balanceCents) / 100,
     }));
-  }, [balanceCents]);
+
+    if (coinScreenOpen && Number.isFinite(coinSessionStartBalanceCents)) {
+      setCoinSessionCreditedCents(Math.max(0, Number(balanceCents) - Number(coinSessionStartBalanceCents)));
+    }
+  }, [balanceCents, coinScreenOpen, coinSessionStartBalanceCents, telemetry?.insertedCoinAmount]);
 
   useEffect(() => {
     if (!Number.isFinite(balanceCents)) return;
@@ -320,6 +335,11 @@ const BalanceRecharge = () => {
           realBalance: Number.isFinite(nextRealCents) ? Number(nextRealCents) / 100 : current.realBalance,
           bonusBalance: Number.isFinite(nextBonusCents) ? Number(nextBonusCents) / 100 : current.bonusBalance,
         }));
+
+        if (coinScreenOpen && Number.isFinite(nextTotalCents) && Number.isFinite(coinSessionStartBalanceCents)) {
+          setCoinSessionCreditedCents(Math.max(0, Number(nextTotalCents) - Number(coinSessionStartBalanceCents)));
+        }
+
         return;
       }
 
@@ -388,8 +408,10 @@ const BalanceRecharge = () => {
     try {
       const baseline = Number(telemetry.accumulatedMoney || 0);
       setCoinBaselineAmount(baseline);
+      setCoinSessionStartBalanceCents(Math.round(Number(walletBreakdown.totalBalance || 0) * 100));
+      setCoinSessionCreditedCents(0);
+      setLatestSessionCoinAmount(0);
       setCoinScreenOpen(true);
-      setCoinRechargeSyncEnabled(true);
       setSelectedPaymentMethod('');
       setClientSecret('');
       setRechargeId(null);
@@ -397,6 +419,9 @@ const BalanceRecharge = () => {
       setCustomAmount('');
       setErrors((prev) => ({ ...prev, paymentMethod: '' }));
       await sendStageCommand('recarga_monedas');
+      await resetCoinRechargeCheckpoint();
+      setCoinRechargeSyncEnabled(true);
+      pollInputs({ force: true }).catch(() => {});
     } catch (e) {
       setCoinRechargeSyncEnabled(false);
       setCoinScreenOpen(false);
@@ -404,9 +429,37 @@ const BalanceRecharge = () => {
     }
   };
 
+  const resetCoinRechargeCheckpoint = async () => {
+    const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+    if (!token) throw new Error('No se pudo obtener token de sesion');
+
+    const machineId =
+      telemetry?.machineHardwareId
+      || machine?.hardwareId
+      || machine?.id
+      || 'UNKNOWN';
+
+    const res = await fetch(`${API}/api/recharge/telemetry-credit/reset`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ machineId }),
+    });
+    const data = await safeJson(res);
+    if (!res.ok) {
+      throw new Error(data?.error || 'No se pudo preparar la recarga con monedas');
+    }
+    return data;
+  };
+
   const closeCoinRechargeScreen = () => {
     setCoinRechargeSyncEnabled(false);
     setCoinScreenOpen(false);
+    setCoinSessionStartBalanceCents(null);
+    setCoinSessionCreditedCents(0);
+    setLatestSessionCoinAmount(0);
   };
 
   const handleSaveCoinRecharge = async () => {
@@ -415,7 +468,14 @@ const BalanceRecharge = () => {
 
       const finalTelemetry = await pollInputs({ force: true }).catch(() => null);
       if (finalTelemetry?.rawFrame) {
-        await syncTelemetryCredit(finalTelemetry, { force: true }).catch(() => null);
+        const syncResult = await syncTelemetryCredit(finalTelemetry, { force: true }).catch(() => null);
+        if (
+          syncResult
+          && Number.isFinite(syncResult.balanceCents)
+          && Number.isFinite(coinSessionStartBalanceCents)
+        ) {
+          setCoinSessionCreditedCents(Math.max(0, Number(syncResult.balanceCents) - Number(coinSessionStartBalanceCents)));
+        }
       }
 
       await new Promise((resolve) => window.setTimeout(resolve, 350));
@@ -428,6 +488,9 @@ const BalanceRecharge = () => {
       showSuccessToast('Saldo actualizado correctamente');
       setCoinBaselineAmount(Number(telemetry.accumulatedMoney || 0));
       setCoinScreenOpen(false);
+      setCoinSessionStartBalanceCents(null);
+      setCoinSessionCreditedCents(0);
+      setLatestSessionCoinAmount(0);
       if (typeof window !== 'undefined') {
         window.sessionStorage.removeItem('agua24-home-dashboard-cache');
         window.dispatchEvent(new CustomEvent('wallet:updated', {
@@ -587,8 +650,10 @@ const BalanceRecharge = () => {
 
   const isStripeMode = selectedPaymentMethod === 'stripe';
   const currentBalance = walletBreakdown.totalBalance;
-  const liveInsertedSessionAmount = Math.max(0, Number(telemetry.accumulatedMoney || 0) - Number(coinBaselineAmount || 0));
-  const latestCoinAmount = Number(telemetry.insertedCoinAmount || 0);
+  const liveInsertedSessionAmount = Number.isFinite(coinSessionCreditedCents)
+    ? Math.max(0, Number(coinSessionCreditedCents) / 100)
+    : Math.max(0, Number(telemetry.accumulatedMoney || 0) - Number(coinBaselineAmount || 0));
+  const latestCoinAmount = Number(latestSessionCoinAmount || telemetry.insertedCoinAmount || 0);
   const machineAccumulatedAmount = Number(telemetry.accumulatedMoney || 0);
 
   return (
