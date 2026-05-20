@@ -185,7 +185,9 @@ const BalanceRecharge = () => {
     balanceCents,
     setTelemetryEnabled,
     sendStageCommand,
+    syncTelemetryCredit,
     setCoinRechargeSyncEnabled,
+    pollInputs,
   } = useDispenseFlow();
 
   const [walletBreakdown, setWalletBreakdown] = useState({
@@ -400,14 +402,42 @@ const BalanceRecharge = () => {
   const handleSaveCoinRecharge = async () => {
     try {
       setCoinScreenSaving(true);
-      await fetchRechargeContext();
+
+      const finalTelemetry = await pollInputs({ force: true }).catch(() => null);
+      if (finalTelemetry?.rawFrame) {
+        await syncTelemetryCredit(finalTelemetry, { force: true }).catch(() => null);
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+      const data = await fetchRechargeContext();
+      const nextBalanceCents = data?.wallet?.totalAvailableCents ?? data?.wallet?.balanceCents;
+      const nextRealBalanceCents = data?.wallet?.realBalanceCents;
+      const nextBonusBalanceCents = data?.wallet?.bonusBalanceCents;
+
       setCoinRechargeSyncEnabled(false);
       showSuccessToast('Saldo actualizado correctamente');
       setCoinBaselineAmount(Number(telemetry.accumulatedMoney || 0));
       setCoinScreenOpen(false);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('agua24-home-dashboard-cache');
+        window.dispatchEvent(new CustomEvent('wallet:updated', {
+          detail: {
+            balanceCents: nextBalanceCents,
+            realBalanceCents: nextRealBalanceCents,
+            bonusBalanceCents: nextBonusBalanceCents,
+            source: 'coin-recharge-save',
+          },
+        }));
+      }
       navigate('/home-dashboard', {
         replace: true,
-        state: { walletUpdatedAt: Date.now(), source: 'coin-recharge' },
+        state: {
+          walletUpdatedAt: Date.now(),
+          source: 'coin-recharge',
+          balanceCents: nextBalanceCents,
+          realBalanceCents: nextRealBalanceCents,
+          bonusBalanceCents: nextBonusBalanceCents,
+        },
       });
     } catch (e) {
       showErrorToast(e?.message || 'No se pudo actualizar el saldo');

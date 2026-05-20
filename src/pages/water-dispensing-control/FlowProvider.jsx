@@ -573,7 +573,7 @@ export default function FlowProvider({ children }) {
     }
   }
 
-  async function syncTelemetryCredit(nextTelemetry) {
+  async function syncTelemetryCredit(nextTelemetry, options = {}) {
     const insertedAmount = Number.parseInt(nextTelemetry?.insertedCoinAmount, 10);
     const accumulatedAmount = Number.parseInt(nextTelemetry?.accumulatedMoney, 10);
     const pulseCount = Number.parseInt(nextTelemetry?.flowmeterPulses, 10);
@@ -590,7 +590,7 @@ export default function FlowProvider({ children }) {
       String(machine?.id || 'UNKNOWN').trim().toUpperCase();
 
     const syncKey = `${machineId}:${rawFrame}`;
-    if (telemetryCreditSyncRef.current === syncKey) return;
+    if (!options.force && telemetryCreditSyncRef.current === syncKey) return null;
     telemetryCreditSyncRef.current = syncKey;
 
     try {
@@ -626,9 +626,12 @@ export default function FlowProvider({ children }) {
           },
         }));
       }
+
+      return data;
     } catch (error) {
       telemetryCreditSyncRef.current = '';
       console.error('syncTelemetryCredit error', error);
+      throw error;
     }
   }
 
@@ -864,6 +867,7 @@ export default function FlowProvider({ children }) {
     fetchConfig,
     fetchWallet,
     pollInputs,
+    syncTelemetryCredit,
     sendStageCommand,
     startDispense,
     completeDispense,

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
@@ -20,6 +20,7 @@ function moneyFromCents(amountCents) {
 
 const HomeDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isLoaded: isClerkLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
   const { balanceCents, setTelemetryEnabled, pollInputs } = useDispenseFlow();
@@ -106,6 +107,44 @@ const HomeDashboard = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClerkLoaded, isSignedIn]);
+
+  useEffect(() => {
+    if (!isClerkLoaded || !isSignedIn || !location.state?.walletUpdatedAt) return;
+
+    const {
+      balanceCents: nextTotalCents,
+      realBalanceCents: nextRealCents,
+      bonusBalanceCents: nextBonusCents,
+    } = location.state;
+
+    if (
+      Number.isFinite(nextTotalCents)
+      || Number.isFinite(nextRealCents)
+      || Number.isFinite(nextBonusCents)
+    ) {
+      setDashboard((current) => (
+        current
+          ? {
+              ...current,
+              wallet: {
+                ...current.wallet,
+                ...(Number.isFinite(nextTotalCents)
+                  ? {
+                      balanceCents: nextTotalCents,
+                      totalAvailableCents: nextTotalCents,
+                    }
+                  : {}),
+                ...(Number.isFinite(nextRealCents) ? { realBalanceCents: nextRealCents } : {}),
+                ...(Number.isFinite(nextBonusCents) ? { bonusBalanceCents: nextBonusCents } : {}),
+              },
+            }
+          : current
+      ));
+    }
+
+    fetchDashboard({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClerkLoaded, isSignedIn, location.state?.walletUpdatedAt]);
 
   useEffect(() => {
     if (!Number.isFinite(balanceCents) || !dashboard?.wallet) return;
