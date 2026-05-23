@@ -120,12 +120,14 @@ export default function FillingProgress() {
 
 function FillingProgressView({ tx }) {
   const navigate = useNavigate();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const flow = useDispenseFlow();
   const telemetry = flow?.telemetry;
   const setTelemetryEnabled = flow?.setTelemetryEnabled;
   const currentPulsesPerLiter = flow?.pulsesPerLiter;
   const completeDispense = flow?.completeDispense;
   const cancelActiveSession = flow?.cancelActiveSession;
+  const pollInputs = flow?.pollInputs;
 
   const liters = Number(tx.liters) || 0;
   const pricePerLiter = Number(tx.pricePerLiter) || 0;
@@ -191,6 +193,81 @@ function FillingProgressView({ tx }) {
   }, [dispensedPulseCount, targetPulseCount]);
   const currentStageCode = telemetry?.currentStageCode || "";
   const isTelemetryComplete = currentStageCode === "07";
+
+  const finishAndCharge = useCallback(async (options = {}) => {
+    if (completionScheduledRef.current) return;
+    if (typeof completeDispense !== "function") return;
+
+    const snapshot = completionSnapshotRef.current;
+    const liveDispensedPulseCount = Math.max(
+      snapshot.dispensedPulseCount,
+      dispensedPulseCount,
+      options.dispensedPulseCount || 0,
+    );
+    const finalDispensedLiters = Math.max(
+      snapshot.dispensedLiters,
+      dispensedLiters,
+      options.dispensedLiters || 0,
+      liters,
+    );
+    const finalDispensedPulseCount = Math.max(
+      liveDispensedPulseCount,
+      targetPulseCount,
+      options.dispensedPulseCount || 0,
+    );
+
+    completionScheduledRef.current = true;
+    setIsDispensing(false);
+    setCompletionStatus(options.status || "Finalizando...");
+
+    try {
+      const completedTx = await completeDispense(tx, {
+        dispensedLiters: finalDispensedLiters,
+        dispensedPulseCount: finalDispensedPulseCount,
+        pulsesPerLiter,
+      });
+      if (!mountedRef.current) return;
+
+      navigate("/transaction-complete", {
+        state: {
+          tx: completedTx,
+          dispensedLiters: finalDispensedLiters,
+          dispensedPulseCount: finalDispensedPulseCount,
+          pulsesPerLiter,
+        },
+      });
+    } catch (error) {
+      if (!mountedRef.current) return;
+      completionScheduledRef.current = false;
+      setCompletionStatus("");
+
+      if (error?.code === "INSUFFICIENT_FUNDS") {
+        navigate("/balance-recharge", {
+          state: {
+            returnTo: "/transaction-complete",
+            requiredAmount: error.requiredAmount,
+            tx,
+            dispensedLiters: finalDispensedLiters,
+            dispensedPulseCount: finalDispensedPulseCount,
+            pulsesPerLiter,
+            fromInsufficientBalance: true,
+          },
+        });
+        return;
+      }
+
+      showErrorToast(error?.message || "No se pudo finalizar");
+    }
+  }, [
+    completeDispense,
+    dispensedLiters,
+    dispensedPulseCount,
+    liters,
+    navigate,
+    pulsesPerLiter,
+    targetPulseCount,
+    tx,
+  ]);
 
   useEffect(() => {
     const snapshot = completionSnapshotRef.current;
@@ -315,58 +392,75 @@ function FillingProgressView({ tx }) {
     const completedByStage = isTelemetryComplete || snapshot.sawComplete;
 
     if (!completedByStage && !completedByResetToIdle && !completedByPulses) return;
-    if (completionScheduledRef.current) return;
-    if (typeof completeDispense !== "function") return;
 
-    completionScheduledRef.current = true;
-    setIsDispensing(false);
-    setCompletionStatus("Finalizando...");
-    const finalDispensedLiters = Math.max(snapshot.dispensedLiters, dispensedLiters, liters);
-    const finalDispensedPulseCount = Math.max(liveDispensedPulseCount, targetPulseCount);
+    finishAndCharge({
+      dispensedLiters: Math.max(snapshot.dispensedLiters, dispensedLiters, liters),
+      dispensedPulseCount: Math.max(liveDispensedPulseCount, targetPulseCount),
+    });
+  }, [currentStageCode, dispensedLiters, dispensedPulseCount, finishAndCharge, isTelemetryComplete, liters, progress, targetPulseCount]);
 
-    const finishAndCharge = async () => {
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return undefined;
+    if (completionScheduledRef.current) return undefined;
+
+    let cancelled = false;
+    let checking = false;
+
+    const refreshAfterResume = async () => {
+      if (checking || completionScheduledRef.current) return;
+      checking = true;
+
       try {
-        const completedTx = await completeDispense(tx, {
-          dispensedLiters: finalDispensedLiters,
-          dispensedPulseCount: finalDispensedPulseCount,
-          pulsesPerLiter,
-        });
-        if (!mountedRef.current) return;
+        const nextTelemetry = await pollInputs?.({ force: true }).catch(() => null);
+        if (cancelled || completionScheduledRef.current) return;
 
-        navigate("/transaction-complete", {
-          state: {
-            tx: completedTx,
-            dispensedLiters: finalDispensedLiters,
-            dispensedPulseCount: finalDispensedPulseCount,
-            pulsesPerLiter,
-          },
-        });
-      } catch (error) {
-        if (!mountedRef.current) return;
-        completionScheduledRef.current = false;
-        setCompletionStatus("");
-
-        if (error?.code === "INSUFFICIENT_FUNDS") {
-          navigate("/balance-recharge", {
-            state: {
-              returnTo: "/transaction-complete",
-              requiredAmount: error.requiredAmount,
-              tx,
-              dispensedLiters: finalDispensedLiters,
-              dispensedPulseCount: finalDispensedPulseCount,
-              pulsesPerLiter,
-              fromInsufficientBalance: true,
-            },
-          });
+        if (nextTelemetry?.currentStageCode === "07") {
+          finishAndCharge({ status: "Finalizando..." });
           return;
         }
 
-        showErrorToast(error?.message || "No se pudo finalizar");
+        const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+        if (!token) return;
+
+        const res = await fetch(`${API}/api/dispense/active`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => null);
+        if (cancelled || completionScheduledRef.current) return;
+
+        if (res.ok && data?.active && data?.stageCode === "07") {
+          finishAndCharge({ status: "Finalizando..." });
+          return;
+        }
+
+        const backendTxId = data?.tx?.txId;
+        const sameTx = !backendTxId || !tx?.txId || backendTxId === tx.txId;
+        if (res.ok && sameTx && (!data?.active || data?.tx?.status === "COMPLETED")) {
+          finishAndCharge({ status: "Sincronizando dispensado terminado..." });
+        }
+      } finally {
+        checking = false;
       }
     };
 
-    finishAndCharge();
-  }, [completeDispense, currentStageCode, dispensedLiters, dispensedPulseCount, isTelemetryComplete, liters, navigate, progress, pulsesPerLiter, targetPulseCount, tx]);
+    const handleResume = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      refreshAfterResume();
+    };
+
+    handleResume();
+    document.addEventListener("visibilitychange", handleResume);
+    window.addEventListener("focus", handleResume);
+    window.addEventListener("pageshow", handleResume);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleResume);
+      window.removeEventListener("focus", handleResume);
+      window.removeEventListener("pageshow", handleResume);
+    };
+  }, [finishAndCharge, getToken, isLoaded, isSignedIn, pollInputs, tx?.txId]);
 
   const displayProgress = Math.max(progress, progressSnapshot.progress);
   const displayDispensedLiters = Math.max(dispensedLiters, progressSnapshot.dispensedLiters);
