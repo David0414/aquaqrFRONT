@@ -449,6 +449,16 @@ export default function FlowProvider({ children }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.detail || data?.error || 'No se pudo leer monitor');
 
+      if (data?.reconnecting || data?.connected === false) {
+        setTelemetry((prev) => ({
+          ...prev,
+          status: 'reconnecting',
+          machineOnline: false,
+          error: data?.message || 'Reconectando maquina...',
+        }));
+        return null;
+      }
+
       const rawResponse = [data?.response, ...(data?.lines || [])].filter(Boolean).join(' ');
       const parsed = parseTelemetryPayload(rawResponse);
 
@@ -553,6 +563,12 @@ export default function FlowProvider({ children }) {
         err.code = 'MACHINE_BUSY';
         err.expiresAt = data?.expiresAt;
         err.isOwnLock = data?.isOwnLock;
+        throw err;
+      }
+      if (data?.reconnecting || data?.error === 'WATERSERVER_RECONNECTING') {
+        const err = new Error(data?.message || 'La maquina se esta reconectando. Intenta de nuevo en unos segundos.');
+        err.code = 'WATERSERVER_RECONNECTING';
+        err.reconnecting = true;
         throw err;
       }
       if (!res.ok) throw new Error(data?.detail || data?.message || data?.error || `No se pudo enviar ${action}`);
