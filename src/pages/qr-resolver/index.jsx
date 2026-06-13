@@ -58,7 +58,12 @@ const QRResolver = () => {
     if (!isSignedIn) {
       window.sessionStorage.setItem(
         PENDING_DISPENSE_STORAGE_KEY,
-        JSON.stringify({ machineId: state.machineId, machineLocation: state.machineLocation, at: Date.now() })
+        JSON.stringify({
+          machineId: state.machineId,
+          machineLocation: state.machineLocation,
+          hardwareId: state.hardwareId,
+          at: Date.now(),
+        })
       );
       window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`;
       return undefined;

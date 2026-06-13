@@ -33,7 +33,7 @@ export default function PendingDispenseWatcher() {
     window.sessionStorage.removeItem(PENDING_DISPENSE_STORAGE_KEY);
     window.localStorage.removeItem('pendingDispense');
     try {
-      const { machineId, machineLocation, at } = JSON.parse(raw);
+      const { machineId, machineLocation, hardwareId, at } = JSON.parse(raw);
       const createdAt = Number(at);
       if (!Number.isFinite(createdAt) || Date.now() - createdAt > PENDING_DISPENSE_MAX_AGE_MS) {
         return;
@@ -43,6 +43,7 @@ export default function PendingDispenseWatcher() {
           state: {
             machineId,
             machineLocation: machineLocation || 'Desconocida',
+            hardwareId,
             fromQR: true,
           },
           replace: true,
@@ -103,4 +104,3 @@ export default function PendingDispenseWatcher() {
 
   return null;
 }
-
