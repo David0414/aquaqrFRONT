@@ -19,7 +19,7 @@ const QRScannerLanding = () => {
   const [prepareError, setPrepareError] = useState('');
   const [machineBusyError, setMachineBusyError] = useState(null);
 
-  const reserveMachineStart = useCallback(async ({ machineId, machineLocation } = {}) => {
+  const reserveMachineStart = useCallback(async ({ machineId, machineLocation, hardwareId } = {}) => {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
     if (!token) throw new Error('No se pudo obtener token de sesion');
 
@@ -33,6 +33,7 @@ const QRScannerLanding = () => {
         action: 'qr_inicio',
         machineId,
         machineLocation,
+        hardwareId,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -89,6 +90,7 @@ const QRScannerLanding = () => {
             await reserveMachineStart({
               machineId: resp.machineId,
               machineLocation: resp.machineLocation || 'Desconocida',
+              hardwareId: resp.hardwareId,
             });
             setMachineBusyError(null);
           } catch (error) {
@@ -100,6 +102,7 @@ const QRScannerLanding = () => {
             state: {
               machineId: resp.machineId,
               machineLocation: resp.machineLocation || 'Desconocida',
+              hardwareId: resp.hardwareId,
               fromScanner: true,
               fromQR: true,
               qrInicioSent: true,
@@ -118,6 +121,7 @@ const QRScannerLanding = () => {
         await reserveMachineStart({
           machineId: parsed.machineId,
           machineLocation: parsed.machineLocation || 'Desconocida',
+          hardwareId: parsed.hardwareId,
         });
         setMachineBusyError(null);
       } catch (error) {
@@ -129,6 +133,7 @@ const QRScannerLanding = () => {
         state: {
           machineId: parsed.machineId,
           machineLocation: parsed.machineLocation || 'Desconocida',
+          hardwareId: parsed.hardwareId,
           fromScanner: true,
           qrInicioSent: true,
           qrInicioSentAt: Date.now(),

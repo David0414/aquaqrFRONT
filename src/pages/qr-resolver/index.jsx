@@ -46,6 +46,7 @@ const QRResolver = () => {
           phase: 'validated',
           machineId: data.machineId,
           machineLocation: data.machineLocation || 'Desconocida',
+          hardwareId: data.hardwareId || undefined,
         });
       })
       .catch(() => setState({ phase: 'error', msg: 'Error de red al validar QR' }));
@@ -78,6 +79,7 @@ const QRResolver = () => {
             action: 'qr_inicio',
             machineId: state.machineId,
             machineLocation: state.machineLocation,
+            hardwareId: state.hardwareId,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -101,6 +103,7 @@ const QRResolver = () => {
           state: {
             machineId: state.machineId,
             machineLocation: state.machineLocation,
+            hardwareId: state.hardwareId,
             fromQR: true,
             qrInicioSent: true,
             qrInicioSentAt: Date.now(),

@@ -210,11 +210,12 @@ export default function FlowProvider({ children }) {
     // Cuando el ID es una trama tipo E2-01-01-...-E3, el segundo byte suele ser
     // el identificador de hardware que usa la telemetria.
     const frameBytes = machineId.toUpperCase().match(/[0-9A-F]{2}/g) || [];
+    const compactMachineHardwareId = machineId.toUpperCase().replace(/[^0-9A-F]/g, '');
     const inferredHardwareId =
       frameBytes.length >= 3 && frameBytes[0] === 'E2' && frameBytes[frameBytes.length - 1] === 'E3'
         ? frameBytes[1]
-        : /^[0-9A-Fa-f]{1,2}$/.test(machineId)
-          ? normalizeHexPair(machineId)
+        : compactMachineHardwareId
+          ? normalizeHexPair(compactMachineHardwareId)
         : null;
 
     return {
