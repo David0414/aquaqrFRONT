@@ -9,7 +9,17 @@ import MachineBusyAlert from '../water-dispensing-control/components/MachineBusy
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+const ACTIVE_WATER_MACHINE_KEY = 'agua24.activeWaterMachine';
 const scannerBlocked = (message) => Boolean(message);
+
+function rememberActiveMachine(machine) {
+  window.sessionStorage.setItem(ACTIVE_WATER_MACHINE_KEY, JSON.stringify({
+    machineId: machine.machineId,
+    machineLocation: machine.machineLocation,
+    hardwareId: machine.hardwareId,
+    at: Date.now(),
+  }));
+}
 
 const QRScannerLanding = () => {
   const navigate = useNavigate();
@@ -92,6 +102,11 @@ const QRScannerLanding = () => {
               machineLocation: resp.machineLocation || 'Desconocida',
               hardwareId: resp.hardwareId,
             });
+            rememberActiveMachine({
+              machineId: resp.machineId,
+              machineLocation: resp.machineLocation || 'Desconocida',
+              hardwareId: resp.hardwareId,
+            });
             setMachineBusyError(null);
           } catch (error) {
             if (handleBusyOrThrow(error)) return;
@@ -119,6 +134,11 @@ const QRScannerLanding = () => {
 
       try {
         await reserveMachineStart({
+          machineId: parsed.machineId,
+          machineLocation: parsed.machineLocation || 'Desconocida',
+          hardwareId: parsed.hardwareId,
+        });
+        rememberActiveMachine({
           machineId: parsed.machineId,
           machineLocation: parsed.machineLocation || 'Desconocida',
           hardwareId: parsed.hardwareId,

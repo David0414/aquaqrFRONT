@@ -51,6 +51,12 @@ export default function PlaceBottleDown() {
   const canUseNext = telemetryFresh && (canTriggerRinse || canAdvanceToFill);
   const nextButtonLabel = canAdvanceToFill ? 'Ir a llenado' : 'Enjuagar';
   const hasStartedFlow = Boolean(shouldGuardExit);
+  const nextRouteState = {
+    machineId: machine.id,
+    machineLocation: machine.location,
+    hardwareId: machine.hardwareId,
+    fromQR: true,
+  };
 
   const handleBackOrCancel = () => {
     const targetPath = hasStartedFlow ? '/home-dashboard' : '/water/choose';
@@ -181,7 +187,7 @@ export default function PlaceBottleDown() {
       }
 
       if (canAdvanceToFill) {
-        nav('/water/position-up');
+        nav('/water/position-up', { state: nextRouteState });
         return;
       }
 
@@ -192,7 +198,7 @@ export default function PlaceBottleDown() {
 
       await triggerRinse();
       await pollInputs({ force: true }).catch(() => {});
-      nav('/water/position-up');
+      nav('/water/position-up', { state: nextRouteState });
     } catch (err) {
       if (err?.code === 'MACHINE_BUSY') {
         return;

@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 const PENDING_DISPENSE_STORAGE_KEY = 'agua24.pendingDispense';
+const ACTIVE_WATER_MACHINE_KEY = 'agua24.activeWaterMachine';
 const PENDING_DISPENSE_MAX_AGE_MS = 10 * 60 * 1000;
 
 /**
@@ -39,6 +40,12 @@ export default function PendingDispenseWatcher() {
         return;
       }
       if (machineId) {
+        window.sessionStorage.setItem(ACTIVE_WATER_MACHINE_KEY, JSON.stringify({
+          machineId,
+          machineLocation: machineLocation || 'Desconocida',
+          hardwareId,
+          at: Date.now(),
+        }));
         navigate('/water/choose', {
           state: {
             machineId,
@@ -79,6 +86,13 @@ export default function PendingDispenseWatcher() {
         const resumeKey = `${nextPath}:${data.tx?.txId || data.machineId || ''}:${data.stageCode || ''}`;
         if (resumeKeyRef.current === resumeKey) return;
         resumeKeyRef.current = resumeKey;
+
+        window.sessionStorage.setItem(ACTIVE_WATER_MACHINE_KEY, JSON.stringify({
+          machineId: data.machineId,
+          machineLocation: data.machineLocation || 'Desconocida',
+          hardwareId: data.hardwareId,
+          at: Date.now(),
+        }));
 
         navigate(nextPath, {
           replace: true,

@@ -23,6 +23,7 @@ const INPUT_POLL_INTERVAL_MS = 1000;
 const INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS = 1500;
 const QR_INICIO_PENDING_WINDOW_MS = 10000;
 const FLOWMETER_PULSES_PER_LITER_KEY = 'flowmeterPulsesPerLiter';
+const ACTIVE_WATER_MACHINE_KEY = 'agua24.activeWaterMachine';
 const MONITOR_ADMIN_SESSION_KEY = 'agua24MonitorAdmin';
 const MONITOR_ADMIN_USER_KEY = 'agua24MonitorAdminUser';
 const MONITOR_ADMIN_PASSWORD_KEY = 'agua24MonitorAdminPassword';
@@ -42,6 +43,26 @@ function monitorAdminHeaders() {
 function pulsesPerLiterStorageKey(hardwareId) {
   const normalized = normalizeHexPair(hardwareId);
   return normalized ? `${FLOWMETER_PULSES_PER_LITER_KEY}:${normalized}` : FLOWMETER_PULSES_PER_LITER_KEY;
+}
+
+function readActiveWaterMachine() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.sessionStorage.getItem(ACTIVE_WATER_MACHINE_KEY);
+    return raw ? JSON.parse(raw) || {} : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeActiveWaterMachine(machine) {
+  if (typeof window === 'undefined' || !machine?.id) return;
+  window.sessionStorage.setItem(ACTIVE_WATER_MACHINE_KEY, JSON.stringify({
+    machineId: machine.id,
+    machineLocation: machine.location,
+    hardwareId: machine.hardwareId,
+    at: Date.now(),
+  }));
 }
 
 function extractTelemetryBytes(payload) {
@@ -218,10 +239,13 @@ export default function FlowProvider({ children }) {
   const routeState = location.state || {};
 
   const machineFromRoute = useMemo(() => {
+    const storedMachine = readActiveWaterMachine();
     const fallbackId = DEFAULT_MONITOR_MACHINE_ID;
-    const machineId = String(routeState.machineId || fallbackId).trim();
+    const machineId = String(routeState.machineId || storedMachine.machineId || fallbackId).trim();
     const machineLocation = String(
-      routeState.machineLocation || 'Centro Comercial Plaza Norte, Local 15'
+      routeState.machineLocation
+      || storedMachine.machineLocation
+      || 'Centro Comercial Plaza Norte, Local 15'
     ).trim();
 
     // Cuando el ID es una trama tipo E2-01-01-...-E3, el segundo byte suele ser
@@ -238,7 +262,8 @@ export default function FlowProvider({ children }) {
     return {
       id: machineId,
       location: machineLocation,
-      hardwareId: inferredHardwareId || String(routeState.hardwareId || DEFAULT_MONITOR_MACHINE_ID).trim(),
+      hardwareId: inferredHardwareId
+        || String(routeState.hardwareId || storedMachine.hardwareId || DEFAULT_MONITOR_MACHINE_ID).trim(),
     };
   }, [routeState.hardwareId, routeState.machineId, routeState.machineLocation]);
 
@@ -328,6 +353,7 @@ export default function FlowProvider({ children }) {
 
   useEffect(() => {
     setMachine(machineFromRoute);
+    writeActiveWaterMachine(machineFromRoute);
     if (typeof window !== 'undefined') {
       setPulsesPerLiterState(sanitizePulsesPerLiter(
         window.localStorage.getItem(pulsesPerLiterStorageKey(machineFromRoute.hardwareId)),

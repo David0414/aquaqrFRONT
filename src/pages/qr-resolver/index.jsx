@@ -9,6 +9,16 @@ import MachineBusyAlert from '../water-dispensing-control/components/MachineBusy
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 const PENDING_DISPENSE_STORAGE_KEY = 'agua24.pendingDispense';
+const ACTIVE_WATER_MACHINE_KEY = 'agua24.activeWaterMachine';
+
+function rememberActiveMachine(machine) {
+  window.sessionStorage.setItem(ACTIVE_WATER_MACHINE_KEY, JSON.stringify({
+    machineId: machine.machineId,
+    machineLocation: machine.machineLocation,
+    hardwareId: machine.hardwareId,
+    at: Date.now(),
+  }));
+}
 
 const QRResolver = () => {
   const nav = useNavigate();
@@ -104,6 +114,7 @@ const QRResolver = () => {
           return;
         }
 
+        rememberActiveMachine(state);
         nav('/water/choose', {
           state: {
             machineId: state.machineId,

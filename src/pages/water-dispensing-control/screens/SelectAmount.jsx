@@ -55,6 +55,13 @@ export default function SelectAmount() {
   const canChooseBottle = currentStageCode === '01' || currentStageCode === '02';
   const canGoToRinse = currentStageCode === '03' || currentStageCode === '04';
   const canUsePrimaryAction = telemetryFresh && (canStartFlow || canChooseBottle || canGoToRinse);
+  const nextRouteState = {
+    machineId: machine.id,
+    machineLocation: machine.location,
+    hardwareId: machine.hardwareId,
+    selectedLiters,
+    fromQR: true,
+  };
 
   const handlePrimaryAction = async () => {
     const litersActionMap = {
@@ -81,11 +88,11 @@ export default function SelectAmount() {
             return;
           }
           if (nextStageCode === '03' || nextStageCode === '04') {
-            nav('/water/position-down');
+            nav('/water/position-down', { state: nextRouteState });
             return;
           }
           if (nextStageCode === '05' || nextStageCode === '06') {
-            nav('/water/position-up');
+            nav('/water/position-up', { state: nextRouteState });
             return;
           }
           showInfoToast('Inicio pendiente.');
@@ -98,7 +105,7 @@ export default function SelectAmount() {
       }
 
       if (canGoToRinse) {
-        nav('/water/position-down');
+        nav('/water/position-down', { state: nextRouteState });
         return;
       }
 
@@ -112,7 +119,7 @@ export default function SelectAmount() {
         await sendStageCommand(action);
       }
       await pollInputs({ force: true }).catch(() => {});
-      nav('/water/position-down');
+      nav('/water/position-down', { state: nextRouteState });
     } catch (err) {
       if (err?.code === 'MACHINE_BUSY') {
         setMachineBusyError(err);

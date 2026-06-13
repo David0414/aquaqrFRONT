@@ -641,7 +641,15 @@ const BalanceRecharge = () => {
       setRechargeId(null);
 
       if (location?.state?.returnTo) {
-        navigate(location.state.returnTo);
+        navigate(location.state.returnTo, {
+          state: {
+            machineId: location.state.machineId,
+            machineLocation: location.state.machineLocation,
+            hardwareId: location.state.hardwareId,
+            selectedLiters: location.state.selectedLiters,
+            fromInsufficientBalance: true,
+          },
+        });
       } else {
         navigate('/home-dashboard');
       }

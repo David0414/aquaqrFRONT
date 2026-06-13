@@ -16,6 +16,7 @@ export default function PlaceBottleUp() {
   const navigate = useNavigate();
   const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
   const {
+    machine,
     startDispense,
     selectedLiters,
     telemetry,
@@ -89,6 +90,9 @@ export default function PlaceBottleUp() {
             returnTo: '/water/position-up',
             requiredAmount: err.requiredAmount,
             selectedLiters,
+            machineId: machine.id,
+            machineLocation: machine.location,
+            hardwareId: machine.hardwareId,
             fromInsufficientBalance: true,
           },
         });
