@@ -27,6 +27,7 @@ const MONITOR_ADMIN_SESSION_KEY = 'agua24MonitorAdmin';
 const MONITOR_ADMIN_USER_KEY = 'agua24MonitorAdminUser';
 const MONITOR_ADMIN_PASSWORD_KEY = 'agua24MonitorAdminPassword';
 const DEFAULT_MONITOR_MACHINE_ID = '01';
+const VALID_STAGE_CODES = new Set(['01', '02', '03', '04', '05', '06', '07', '08', '09']);
 
 function monitorAdminHeaders() {
   if (typeof window === 'undefined') return {};
@@ -75,8 +76,18 @@ function parseTelemetryPayload(payload) {
   const insertedCoinAmount = hexPairToDecimal(coinByte);
   const accumulatedMoney = hexPairToDecimal(accumulatedMoneyByte);
   const phVoltage = Number(((phDecimal * 5) / 1023).toFixed(3));
-  const currentStageCode = normalizeHexPair(stageByte) || '00';
+  const normalizedPumpByte = normalizeHexPair(pumpByte) || '00';
+  const normalizedStageByte = normalizeHexPair(stageByte) || '00';
+  const currentStageCode =
+    normalizedStageByte !== '00'
+      ? normalizedStageByte
+      : VALID_STAGE_CODES.has(normalizedPumpByte)
+        ? normalizedPumpByte
+        : '00';
   const currentStepInfo = getTelemetryStepInfo(currentStageCode);
+  const pumpStateByte = currentStageCode === normalizedPumpByte && normalizedStageByte === '00'
+    ? '00'
+    : normalizedPumpByte;
 
   return {
     rawFrame: bytes.join('-'),
@@ -88,8 +99,8 @@ function parseTelemetryPayload(payload) {
     phVoltage,
     fillValveOn: isActiveHexByte(fillValveByte),
     rinseValveOn: isActiveHexByte(rinseValveByte),
-    pumpOn: isActiveHexByte(pumpByte),
-    pumpHex: normalizeHexPair(pumpByte) || '00',
+    pumpOn: isActiveHexByte(pumpStateByte),
+    pumpHex: pumpStateByte,
     currentStageCode,
     currentStageLabel: currentStepInfo.label,
     currentStageInstruction: currentStepInfo.instruction,
