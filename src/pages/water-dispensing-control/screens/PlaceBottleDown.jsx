@@ -12,6 +12,7 @@ import MachineBusyAlert from '../components/MachineBusyAlert';
 const RINSE_DURATION_MS = 3000;
 const RINSE_ACCEPT_TIMEOUT_MS = 6500;
 const RINSE_ACCEPT_POLL_MS = 500;
+const RINSE_READY_STAGES = new Set(['02', '03']);
 const RINSE_ACCEPTED_STAGES = new Set(['04', '05', '06']);
 
 export default function PlaceBottleDown() {
@@ -37,13 +38,14 @@ export default function PlaceBottleDown() {
   }, [setTelemetryEnabled]);
 
   const displayTelemetry = guidedTelemetry || telemetry;
-  const currentStageCode = displayTelemetry.currentStageCode || '00';
+  const currentStageCode = telemetry.currentStageCode || '00';
+  const displayStageCode = displayTelemetry.currentStageCode || currentStageCode;
   const telemetryFresh = Boolean(
-    displayTelemetry.machineOnline
-    && displayTelemetry.lastSeenAt
-    && Date.now() - displayTelemetry.lastSeenAt < 8000
+    telemetry.machineOnline
+    && telemetry.lastSeenAt
+    && Date.now() - telemetry.lastSeenAt < 8000
   );
-  const canTriggerRinse = currentStageCode === '03';
+  const canTriggerRinse = RINSE_READY_STAGES.has(currentStageCode);
   const canAdvanceToFill = currentStageCode === '04' || currentStageCode === '05' || currentStageCode === '06';
   const canUseNext = telemetryFresh && (canTriggerRinse || canAdvanceToFill);
   const nextButtonLabel = canAdvanceToFill ? 'Ir a llenado' : 'Enjuagar';
@@ -57,7 +59,7 @@ export default function PlaceBottleDown() {
   React.useEffect(() => {
     if (hasPendingQrStart) return;
     if (hasStartedFlow) return;
-    if (currentStageCode !== '00') return;
+    if (displayStageCode !== '00') return;
     if (!displayTelemetry.lastSeenAt) return;
 
     showInfoToast('Maquina en espera.');
@@ -68,7 +70,7 @@ export default function PlaceBottleDown() {
         reason: 'idle',
       },
     });
-  }, [currentStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, hasStartedFlow, nav]);
+  }, [displayStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, hasStartedFlow, nav]);
 
   const delay = (ms) => new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -100,6 +102,30 @@ export default function PlaceBottleDown() {
       throw new Error(`Enjuague no confirmado. Paso ${lastStageCode}.`);
   };
 
+  const waitForRinseReady = async () => {
+    const deadline = Date.now() + RINSE_ACCEPT_TIMEOUT_MS;
+    let lastStageCode = telemetry.currentStageCode || currentStageCode || '00';
+
+    while (Date.now() <= deadline) {
+      if (lastStageCode === '03') return '03';
+      if (RINSE_ACCEPTED_STAGES.has(lastStageCode)) return lastStageCode;
+
+      const nextTelemetry = await pollInputs({ force: true }).catch(() => null);
+      const nextStageCode = nextTelemetry?.currentStageCode;
+      if (nextStageCode) {
+        lastStageCode = nextStageCode;
+      }
+
+      if (lastStageCode === '00' || lastStageCode === '08' || lastStageCode === '09') {
+        break;
+      }
+
+      await delay(RINSE_ACCEPT_POLL_MS);
+    }
+
+    throw new Error(`La maquina aun no esta lista para enjuague. Paso ${lastStageCode}.`);
+  };
+
   const triggerRinse = async () => {
     try {
       setMachineBusyError(null);
@@ -107,6 +133,13 @@ export default function PlaceBottleDown() {
         throw new Error('Maquina sin conexion.');
       }
       setRinseStatus('sending');
+      setRinseMessage(currentStageCode === '02' ? 'Esperando a que termine el audio...' : 'Activando...');
+      const readyStageCode = await waitForRinseReady();
+      if (RINSE_ACCEPTED_STAGES.has(readyStageCode)) {
+        setRinseStatus('success');
+        setRinseMessage('Enjuague ya confirmado.');
+        return;
+      }
       setRinseMessage('Activando...');
       await sendStageCommand('enjuague');
       setRinseMessage('Esperando confirmacion...');
@@ -152,7 +185,7 @@ export default function PlaceBottleDown() {
       }
 
       if (!canTriggerRinse) {
-        showErrorToast(`Espera paso 03. Actual: ${currentStageCode}.`);
+        showErrorToast(`Espera paso 02/03. Actual: ${currentStageCode}.`);
         return;
       }
 
