@@ -177,7 +177,7 @@ function CommandGrid({ title, description, commands, loadingAction, onCommand, d
 export default function WaterMonitor() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
-  const { pulsesPerLiter, setPulsesPerLiter, setTelemetryEnabled, sendStageCommand } = useDispenseFlow();
+  const { pulsesPerLiter, setPulsesPerLiter, setTelemetryEnabled } = useDispenseFlow();
 
   const [loadingAction, setLoadingAction] = useState('');
   const [lastResponse, setLastResponse] = useState(null);
@@ -364,13 +364,34 @@ export default function WaterMonitor() {
 
   const handleCommand = async (action) => {
     try {
+      if (!selectedMachine) {
+        throw new Error('Selecciona una maquina antes de enviar comandos');
+      }
+
       const nextPpl = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
       setPulsesPerLiter(nextPpl);
       setPulsesPerLiterInput(String(nextPpl));
       setLoadingAction(action);
-      const data = await sendStageCommand(action, { pulsesPerLiter: nextPpl });
+
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
+      const res = await fetch(`${API}/api/dispense/demo/control`, {
+        method: 'POST',
+        headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          action,
+          machineId: selectedMachine.id,
+          machineLocation: selectedMachine.location,
+          hardwareId: selectedMachineHardwareId,
+          pulsesPerLiter: nextPpl,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || data?.detail || data?.error || 'No se pudo enviar el comando');
+      }
+
       setLastResponse(data);
-      showSuccessToast(`Comando enviado: ${action}`);
+      showSuccessToast(`Comando enviado a HW ${selectedMachineHardwareId}: ${action}`);
     } catch (error) {
       showErrorToast(error?.message || 'No se pudo enviar el comando');
     } finally {
