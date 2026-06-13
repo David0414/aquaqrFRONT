@@ -10,6 +10,8 @@ import { useWaterFlowNavigation } from '../WaterFlowLayout';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
 
+const TELEMETRY_FRESH_MS = 20000;
+
 export default function PlaceBottleUp() {
   const navigate = useNavigate();
   const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
@@ -36,7 +38,7 @@ export default function PlaceBottleUp() {
   const telemetryFresh = Boolean(
     displayTelemetry.machineOnline
     && displayTelemetry.lastSeenAt
-    && Date.now() - displayTelemetry.lastSeenAt < 8000
+    && Date.now() - displayTelemetry.lastSeenAt < TELEMETRY_FRESH_MS
   );
   const canStartFilling = telemetryFresh && (currentStageCode === '05' || currentStageCode === '03' || currentStageCode === '04');
   const hasStartedFlow = Boolean(shouldGuardExit);

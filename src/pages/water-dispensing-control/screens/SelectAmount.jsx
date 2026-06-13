@@ -11,6 +11,8 @@ import { showErrorToast, showInfoToast, showSuccessToast } from '../../../compon
 import { useDispenseFlow } from '../FlowProvider';
 import { useWaterFlowNavigation } from '../WaterFlowLayout';
 
+const TELEMETRY_FRESH_MS = 20000;
+
 export default function SelectAmount() {
   const nav = useNavigate();
   const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
@@ -47,7 +49,7 @@ export default function SelectAmount() {
   const telemetryFresh = Boolean(
     displayTelemetry.machineOnline
     && displayTelemetry.lastSeenAt
-    && Date.now() - displayTelemetry.lastSeenAt < 8000
+    && Date.now() - displayTelemetry.lastSeenAt < TELEMETRY_FRESH_MS
   );
   const canStartFlow = currentStageCode === '00';
   const canChooseBottle = currentStageCode === '01' || currentStageCode === '02';

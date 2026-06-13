@@ -12,6 +12,7 @@ import MachineBusyAlert from '../components/MachineBusyAlert';
 const RINSE_DURATION_MS = 3000;
 const RINSE_ACCEPT_TIMEOUT_MS = 6500;
 const RINSE_ACCEPT_POLL_MS = 500;
+const TELEMETRY_FRESH_MS = 20000;
 const RINSE_READY_STAGES = new Set(['02', '03']);
 const RINSE_ACCEPTED_STAGES = new Set(['04', '05', '06']);
 
@@ -43,7 +44,7 @@ export default function PlaceBottleDown() {
   const telemetryFresh = Boolean(
     telemetry.machineOnline
     && telemetry.lastSeenAt
-    && Date.now() - telemetry.lastSeenAt < 8000
+    && Date.now() - telemetry.lastSeenAt < TELEMETRY_FRESH_MS
   );
   const canTriggerRinse = RINSE_READY_STAGES.has(currentStageCode);
   const canAdvanceToFill = currentStageCode === '04' || currentStageCode === '05' || currentStageCode === '06';
@@ -92,7 +93,7 @@ export default function PlaceBottleDown() {
         return lastStageCode;
       }
 
-      if (lastStageCode === '00' || lastStageCode === '08' || lastStageCode === '09') {
+      if (lastStageCode === '08' || lastStageCode === '09') {
         break;
       }
 
@@ -116,7 +117,7 @@ export default function PlaceBottleDown() {
         lastStageCode = nextStageCode;
       }
 
-      if (lastStageCode === '00' || lastStageCode === '08' || lastStageCode === '09') {
+      if (lastStageCode === '08' || lastStageCode === '09') {
         break;
       }
 

@@ -28,6 +28,7 @@ const MONITOR_ADMIN_USER_KEY = 'agua24MonitorAdminUser';
 const MONITOR_ADMIN_PASSWORD_KEY = 'agua24MonitorAdminPassword';
 const DEFAULT_MONITOR_MACHINE_ID = '01';
 const VALID_STAGE_CODES = new Set(['01', '02', '03', '04', '05', '06', '07', '08', '09']);
+const TELEMETRY_CONNECTION_GRACE_MS = 20000;
 
 function monitorAdminHeaders() {
   if (typeof window === 'undefined') return {};
@@ -299,6 +300,7 @@ export default function FlowProvider({ children }) {
     lastSeenAt: null,
     error: '',
   });
+  const telemetryRef = useRef(telemetry);
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
   const [coinRechargeSyncEnabled, setCoinRechargeSyncEnabled] = useState(false);
   const pollingRef = useRef(false);
@@ -310,6 +312,10 @@ export default function FlowProvider({ children }) {
   const lastGuidedStageCodeRef = useRef('00');
   const authOwnerRef = useRef(userId || null);
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
+
+  useEffect(() => {
+    telemetryRef.current = telemetry;
+  }, [telemetry]);
 
   const setPulsesPerLiter = (value) => {
     const nextValue = sanitizePulsesPerLiter(value);
@@ -463,7 +469,7 @@ export default function FlowProvider({ children }) {
     if (!force && !telemetryEnabled) return;
     if (!isDocumentVisible()) return;
     if (!force && Date.now() < pollingCooldownUntilRef.current) return;
-    if (pollingRef.current) return;
+    if (pollingRef.current) return force ? telemetryRef.current : undefined;
     pollingRef.current = true;
 
     try {
@@ -482,6 +488,18 @@ export default function FlowProvider({ children }) {
       if (!res.ok) throw new Error(data?.detail || data?.error || 'No se pudo leer monitor');
 
       if (data?.reconnecting || data?.connected === false) {
+        const previousTelemetry = telemetryRef.current;
+        const previousAgeMs = previousTelemetry?.lastSeenAt ? Date.now() - previousTelemetry.lastSeenAt : Infinity;
+        if (previousTelemetry?.machineOnline && previousAgeMs <= TELEMETRY_CONNECTION_GRACE_MS) {
+          const toleratedTelemetry = {
+            ...previousTelemetry,
+            status: 'reconnecting',
+            error: data?.message || 'Reconectando maquina...',
+          };
+          setTelemetry(toleratedTelemetry);
+          return toleratedTelemetry;
+        }
+
         setTelemetry((prev) => ({
           ...prev,
           status: 'reconnecting',
@@ -491,7 +509,12 @@ export default function FlowProvider({ children }) {
         return null;
       }
 
-      const rawResponse = [data?.response, ...(data?.lines || [])].filter(Boolean).join(' ');
+      const serverTelemetry = data?.telemetry || null;
+      const rawResponse = [
+        serverTelemetry?.rawFrame,
+        data?.response,
+        ...(data?.lines || []),
+      ].filter(Boolean).join(' ');
       const parsed = parseTelemetryPayload(rawResponse);
 
       if (!parsed) {
@@ -507,6 +530,10 @@ export default function FlowProvider({ children }) {
       const expectedMachineId = normalizeHexPair(machine.hardwareId);
       const machineOnline = !expectedMachineId || parsed.machineHardwareId === expectedMachineId;
 
+      const serverStageCode = normalizeHexPair(serverTelemetry?.currentStageCode);
+      const effectiveStageCode = serverStageCode || parsed.currentStageCode;
+      const effectiveStepInfo = getTelemetryStepInfo(effectiveStageCode);
+
       const nextTelemetry = {
         status: 'ok',
         rawResponse,
@@ -521,9 +548,9 @@ export default function FlowProvider({ children }) {
         rinseValveOn: parsed.rinseValveOn,
         pumpOn: parsed.pumpOn,
         pumpHex: parsed.pumpHex,
-        currentStageCode: parsed.currentStageCode,
-        currentStageLabel: parsed.currentStageLabel,
-        currentStageInstruction: parsed.currentStageInstruction,
+        currentStageCode: effectiveStepInfo.code,
+        currentStageLabel: effectiveStepInfo.label,
+        currentStageInstruction: effectiveStepInfo.instruction,
         flowmeterHex: parsed.flowmeterHex,
         flowmeterPulses: parsed.flowmeterPulses,
         coinHex: parsed.coinHex,
@@ -539,6 +566,18 @@ export default function FlowProvider({ children }) {
       setTelemetry(nextTelemetry);
       return nextTelemetry;
     } catch (e) {
+      const previousTelemetry = telemetryRef.current;
+      const previousAgeMs = previousTelemetry?.lastSeenAt ? Date.now() - previousTelemetry.lastSeenAt : Infinity;
+      if (previousTelemetry?.machineOnline && previousAgeMs <= TELEMETRY_CONNECTION_GRACE_MS) {
+        const toleratedTelemetry = {
+          ...previousTelemetry,
+          status: 'reconnecting',
+          error: e.message || 'Reconectando maquina...',
+        };
+        setTelemetry(toleratedTelemetry);
+        return toleratedTelemetry;
+      }
+
       setTelemetry((prev) => ({
         ...prev,
         status: 'error',
