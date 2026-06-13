@@ -213,6 +213,8 @@ export default function FlowProvider({ children }) {
     const inferredHardwareId =
       frameBytes.length >= 3 && frameBytes[0] === 'E2' && frameBytes[frameBytes.length - 1] === 'E3'
         ? frameBytes[1]
+        : /^[0-9A-Fa-f]{1,2}$/.test(machineId)
+          ? normalizeHexPair(machineId)
         : null;
 
     return {
@@ -440,7 +442,11 @@ export default function FlowProvider({ children }) {
 
     try {
       const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-      const res = await fetch(`${API}/api/dispense/demo/monitor`, {
+      const monitorQuery = new URLSearchParams();
+      if (machine?.hardwareId) monitorQuery.set('hardwareId', machine.hardwareId);
+      if (machine?.id) monitorQuery.set('machineId', machine.id);
+      const monitorUrl = `${API}/api/dispense/demo/monitor${monitorQuery.toString() ? `?${monitorQuery}` : ''}`;
+      const res = await fetch(monitorUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
           ...monitorAdminHeaders(),
