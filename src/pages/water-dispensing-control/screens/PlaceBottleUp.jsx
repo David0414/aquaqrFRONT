@@ -35,8 +35,9 @@ export default function PlaceBottleUp() {
   }, [pollInputs, setTelemetryEnabled]);
 
   const displayTelemetry = guidedTelemetry || telemetry;
-  const currentStageCode = telemetry.currentStageCode || '00';
-  const displayStageCode = displayTelemetry.currentStageCode || currentStageCode;
+  const telemetryStageCode = telemetry.currentStageCode || '00';
+  const displayStageCode = displayTelemetry.currentStageCode || telemetryStageCode;
+  const currentStageCode = telemetryStageCode !== '00' ? telemetryStageCode : displayStageCode;
   const telemetryFresh = Boolean(
     telemetry.machineOnline
     && telemetry.lastSeenAt

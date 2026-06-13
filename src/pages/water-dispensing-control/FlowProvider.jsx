@@ -262,8 +262,12 @@ export default function FlowProvider({ children }) {
     return {
       id: machineId,
       location: machineLocation,
-      hardwareId: inferredHardwareId
-        || String(routeState.hardwareId || storedMachine.hardwareId || DEFAULT_MONITOR_MACHINE_ID).trim(),
+      hardwareId: String(
+        routeState.hardwareId
+        || storedMachine.hardwareId
+        || inferredHardwareId
+        || DEFAULT_MONITOR_MACHINE_ID
+      ).trim(),
     };
   }, [routeState.hardwareId, routeState.machineId, routeState.machineLocation]);
 
@@ -553,8 +557,25 @@ export default function FlowProvider({ children }) {
         return;
       }
 
+      const parsedHardwareId = normalizeHexPair(parsed.machineHardwareId);
+      const responseHardwareId =
+        normalizeHexPair(data?.hardwareId)
+        || normalizeHexPair(data?.waterserver?.hardwareId)
+        || parsedHardwareId;
       const expectedMachineId = normalizeHexPair(machine.hardwareId);
-      const machineOnline = !expectedMachineId || parsed.machineHardwareId === expectedMachineId;
+      const machineOnline = Boolean(parsedHardwareId && (!responseHardwareId || parsedHardwareId === responseHardwareId));
+
+      if (parsedHardwareId && expectedMachineId !== parsedHardwareId) {
+        setMachine((currentMachine) => {
+          const nextMachine = {
+            ...currentMachine,
+            id: `00${parsedHardwareId}`.slice(-3),
+            hardwareId: parsedHardwareId,
+          };
+          writeActiveWaterMachine(nextMachine);
+          return nextMachine;
+        });
+      }
 
       const serverStageCode = normalizeHexPair(serverTelemetry?.currentStageCode);
       const effectiveStageCode = serverStageCode || parsed.currentStageCode;
