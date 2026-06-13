@@ -37,6 +37,11 @@ function monitorAdminHeaders() {
   };
 }
 
+function pulsesPerLiterStorageKey(hardwareId) {
+  const normalized = normalizeHexPair(hardwareId);
+  return normalized ? `${FLOWMETER_PULSES_PER_LITER_KEY}:${normalized}` : FLOWMETER_PULSES_PER_LITER_KEY;
+}
+
 function extractTelemetryBytes(payload) {
   const matches = String(payload || '').toUpperCase().match(/[0-9A-F]{2}/g) || [];
   for (let index = 0; index <= matches.length - 15; index += 1) {
@@ -247,7 +252,7 @@ export default function FlowProvider({ children }) {
   const [balanceCents, setBalanceCents] = useState(null);
   const [pulsesPerLiter, setPulsesPerLiterState] = useState(() => {
     if (typeof window === 'undefined') return DEFAULT_PULSES_PER_LITER;
-    return sanitizePulsesPerLiter(window.localStorage.getItem(FLOWMETER_PULSES_PER_LITER_KEY));
+    return sanitizePulsesPerLiter(window.localStorage.getItem(pulsesPerLiterStorageKey(machineFromRoute.hardwareId)));
   });
 
   const [lastTx, setLastTx] = useState(null);
@@ -299,13 +304,19 @@ export default function FlowProvider({ children }) {
     const nextValue = sanitizePulsesPerLiter(value);
     setPulsesPerLiterState(nextValue);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(FLOWMETER_PULSES_PER_LITER_KEY, String(nextValue));
+      window.localStorage.setItem(pulsesPerLiterStorageKey(machine.hardwareId), String(nextValue));
     }
     return nextValue;
   };
 
   useEffect(() => {
     setMachine(machineFromRoute);
+    if (typeof window !== 'undefined') {
+      setPulsesPerLiterState(sanitizePulsesPerLiter(
+        window.localStorage.getItem(pulsesPerLiterStorageKey(machineFromRoute.hardwareId)),
+        DEFAULT_PULSES_PER_LITER,
+      ));
+    }
   }, [machineFromRoute]);
 
   useEffect(() => {
@@ -387,7 +398,10 @@ export default function FlowProvider({ children }) {
 
   async function fetchConfig() {
     try {
-      const res = await fetch(`${API}/api/dispense/config`);
+      const query = new URLSearchParams();
+      if (machine.hardwareId) query.set('hardwareId', machine.hardwareId);
+      if (machine.id) query.set('machineId', machine.id);
+      const res = await fetch(`${API}/api/dispense/config${query.toString() ? `?${query}` : ''}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'No se pudo obtener config');
 

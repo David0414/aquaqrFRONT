@@ -343,6 +343,31 @@ export default function WaterMonitor() {
     && Date.now() - new Date(telemetry.lastSeenAt).getTime() < 15000
   );
 
+  useEffect(() => {
+    if (!selectedMachine) return undefined;
+
+    let cancelled = false;
+    const loadMachineConfig = async () => {
+      try {
+        const query = new URLSearchParams();
+        if (selectedMachineHardwareId) query.set('hardwareId', selectedMachineHardwareId);
+        if (selectedMachine.id) query.set('machineId', selectedMachine.id);
+        const res = await fetch(`${API}/api/dispense/config?${query.toString()}`);
+        const data = await res.json().catch(() => null);
+        if (!cancelled && res.ok && data?.pulsesPerLiter) {
+          setPulsesPerLiterInput(String(data.pulsesPerLiter));
+        }
+      } catch {
+        // No bloqueamos el monitor si no carga la calibracion.
+      }
+    };
+
+    loadMachineConfig();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMachine, selectedMachineHardwareId]);
+
   const activeMachineLabel = useMemo(() => {
     if (selectedMachine) {
       return `${selectedMachine.id}${selectedMachine.location ? ` · ${selectedMachine.location}` : ''}`;
@@ -407,7 +432,11 @@ export default function WaterMonitor() {
       const res = await fetch(`${API}/api/dispense/config/pulses`, {
         method: 'POST',
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ pulsesPerLiter: nextValue }),
+        body: JSON.stringify({
+          pulsesPerLiter: nextValue,
+          machineId: selectedMachine?.id,
+          hardwareId: selectedMachineHardwareId,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.message || data?.error || 'No se pudo guardar calibracion');
@@ -416,10 +445,10 @@ export default function WaterMonitor() {
       setPulsesPerLiterInput(String(data.pulsesPerLiter || nextValue));
       setLastResponse({
         action: 'calibracion_global',
-        commandLine: `PULSOS ${data.pulsesPerLiter || nextValue}`,
-        response: 'Calibracion guardada en backend para monitor y flujo normal.',
+        commandLine: `HW ${data.hardwareId || selectedMachineHardwareId || 'AUTO'} PULSOS ${data.pulsesPerLiter || nextValue}`,
+        response: 'Calibracion guardada para esta maquina.',
       });
-      showSuccessToast(`Calibracion guardada: ${data.pulsesPerLiter || nextValue} pulsos/L`);
+      showSuccessToast(`Calibracion HW ${data.hardwareId || selectedMachineHardwareId}: ${data.pulsesPerLiter || nextValue} pulsos/L`);
     } catch (error) {
       showErrorToast(error?.message || 'No se pudo guardar calibracion');
     }
