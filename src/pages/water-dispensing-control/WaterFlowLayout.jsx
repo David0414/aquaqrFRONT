@@ -48,7 +48,10 @@ export default function WaterFlowLayout() {
     hasRealTelemetry
     && currentStageCode === '00'
     && !hasActiveTx
-    && !hasPendingQrStart;
+    && !hasPendingQrStart
+    && !hasActiveSession
+    && !hasResumedSession
+    && !recoveredActiveSession;
   const shouldGuardExit =
     isWaterStep
     && !isReleasedIdleSession

@@ -56,6 +56,7 @@ export default function PlaceBottleDown() {
 
   React.useEffect(() => {
     if (hasPendingQrStart) return;
+    if (hasStartedFlow) return;
     if (currentStageCode !== '00') return;
     if (!displayTelemetry.lastSeenAt) return;
 
@@ -67,7 +68,7 @@ export default function PlaceBottleDown() {
         reason: 'idle',
       },
     });
-  }, [currentStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, nav]);
+  }, [currentStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, hasStartedFlow, nav]);
 
   const delay = (ms) => new Promise((resolve) => {
     window.setTimeout(resolve, ms);

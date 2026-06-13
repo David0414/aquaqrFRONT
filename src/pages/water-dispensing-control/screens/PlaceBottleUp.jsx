@@ -49,6 +49,7 @@ export default function PlaceBottleUp() {
 
   React.useEffect(() => {
     if (hasPendingQrStart) return;
+    if (hasStartedFlow) return;
     if (currentStageCode !== '00') return;
     if (!displayTelemetry.lastSeenAt) return;
 
@@ -60,7 +61,7 @@ export default function PlaceBottleUp() {
         reason: 'idle',
       },
     });
-  }, [currentStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, navigate]);
+  }, [currentStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, hasStartedFlow, navigate]);
 
   const handleStart = async () => {
     try {
