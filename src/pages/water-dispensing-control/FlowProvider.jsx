@@ -939,6 +939,8 @@ export default function FlowProvider({ children }) {
   const previousGuidedStageCode = lastGuidedStageCodeRef.current || '00';
   const isManualActuatorStage =
     !hasStartedDispenseTx
+    && !hasActiveSession
+    && !hasPendingQrStart
     && (
       rawStageCode === '06'
       || (rawStageCode === '04' && !['03', '04'].includes(previousGuidedStageCode))

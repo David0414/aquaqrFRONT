@@ -35,11 +35,12 @@ export default function PlaceBottleUp() {
   }, [pollInputs, setTelemetryEnabled]);
 
   const displayTelemetry = guidedTelemetry || telemetry;
-  const currentStageCode = displayTelemetry.currentStageCode || '00';
+  const currentStageCode = telemetry.currentStageCode || '00';
+  const displayStageCode = displayTelemetry.currentStageCode || currentStageCode;
   const telemetryFresh = Boolean(
-    displayTelemetry.machineOnline
-    && displayTelemetry.lastSeenAt
-    && Date.now() - displayTelemetry.lastSeenAt < TELEMETRY_FRESH_MS
+    telemetry.machineOnline
+    && telemetry.lastSeenAt
+    && Date.now() - telemetry.lastSeenAt < TELEMETRY_FRESH_MS
   );
   const canStartFilling = telemetryFresh && (currentStageCode === '05' || currentStageCode === '03' || currentStageCode === '04');
   const hasStartedFlow = Boolean(shouldGuardExit);
@@ -53,7 +54,7 @@ export default function PlaceBottleUp() {
   React.useEffect(() => {
     if (hasPendingQrStart) return;
     if (hasStartedFlow) return;
-    if (currentStageCode !== '00') return;
+    if (displayStageCode !== '00') return;
     if (!displayTelemetry.lastSeenAt) return;
 
     showInfoToast('Maquina en espera.');
@@ -64,7 +65,7 @@ export default function PlaceBottleUp() {
         reason: 'idle',
       },
     });
-  }, [currentStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, hasStartedFlow, navigate]);
+  }, [displayStageCode, displayTelemetry.lastSeenAt, hasPendingQrStart, hasStartedFlow, navigate]);
 
   const handleStart = async () => {
     try {
