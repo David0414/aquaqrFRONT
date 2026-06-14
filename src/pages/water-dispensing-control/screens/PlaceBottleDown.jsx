@@ -86,7 +86,7 @@ export default function PlaceBottleDown() {
 
   const waitForRinseAccepted = async () => {
     const deadline = Date.now() + RINSE_ACCEPT_TIMEOUT_MS;
-    let lastStageCode = telemetry.currentStageCode || currentStageCode || '00';
+    let lastStageCode = currentStageCode || telemetry.currentStageCode || displayStageCode || '00';
 
     while (Date.now() <= deadline) {
       const nextTelemetry = await pollInputs({ force: true }).catch(() => null);
@@ -112,7 +112,7 @@ export default function PlaceBottleDown() {
 
   const waitForRinseReady = async () => {
     const deadline = Date.now() + RINSE_ACCEPT_TIMEOUT_MS;
-    let lastStageCode = telemetry.currentStageCode || currentStageCode || '00';
+    let lastStageCode = currentStageCode || telemetry.currentStageCode || displayStageCode || '00';
 
     while (Date.now() <= deadline) {
       if (lastStageCode === '03') return '03';

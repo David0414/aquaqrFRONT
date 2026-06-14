@@ -241,7 +241,19 @@ export default function FlowProvider({ children }) {
   const machineFromRoute = useMemo(() => {
     const storedMachine = readActiveWaterMachine();
     const fallbackId = DEFAULT_MONITOR_MACHINE_ID;
-    const machineId = String(routeState.machineId || storedMachine.machineId || fallbackId).trim();
+    const rawRouteMachineId = String(routeState.machineId || '').trim();
+    const routeHardwareId = normalizeHexPair(routeState.hardwareId);
+    const storedHardwareId = normalizeHexPair(storedMachine.hardwareId);
+    const shouldPreferStoredMachine =
+      storedMachine.machineId
+      && storedHardwareId
+      && (!rawRouteMachineId || normalizeHexPair(rawRouteMachineId) !== storedHardwareId)
+      && (!routeHardwareId || routeHardwareId === storedHardwareId);
+    const machineId = String(
+      shouldPreferStoredMachine
+        ? storedMachine.machineId
+        : rawRouteMachineId || storedMachine.machineId || fallbackId
+    ).trim();
     const machineLocation = String(
       routeState.machineLocation
       || storedMachine.machineLocation
@@ -259,15 +271,21 @@ export default function FlowProvider({ children }) {
           ? normalizeHexPair(compactMachineHardwareId)
         : null;
 
+    const finalHardwareId = String(
+      routeState.hardwareId
+      || storedMachine.hardwareId
+      || inferredHardwareId
+      || DEFAULT_MONITOR_MACHINE_ID
+    ).trim();
+    const finalMachineId =
+      normalizeHexPair(machineId) !== normalizeHexPair(finalHardwareId)
+        ? (storedMachine.machineId || `00${normalizeHexPair(finalHardwareId) || machineId}`.slice(-3))
+        : machineId;
+
     return {
-      id: machineId,
+      id: finalMachineId,
       location: machineLocation,
-      hardwareId: String(
-        routeState.hardwareId
-        || storedMachine.hardwareId
-        || inferredHardwareId
-        || DEFAULT_MONITOR_MACHINE_ID
-      ).trim(),
+      hardwareId: finalHardwareId,
     };
   }, [routeState.hardwareId, routeState.machineId, routeState.machineLocation]);
 
