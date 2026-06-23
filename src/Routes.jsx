@@ -195,7 +195,9 @@ const Routes = () => {
             path="/promotions"
             element={
               <Protected>
-                <PromotionsCenter />
+                <FlowProvider>
+                  <PromotionsCenter />
+                </FlowProvider>
               </Protected>
             }
           />
