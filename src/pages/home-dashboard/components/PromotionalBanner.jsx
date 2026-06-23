@@ -350,11 +350,11 @@ function MembershipPromotionCard({ promotion, onPurchaseWithBalance, onPayWithCa
         <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-white text-slate-700 shadow-sm">
           <Icon name="Crown" size={20} />
         </div>
-        <StatusPill tone={purchased ? 'emerald' : 'slate'}>{purchased ? 'Pagada' : 'Pendiente de pago'}</StatusPill>
+        <StatusPill tone={purchased ? 'emerald' : 'slate'}>{purchased ? 'Pagada' : 'Pagar para activar'}</StatusPill>
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">{promotion.title}</h3>
       <p className="mt-2 text-sm text-slate-600">
-        Un solo pago mensual para comprar {garrafones} garrafones a mejor precio.
+        Para activar esta membresia debes pagarla primero. Despues tendras {garrafones} garrafones disponibles por 30 dias.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -378,7 +378,7 @@ function MembershipPromotionCard({ promotion, onPurchaseWithBalance, onPayWithCa
           loading={loading}
           className="flex-1 justify-center"
         >
-          {purchased ? 'Membresia activa' : 'Pagar con saldo'}
+          {purchased ? 'Membresia activa' : 'Pagar ahora con saldo'}
         </Button>
         <Button
           variant="outline"
