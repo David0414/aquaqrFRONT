@@ -17,6 +17,12 @@ import {
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
+
+function sanitizePointsPerLiter(value, fallback = 0.5) {
+  const next = Number.parseFloat(value);
+  if (!Number.isFinite(next) || next < 0) return fallback;
+  return Math.round(next * 100) / 100;
+}
 const MONITOR_THEME_KEY = 'agua24-monitor-dark-mode';
 
 const HARDWARE_COMMANDS = [
@@ -52,6 +58,7 @@ const emptyMachineForm = {
   location: '',
   address: '',
   hardwareId: '',
+  pricePerGarrafon: '35',
   status: 'ONLINE',
   isActive: true,
 };
@@ -188,7 +195,7 @@ export default function WaterMonitor() {
   const [selectedQr, setSelectedQr] = useState(null);
   const [qrLoadingId, setQrLoadingId] = useState('');
   const [promotionSavingKey, setPromotionSavingKey] = useState('');
-  const [pointsPerLiterConfig, setPointsPerLiterConfig] = useState('10');
+  const [pointsPerLiterConfig, setPointsPerLiterConfig] = useState('0.5');
   const [activeTab, setActiveTab] = useState('overview');
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -489,6 +496,7 @@ export default function WaterMonitor() {
       location: machine.location || '',
       address: machine.address || '',
       hardwareId: machine.hardwareId || '',
+      pricePerGarrafon: String(((machine.pricePerGarrafonCents || 3500) / 100).toFixed(2)),
       status: machine.status || 'ONLINE',
       isActive: machine.isActive !== false,
     });
@@ -557,7 +565,7 @@ export default function WaterMonitor() {
       const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
       const payload = { isActive: !promotion.isActive };
       if (promotion.key === 'monthly_consumption_points') {
-        payload.config = { pointsPerLiter: sanitizePulsesPerLiter(pointsPerLiterConfig, 10) };
+        payload.config = { pointsPerLiter: sanitizePointsPerLiter(pointsPerLiterConfig) };
       }
       const res = await fetch(`${API}/api/monitor-admin/promotions/${promotion.key}`, {
         method: 'PUT',
@@ -584,7 +592,7 @@ export default function WaterMonitor() {
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           config: {
-            pointsPerLiter: sanitizePulsesPerLiter(pointsPerLiterConfig, 10),
+            pointsPerLiter: sanitizePointsPerLiter(pointsPerLiterConfig),
           },
         }),
       });
@@ -839,6 +847,7 @@ export default function WaterMonitor() {
                   <Input label="Ubicacion visible" value={machineForm.location} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('location', event.target.value)} />
                   <Input label="Direccion" value={machineForm.address} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('address', event.target.value)} />
                   <Input label="Hardware ID" value={machineForm.hardwareId} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
+                  <Input label="Precio publico garrafon" type="number" min="1" step="0.50" value={machineForm.pricePerGarrafon} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('pricePerGarrafon', event.target.value)} description="Este precio se usa para cobrar agua y calcular membresias." />
                   <Select className={darkSelectClass} label="Estado operativo" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
                   <label className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-sm ${darkMode ? 'border-slate-800 bg-slate-950/70 text-white' : 'border-slate-200 bg-white text-text-primary'}`}>
                     <input type="checkbox" checked={machineForm.isActive} onChange={(event) => handleMachineChange('isActive', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400" />
@@ -879,6 +888,7 @@ export default function WaterMonitor() {
                         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.name || 'Sin nombre'} · {machine.location || 'Sin ubicacion'}</p>
                         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.address || 'Sin direccion guardada'}</p>
                         <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware: {machine.hardwareId || machine.id || 'N/D'} · Estado: {machine.status || 'ONLINE'}</p>
+                        <p className={`mt-1 text-xs font-semibold ${darkMode ? 'text-sky-300' : 'text-[#1E3F7A]'}`}>Precio publico: ${((machine.pricePerGarrafonCents || 3500) / 100).toFixed(2)} por garrafon</p>
                       </div>
                       <div className="flex flex-wrap gap-2 xl:max-w-[260px] xl:justify-end">
                         <Button variant="outline" size="sm" onClick={() => handleMachineEdit(machine)}>
@@ -949,14 +959,14 @@ export default function WaterMonitor() {
             <SectionHeader eyebrow="" title="Promociones y recompensas" description="" darkMode={darkMode} />
 
             <div className="mb-5 grid gap-4 md:grid-cols-3">
-              <Metric icon="Sparkles" label="Promociones activas" value={monitorSummary.counts?.activePromotions || 0} hint="Las promociones 1, 2, 3 y 4 inician activas." darkMode={darkMode} />
+              <Metric icon="Sparkles" label="Promociones activas" value={monitorSummary.counts?.activePromotions || 0} hint="Catalogo actualizado de beneficios." darkMode={darkMode} />
               <Metric icon="Factory" label="Maquinas activas" value={monitorSummary.counts?.activeMachines || 0} hint={`${monitorSummary.counts?.machines || 0} maquinas registradas`} darkMode={darkMode} />
-              <Metric icon="Gift" label="Puntos por litro" value={pointsPerLiterConfig} hint="Configurable para la promocion 4." darkMode={darkMode} />
+              <Metric icon="Gift" label="Puntos por litro" value={pointsPerLiterConfig} hint="Beneficio automatico de consumo mensual." darkMode={darkMode} />
             </div>
 
             <div className={`mb-5 rounded-3xl border p-4 ${mutedClass}`}>
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
-                <Input label="Puntos por litro" type="number" min="1" value={pointsPerLiterConfig} onChange={(event) => setPointsPerLiterConfig(event.target.value)} description="Aqui controlas cuantos puntos genera cada litro consumido." />
+                <Input label="Puntos por litro" type="number" min="0" step="0.1" value={pointsPerLiterConfig} onChange={(event) => setPointsPerLiterConfig(event.target.value)} description="Usa 0.5 para que cada 20 litros sumen 10 puntos." />
                 <Button onClick={handleSavePointsConfig} loading={promotionSavingKey === 'monthly_consumption_points'}>
                   <Icon name="Save" size={16} /> Guardar puntos/L
                 </Button>

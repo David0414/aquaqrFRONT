@@ -7,6 +7,9 @@ const PROMOTION_ICONS = {
   topup_bonus: 'WalletCards',
   monthly_cashback: 'BadgePercent',
   monthly_consumption_points: 'Sparkles',
+  premium_membership_1: 'Crown',
+  premium_membership_2: 'Crown',
+  premium_membership_3: 'Crown',
 };
 
 function moneyFromCents(amountCents) {
@@ -19,13 +22,16 @@ function formatCurrency(amountCents) {
 
 function getPointsTierInfo(points, promotion) {
   const tiers = Array.isArray(promotion?.config?.tiers) ? [...promotion.config.tiers] : [];
+  const resetAtPoints = Number(promotion?.config?.resetAtPoints || 0);
+  const effectivePoints = resetAtPoints > 0 && points > resetAtPoints ? points % resetAtPoints : points;
+  const comparablePoints = points > 0 && resetAtPoints > 0 && effectivePoints === 0 ? resetAtPoints : effectivePoints;
   const current = tiers
-    .filter((tier) => points >= Number(tier.minPoints || 0))
+    .filter((tier) => comparablePoints >= Number(tier.minPoints || 0))
     .sort((a, b) => Number(b.minPoints || 0) - Number(a.minPoints || 0))[0] || null;
   const next = tiers
-    .filter((tier) => Number(tier.minPoints || 0) > points)
+    .filter((tier) => Number(tier.minPoints || 0) > comparablePoints)
     .sort((a, b) => Number(a.minPoints || 0) - Number(b.minPoints || 0))[0] || null;
-  return { current, next, tiers };
+  return { current, next, tiers, effectivePoints: comparablePoints };
 }
 
 function getCashbackTierInfo(garrafones, promotion) {
@@ -103,7 +109,7 @@ function SelectionChooser({
   savingSelection,
 }) {
   const requiredCount = Number(selection?.requiredCount || 0);
-  const canSave = requiredCount === 0 || selectedPromotionKeys.length === requiredCount;
+  const canSave = requiredCount === 0 || (selectedPromotionKeys.length > 0 && selectedPromotionKeys.length <= requiredCount);
 
   if (requiredCount === 0) {
     return null;
@@ -113,10 +119,10 @@ function SelectionChooser({
     <section className="rounded-[1.9rem] border border-sky-100 bg-[linear-gradient(135deg,_#eff6ff_0%,_#ffffff_100%)] p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Tus promociones del mes</p>
-          <h3 className="mt-2 text-2xl font-black text-slate-900">Elige {requiredCount} promociones</h3>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Beneficios a escoger</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-900">Elige maximo {requiredCount} promociones</h3>
           <p className="mt-2 text-sm text-slate-500">
-            Estas serán las que funcionen para ti durante este mes.
+            Estas promociones se activan para ti durante este mes. Los beneficios automaticos no cuentan en esta eleccion.
           </p>
         </div>
         <div className="rounded-[1.3rem] bg-white px-4 py-3 shadow-sm">
@@ -164,8 +170,8 @@ function SelectionChooser({
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-500">
           {selection.complete
-            ? 'Ya tienes promociones activas para este mes.'
-            : 'Elige tus promociones para activar sus beneficios.'}
+            ? 'Ya tienes tus promociones elegidas para este mes.'
+            : 'Elige hasta 2 beneficios para activarlos.'}
         </p>
         <Button onClick={onSaveSelection} disabled={!canSave} loading={savingSelection}>
           Guardar mis promociones
@@ -187,13 +193,13 @@ function WelcomePromotionCard({ promotion }) {
         </div>
         <StatusPill tone="amber">{available ? 'Disponible' : used ? 'Usada' : 'Activa'}</StatusPill>
       </div>
-      <h3 className="mt-4 text-xl font-black text-slate-900">Garrafón gratis</h3>
+      <h3 className="mt-4 text-xl font-black text-slate-900">Garrafon gratis</h3>
       <p className="mt-2 text-sm text-slate-600">
-        {available ? 'Tu primera compra puede salir gratis.' : 'Es una promo de una sola vez.'}
+        {available ? 'Tu primer garrafon es gratis al registrarte por primera vez.' : 'Este beneficio aplica una sola vez por usuario.'}
       </p>
       <div className="mt-4 rounded-[1.3rem] bg-white/90 p-4">
-        <p className="text-sm font-semibold text-slate-900">Cómo funciona</p>
-        <p className="mt-1 text-sm text-slate-500">1. Haces tu primera compra. 2. La promo se aplica una sola vez.</p>
+        <p className="text-sm font-semibold text-slate-900">Beneficio automatico</p>
+        <p className="mt-1 text-sm text-slate-500">No tienes que elegirlo. Si es tu primera vez, se aplica como saldo promocional.</p>
       </div>
     </article>
   );
@@ -210,8 +216,8 @@ function TopupPromotionCard({ promotion }) {
         </div>
         <StatusPill tone="sky">Elegida</StatusPill>
       </div>
-      <h3 className="mt-4 text-xl font-black text-slate-900">Bono por recarga</h3>
-      <p className="mt-2 text-sm text-slate-600">Recargas saldo y recibes más dinero en ese momento.</p>
+      <h3 className="mt-4 text-xl font-black text-slate-900">Recompensa por deposito</h3>
+      <p className="mt-2 text-sm text-slate-600">Si eliges esta promocion, cada recarga indicada te da saldo adicional.</p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <StepRow icon="Wallet" title="1. Recarga" text="Elige un monto." tone="sky" />
         <StepRow icon="BadgePlus" title="2. Ganas extra" text="Te damos saldo adicional." tone="emerald" />
@@ -219,8 +225,8 @@ function TopupPromotionCard({ promotion }) {
       </div>
       <div className="mt-4">
         <SimpleTable
-          columns={['Recarga', 'Recibes']}
-          rows={tiers.map((tier) => [`$${moneyFromCents(tier.amountCents)}`, `$${moneyFromCents(Number(tier.amountCents || 0) + Number(tier.bonusCents || 0))}`])}
+          columns={['Recarga', 'Saldo adicional']}
+          rows={tiers.map((tier) => [`$${moneyFromCents(tier.amountCents)}`, `+$${moneyFromCents(tier.bonusCents)}`])}
           accent="sky"
         />
       </div>
@@ -233,9 +239,6 @@ function CashbackPromotionCard({ promotion, monthlyProgress }) {
   const estimatedCashbackCents = Number(monthlyProgress?.estimatedCashbackCents || 0);
   const { current, tiers } = getCashbackTierInfo(garrafones, promotion);
   const currentRate = Number(current?.cashbackPerGarrafonCents || 0);
-  const nextThreshold = garrafones < 5 ? 5 : garrafones < 10 ? 10 : null;
-  const progressTarget = nextThreshold || 10;
-  const progress = Math.max(0, Math.min(100, (garrafones / progressTarget) * 100));
 
   return (
     <article className="rounded-[1.8rem] border border-slate-200 bg-[linear-gradient(135deg,_#ecfdf5_0%,_#ffffff_100%)] p-5">
@@ -246,7 +249,7 @@ function CashbackPromotionCard({ promotion, monthlyProgress }) {
         <StatusPill tone="emerald">Elegida</StatusPill>
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">Cashback mensual</h3>
-      <p className="mt-2 text-sm text-slate-600">Compras agua durante el mes y al final del mes recibes saldo extra.</p>
+      <p className="mt-2 text-sm text-slate-600">Si eliges esta promocion, recibes $0.50 por cada garrafon comprado durante el mes.</p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <StepRow icon="Droplets" title="1. Compras agua" text="Cada garrafón cuenta." tone="emerald" />
         <StepRow icon="BarChart3" title="2. Acumulas" text="Sumas garrafones en el mes." tone="sky" />
@@ -261,22 +264,15 @@ function CashbackPromotionCard({ promotion, monthlyProgress }) {
           </div>
           <StatusPill tone="emerald">{formatCurrency(currentRate)} por garrafón</StatusPill>
         </div>
-        <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
-          <div className="h-full rounded-full bg-[linear-gradient(90deg,_#10b981_0%,_#34d399_100%)]" style={{ width: `${progress}%` }} />
-        </div>
-        <p className="mt-3 text-sm text-slate-500">
-          {nextThreshold
-            ? `Te faltan ${(nextThreshold - garrafones).toFixed(1)} garrafones para subir.`
-            : 'Ya estás en el nivel más alto.'}
-        </p>
+        <p className="mt-3 text-sm text-slate-500">El saldo se calcula al cierre del mes segun tus garrafones comprados.</p>
       </div>
 
       <div className="mt-4">
         <SimpleTable
-          columns={['Si llegas a', 'Recibes']}
+          columns={['Compra mensual', 'Recibes']}
           rows={tiers.map((tier) => {
-            const label = tier.maxGarrafones == null ? 'Más de 10 garrafones' : `Hasta ${tier.maxGarrafones} garrafones`;
-            return [label, `${formatCurrency(tier.cashbackPerGarrafonCents)} por garrafón`];
+            const label = tier.maxGarrafones == null ? 'Cada garrafon comprado' : `Hasta ${tier.maxGarrafones} garrafones`;
+            return [label, `${formatCurrency(tier.cashbackPerGarrafonCents)} por garrafon`];
           })}
           accent="emerald"
         />
@@ -289,11 +285,10 @@ function PointsPromotionCard({ promotion, monthlyProgress }) {
   const points = Number(monthlyProgress?.points || 0);
   const estimatedPointsBonusCents = Number(monthlyProgress?.estimatedPointsBonusCents || 0);
   const pointsPerLiter = Number(promotion?.config?.pointsPerLiter || 0);
-  const { current, next, tiers } = getPointsTierInfo(points, promotion);
-  const currentPercent = Number(current?.bonusPercent || 0);
-  const nextTarget = Number(next?.minPoints || current?.minPoints || points || 0);
-  const missing = next ? Math.max(0, nextTarget - points) : 0;
-  const progress = next ? Math.max(0, Math.min(100, (points / nextTarget) * 100)) : 100;
+  const { next, tiers, effectivePoints } = getPointsTierInfo(points, promotion);
+  const nextTarget = Number(next?.minPoints || 1000);
+  const missing = next ? Math.max(0, nextTarget - effectivePoints) : 0;
+  const progress = next ? Math.max(0, Math.min(100, (effectivePoints / nextTarget) * 100)) : 100;
 
   return (
     <article className="rounded-[1.8rem] border border-slate-200 bg-[linear-gradient(135deg,_#f0f9ff_0%,_#ffffff_100%)] p-5">
@@ -301,21 +296,21 @@ function PointsPromotionCard({ promotion, monthlyProgress }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-white text-sky-700 shadow-sm">
           <Icon name={PROMOTION_ICONS.monthly_consumption_points} size={20} />
         </div>
-        <StatusPill tone="sky">Elegida</StatusPill>
+        <StatusPill tone="sky">Automatico</StatusPill>
       </div>
-      <h3 className="mt-4 text-xl font-black text-slate-900">Puntos del mes</h3>
-      <p className="mt-2 text-sm text-slate-600">Cada litro que compras te da puntos. Entre más puntos, más porcentaje extra ganas.</p>
+      <h3 className="mt-4 text-xl font-black text-slate-900">Recompensa por consumo mensual</h3>
+      <p className="mt-2 text-sm text-slate-600">Beneficio automatico: cada 20 litros suman 10 puntos. Al llegar a ciertos niveles recibes saldo extra.</p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <StepRow icon="Droplets" title="1. Compras agua" text={`1 litro = ${pointsPerLiter} puntos`} tone="sky" />
+        <StepRow icon="Droplets" title="1. Compras agua" text={`20 litros = ${Math.round(pointsPerLiter * 20)} puntos`} tone="sky" />
         <StepRow icon="Sparkles" title="2. Subes puntos" text="Tus puntos se suman en el mes." tone="emerald" />
-        <StepRow icon="Wallet" title="3. Ganas extra" text="Al cierre del mes recibes el bono." tone="amber" />
+        <StepRow icon="RefreshCcw" title="3. Se reinicia" text="Despues de 1,000 puntos vuelve a iniciar." tone="amber" />
       </div>
 
       <div className="mt-4 rounded-[1.35rem] bg-white p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-slate-900">Tienes {points} puntos</p>
-            <p className="mt-1 text-sm text-slate-500">Ya desbloqueaste {currentPercent}% extra</p>
+            <p className="text-sm font-semibold text-slate-900">Tienes {points} puntos este mes</p>
+            <p className="mt-1 text-sm text-slate-500">Puntos usados para el nivel actual: {effectivePoints}</p>
           </div>
           <StatusPill tone="sky">Si hoy cerrara el mes: {formatCurrency(estimatedPointsBonusCents)}</StatusPill>
         </div>
@@ -323,16 +318,52 @@ function PointsPromotionCard({ promotion, monthlyProgress }) {
           <div className="h-full rounded-full bg-[linear-gradient(90deg,_#2563eb_0%,_#22d3ee_100%)]" style={{ width: `${progress}%` }} />
         </div>
         <p className="mt-3 text-sm text-slate-500">
-          {next ? `Te faltan ${missing} puntos para subir a ${next.bonusPercent}% extra.` : 'Ya estás en el nivel más alto.'}
+          {next ? `Te faltan ${missing} puntos para el siguiente bono.` : 'Ya llegaste al bono mas alto de este ciclo.'}
         </p>
       </div>
 
       <div className="mt-4">
         <SimpleTable
           columns={['Puntos', 'Bono']}
-          rows={tiers.filter((tier) => Number(tier.bonusPercent || 0) > 0).map((tier) => [`${tier.minPoints} puntos`, `${tier.bonusPercent}% extra`])}
+          rows={tiers.map((tier) => [`${tier.minPoints.toLocaleString('es-MX')} puntos`, Number(tier.bonusCents || 0) > 0 ? formatCurrency(tier.bonusCents) : 'Sin beneficio'])}
           accent="sky"
         />
+      </div>
+    </article>
+  );
+}
+
+function MembershipPromotionCard({ promotion }) {
+  const garrafones = Number(promotion?.config?.garrafones || 0);
+  const monthlyPriceCents = Number(promotion?.config?.monthlyPriceCents || 0);
+  const costPerGarrafonCents = Number(promotion?.config?.costPerGarrafonCents || 0);
+
+  return (
+    <article className="rounded-[1.8rem] border border-slate-200 bg-[linear-gradient(135deg,_#f8fafc_0%,_#ffffff_100%)] p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-white text-slate-700 shadow-sm">
+          <Icon name="Crown" size={20} />
+        </div>
+        <StatusPill tone="slate">Elegida</StatusPill>
+      </div>
+      <h3 className="mt-4 text-xl font-black text-slate-900">{promotion.title}</h3>
+      <p className="mt-2 text-sm text-slate-600">
+        Un solo pago mensual para comprar {garrafones} garrafones a mejor precio.
+      </p>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-[1.25rem] bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Garrafones</p>
+          <p className="mt-1 text-2xl font-black text-slate-900">{garrafones}</p>
+        </div>
+        <div className="rounded-[1.25rem] bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Pago mensual</p>
+          <p className="mt-1 text-2xl font-black text-slate-900">{formatCurrency(monthlyPriceCents)}</p>
+        </div>
+        <div className="rounded-[1.25rem] bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Costo/G</p>
+          <p className="mt-1 text-2xl font-black text-slate-900">{formatCurrency(costPerGarrafonCents)}</p>
+        </div>
       </div>
     </article>
   );
@@ -358,9 +389,9 @@ export default function PromotionalBanner({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Promociones</p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Elige tus 2 promociones del mes</h2>
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Beneficios automaticos y promociones a elegir</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Lo que elijas aquí será lo que sí funcione para ti durante este mes.
+            El garrafon gratis y los puntos se aplican solos. Ademas puedes elegir hasta 2 beneficios del mes.
           </p>
         </div>
 
@@ -394,6 +425,9 @@ export default function PromotionalBanner({
           }
           if (promotion.key === 'monthly_consumption_points') {
             return <PointsPromotionCard key={promotion.key} promotion={promotion} monthlyProgress={monthlyProgress} />;
+          }
+          if (promotion.kind === 'membership') {
+            return <MembershipPromotionCard key={promotion.key} promotion={promotion} />;
           }
           return null;
         })}

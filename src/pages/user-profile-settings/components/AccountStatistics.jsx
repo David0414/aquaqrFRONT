@@ -10,6 +10,9 @@ const PROMOTION_ICONS = {
   topup_bonus: 'WalletCards',
   monthly_cashback: 'BadgePercent',
   monthly_consumption_points: 'Sparkles',
+  premium_membership_1: 'Crown',
+  premium_membership_2: 'Crown',
+  premium_membership_3: 'Crown',
 };
 
 const PROMOTION_LABELS = {
@@ -17,6 +20,9 @@ const PROMOTION_LABELS = {
   topup_bonus: 'Top-Up',
   monthly_cashback: 'Cashback',
   monthly_consumption_points: 'Puntos',
+  premium_membership_1: 'Premium 1',
+  premium_membership_2: 'Premium 2',
+  premium_membership_3: 'Premium 3',
 };
 
 const AccountStatistics = ({ user }) => {
@@ -41,7 +47,7 @@ const AccountStatistics = ({ user }) => {
     {
       label: 'Bono por puntos',
       value: `$${moneyFromCents(monthlyProgress?.estimatedPointsBonusCents)}`,
-      helper: `${monthlyProgress?.bonusPercent || 0}% con tu nivel actual`,
+      helper: monthlyProgress?.pointsLabel || 'Sin beneficio',
       color: 'from-sky-600 to-cyan-400',
       width: `${pointsProgress}%`,
     },

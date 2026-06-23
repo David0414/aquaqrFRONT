@@ -184,6 +184,7 @@ const BalanceRecharge = () => {
     telemetry,
     machine,
     balanceCents,
+    pricePerLiterCents,
     setTelemetryEnabled,
     sendStageCommand,
     syncTelemetryCredit,
@@ -229,19 +230,73 @@ const BalanceRecharge = () => {
     [topUpPromotion]
   );
 
+  const membershipPromotions = useMemo(
+    () => availablePromotions
+      .filter((promotion) => (
+        promotion.kind === 'membership'
+        && promotion.isActive
+        && promotion.isEnabledForUserThisMonth
+        && Number(promotion.config?.monthlyPriceCents || 0) > 0
+      ))
+      .sort((a, b) => Number(a.config?.monthlyPriceCents || 0) - Number(b.config?.monthlyPriceCents || 0)),
+    [availablePromotions]
+  );
+
+  const publicPricePerGarrafonCents = useMemo(
+    () => Math.max(0, Number(pricePerLiterCents || 175) * 20),
+    [pricePerLiterCents]
+  );
+
+  const getMembershipOfferForAmount = useCallback((amount) => {
+    const amountCents = Math.round(Number(amount || 0) * 100);
+    return membershipPromotions.find((promotion) => (
+      Number(promotion.config?.monthlyPriceCents || 0) === amountCents
+    )) || null;
+  }, [membershipPromotions]);
+
+  const getMembershipBonusForAmount = useCallback((amount) => {
+    const promotion = getMembershipOfferForAmount(amount);
+    if (!promotion) return 0;
+    const garrafones = Number(promotion.config?.garrafones || 0);
+    const monthlyPriceCents = Number(promotion.config?.monthlyPriceCents || 0);
+    const planValueCents = garrafones * publicPricePerGarrafonCents;
+    return moneyFromCents(Math.max(0, planValueCents - monthlyPriceCents));
+  }, [getMembershipOfferForAmount, publicPricePerGarrafonCents]);
+
   const getBonusForAmount = useCallback((amount) => {
+    const membershipBonus = getMembershipBonusForAmount(amount);
+    if (membershipBonus > 0) return membershipBonus;
+
     const amountCents = Math.round(Number(amount || 0) * 100);
     const matchingTier = [...topUpTiers]
       .filter((tier) => Number(tier.amountCents || 0) <= amountCents)
       .sort((a, b) => Number(b.amountCents || 0) - Number(a.amountCents || 0))[0];
 
     return moneyFromCents(matchingTier?.bonusCents || 0);
-  }, [topUpTiers]);
+  }, [getMembershipBonusForAmount, topUpTiers]);
 
-  const presetAmounts = useMemo(
-    () => DEFAULT_RECHARGE_OPTIONS.map((amount) => ({ amount, bonus: getBonusForAmount(amount) })),
-    [getBonusForAmount]
-  );
+  const presetAmounts = useMemo(() => {
+    const membershipOptions = membershipPromotions.map((promotion) => ({
+      amount: moneyFromCents(promotion.config?.monthlyPriceCents || 0),
+      bonus: getBonusForAmount(moneyFromCents(promotion.config?.monthlyPriceCents || 0)),
+      label: promotion.title,
+    }));
+
+    const standardOptions = DEFAULT_RECHARGE_OPTIONS.map((amount) => ({
+      amount,
+      bonus: getBonusForAmount(amount),
+      label: '',
+    }));
+
+    const byAmount = new Map();
+    [...membershipOptions, ...standardOptions].forEach((option) => {
+      if (!byAmount.has(option.amount) || option.label) {
+        byAmount.set(option.amount, option);
+      }
+    });
+
+    return [...byAmount.values()].sort((a, b) => a.amount - b.amount);
+  }, [getBonusForAmount, membershipPromotions]);
 
   const fetchRechargeContext = useCallback(async () => {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
@@ -559,11 +614,15 @@ const BalanceRecharge = () => {
       const res = await fetch(`${API}/api/recharge/create-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amountCents }),
+        body: JSON.stringify({
+          amountCents,
+          machineId: machine?.id,
+          hardwareId: machine?.hardwareId,
+        }),
       });
       const data = await safeJson(res);
       if (!res.ok || !data.clientSecret) {
-        throw new Error(data?.error || 'No se pudo iniciar el pago');
+        throw new Error(data?.message || data?.error || 'No se pudo iniciar el pago');
       }
 
       setClientSecret(data.clientSecret);
@@ -733,6 +792,7 @@ const BalanceRecharge = () => {
                         key={preset.amount}
                         amount={preset.amount}
                         bonus={preset.bonus}
+                        label={preset.label}
                         isSelected={selectedAmount === preset.amount && !customAmount}
                         onClick={handlePresetAmountSelect}
                       />

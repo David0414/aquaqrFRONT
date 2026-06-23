@@ -6,12 +6,14 @@ const PROMOTION_ICONS = {
   topup_bonus: 'WalletCards',
   monthly_cashback: 'BadgePercent',
   monthly_consumption_points: 'Sparkles',
+  premium_membership_1: 'Crown',
+  premium_membership_2: 'Crown',
+  premium_membership_3: 'Crown',
 };
 
 export default function PromotionalBanner({ promotions = [] }) {
   const activePromotions = promotions
-    .filter((promotion) => promotion.isActive && promotion.key !== 'premium_membership')
-    .slice(0, 4);
+    .filter((promotion) => promotion.isActive && promotion.key !== 'premium_membership');
 
   if (activePromotions.length === 0) {
     return null;
@@ -59,6 +61,20 @@ export default function PromotionalBanner({ promotions = [] }) {
                         {tier.label}
                       </span>
                     ))}
+                  </div>
+                ) : null}
+
+                {promotion.kind === 'membership' ? (
+                  <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                    <span className="rounded-full bg-primary/10 px-3 py-1 font-semibold text-primary">
+                      {promotion.config?.garrafones || 0} garrafones/mes
+                    </span>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                      Pago ${(Number(promotion.config?.monthlyPriceCents || 0) / 100).toFixed(0)}
+                    </span>
+                    <span className="rounded-full bg-sky-50 px-3 py-1 font-semibold text-sky-700">
+                      ${(Number(promotion.config?.costPerGarrafonCents || 0) / 100).toFixed(2)} por garrafon
+                    </span>
                   </div>
                 ) : null}
               </div>

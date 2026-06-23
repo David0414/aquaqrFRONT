@@ -112,7 +112,7 @@ export default function PromotionsCenter() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-text-primary">Promociones de {displayName}</p>
-            <p className="text-xs text-text-secondary">Qué haces, qué ganas y cuándo lo recibes</p>
+            <p className="text-xs text-text-secondary">Beneficios automaticos y promociones que puedes elegir</p>
           </div>
           <button
             onClick={() => navigate('/user-profile-settings')}
@@ -131,7 +131,7 @@ export default function PromotionsCenter() {
 
           <div className="relative">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Lo importante hoy</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Tus promociones sin enredos</h1>
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Promociones claras para ahorrar</h1>
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <div className="rounded-[1.7rem] bg-white/90 p-4 shadow-sm">
                 <p className="text-sm font-semibold text-slate-700">Saldo de promociones</p>
@@ -140,12 +140,12 @@ export default function PromotionsCenter() {
               <div className="rounded-[1.7rem] bg-white/90 p-4 shadow-sm">
                 <p className="text-sm font-semibold text-slate-700">Cashback que llevas</p>
                 <p className="mt-2 text-3xl font-black text-emerald-600">${moneyFromCents(monthlyProgress?.estimatedCashbackCents)}</p>
-                <p className="mt-1 text-sm text-slate-500">Se deposita al final del mes.</p>
+                <p className="mt-1 text-sm text-slate-500">$0.50 por garrafon si eliges cashback.</p>
               </div>
               <div className="rounded-[1.7rem] bg-white/90 p-4 shadow-sm">
                 <p className="text-sm font-semibold text-slate-700">Puntos de este mes</p>
                 <p className="mt-2 text-3xl font-black text-sky-700">{monthlyProgress?.points || 0}</p>
-                <p className="mt-1 text-sm text-slate-500">{activePromotions.length} promociones activas.</p>
+                <p className="mt-1 text-sm text-slate-500">Cada 20 L = 10 puntos.</p>
               </div>
             </div>
           </div>

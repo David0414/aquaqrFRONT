@@ -3,6 +3,7 @@ import React from 'react';
 const PresetAmountCard = ({ 
   amount, 
   bonus = 0, 
+  label = '',
   isSelected = false, 
   onClick,
   className = '' 
@@ -23,6 +24,11 @@ const PresetAmountCard = ({
         <div className="text-xl font-bold text-text-primary mb-1">
           ${amount}
         </div>
+        {label ? (
+          <div className="mb-1 text-xs font-semibold text-primary">
+            {label}
+          </div>
+        ) : null}
         {bonus > 0 && (
           <div className="text-success text-body-sm font-medium">
             +${bonus} regalo
