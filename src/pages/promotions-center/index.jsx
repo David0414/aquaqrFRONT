@@ -127,12 +127,11 @@ export default function PromotionsCenter() {
       });
       const data = await res.json().catch(() => null);
       if (res.status === 400 && data?.error === 'INSUFFICIENT_FUNDS') {
-        window.showToast?.('Saldo insuficiente. Te llevamos a pagar la membresia.', 'warning', 3000);
+        window.showToast?.('Saldo insuficiente. Recarga saldo y despues activa la membresia.', 'warning', 3000);
         navigate('/balance-recharge', {
           state: {
             selectedAmountCents: promotion.config?.monthlyPriceCents,
             paymentMethod: 'stripe',
-            membershipPromotionKey: promotion.key,
           },
         });
         return;
@@ -148,11 +147,11 @@ export default function PromotionsCenter() {
   };
 
   const handlePayMembershipWithCard = (promotion) => {
+    window.showToast?.('Primero recarga saldo. Al volver, toca "Pagar ahora con saldo" para activar la membresia.', 'info', 4000);
     navigate('/balance-recharge', {
       state: {
         selectedAmountCents: promotion.config?.monthlyPriceCents,
         paymentMethod: 'stripe',
-        membershipPromotionKey: promotion.key,
       },
     });
   };

@@ -366,9 +366,6 @@ const BalanceRecharge = () => {
       totalBalance: Number(balanceCents) / 100,
     }));
 
-    if (coinScreenOpen && Number.isFinite(coinSessionStartBalanceCents)) {
-      setCoinSessionCreditedCents(Math.max(0, Number(balanceCents) - Number(coinSessionStartBalanceCents)));
-    }
   }, [balanceCents, coinScreenOpen, coinSessionStartBalanceCents, telemetry?.insertedCoinAmount]);
 
   useEffect(() => {
@@ -392,10 +389,6 @@ const BalanceRecharge = () => {
           realBalance: Number.isFinite(nextRealCents) ? Number(nextRealCents) / 100 : current.realBalance,
           bonusBalance: Number.isFinite(nextBonusCents) ? Number(nextBonusCents) / 100 : current.bonusBalance,
         }));
-
-        if (coinScreenOpen && Number.isFinite(nextTotalCents) && Number.isFinite(coinSessionStartBalanceCents)) {
-          setCoinSessionCreditedCents(Math.max(0, Number(nextTotalCents) - Number(coinSessionStartBalanceCents)));
-        }
 
         return;
       }
@@ -463,8 +456,7 @@ const BalanceRecharge = () => {
 
   const openCoinRechargeScreen = async () => {
     try {
-      const baseline = Number(telemetry.accumulatedMoney || 0);
-      setCoinBaselineAmount(baseline);
+      setCoinBaselineAmount(0);
       setCoinSessionStartBalanceCents(Math.round(Number(walletBreakdown.totalBalance || 0) * 100));
       setCoinSessionCreditedCents(0);
       setLatestSessionCoinAmount(0);
@@ -527,12 +519,8 @@ const BalanceRecharge = () => {
       const finalTelemetry = await pollInputs({ force: true }).catch(() => null);
       if (finalTelemetry?.rawFrame) {
         const syncResult = await syncTelemetryCredit(finalTelemetry, { force: true }).catch(() => null);
-        if (
-          syncResult
-          && Number.isFinite(syncResult.balanceCents)
-          && Number.isFinite(coinSessionStartBalanceCents)
-        ) {
-          setCoinSessionCreditedCents(Math.max(0, Number(syncResult.balanceCents) - Number(coinSessionStartBalanceCents)));
+        if (syncResult?.creditedCents) {
+          setCoinSessionCreditedCents(Number(syncResult.creditedCents));
         }
       }
 
@@ -720,9 +708,14 @@ const BalanceRecharge = () => {
 
   const isStripeMode = selectedPaymentMethod === 'stripe';
   const currentBalance = walletBreakdown.totalBalance;
-  const liveInsertedSessionAmount = Number.isFinite(coinSessionCreditedCents)
-    ? Math.max(0, Number(coinSessionCreditedCents) / 100)
-    : Math.max(0, Number(telemetry.accumulatedMoney || 0) - Number(coinBaselineAmount || 0));
+  const telemetryInsertedAmount = Math.max(
+    0,
+    Number(telemetry.accumulatedMoney || 0) - Number(coinBaselineAmount || 0)
+  );
+  const liveInsertedSessionAmount = Math.max(
+    telemetryInsertedAmount,
+    Number(coinSessionCreditedCents || 0) / 100
+  );
   const latestCoinAmount = Number(latestSessionCoinAmount || telemetry.insertedCoinAmount || 0);
   const machineAccumulatedAmount = Number(telemetry.accumulatedMoney || 0);
 
