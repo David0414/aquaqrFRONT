@@ -110,6 +110,9 @@ function SelectionChooser({
 }) {
   const requiredCount = Number(selection?.requiredCount || 0);
   const canSave = requiredCount === 0 || (selectedPromotionKeys.length > 0 && selectedPromotionKeys.length <= requiredCount);
+  const selectedMembershipKey = selectablePromotions.find(
+    (promotion) => promotion.kind === 'membership' && selectedPromotionKeys.includes(promotion.key)
+  )?.key;
 
   if (requiredCount === 0) {
     return null;
@@ -122,7 +125,7 @@ function SelectionChooser({
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Beneficios a escoger</p>
           <h3 className="mt-2 text-2xl font-black text-slate-900">Elige maximo {requiredCount} promociones</h3>
           <p className="mt-2 text-sm text-slate-500">
-            Estas promociones se activan para ti durante este mes. Los beneficios automaticos no cuentan en esta eleccion.
+            Estas promociones se activan durante 30 dias. Los beneficios automaticos no cuentan en esta eleccion.
           </p>
         </div>
         <div className="rounded-[1.3rem] bg-white px-4 py-3 shadow-sm">
@@ -134,7 +137,8 @@ function SelectionChooser({
       <div className="mt-5 grid gap-4 md:grid-cols-3">
         {selectablePromotions.map((promotion) => {
           const selected = selectedPromotionKeys.includes(promotion.key);
-          const disabled = !selected && selectedPromotionKeys.length >= requiredCount;
+          const blockedByMembership = promotion.kind === 'membership' && selectedMembershipKey && selectedMembershipKey !== promotion.key;
+          const disabled = !selected && (selectedPromotionKeys.length >= requiredCount || blockedByMembership);
 
           return (
             <button
@@ -160,7 +164,7 @@ function SelectionChooser({
               </div>
               <p className="mt-4 text-lg font-black">{promotion.title}</p>
               <p className={`mt-2 text-sm ${selected ? 'text-white/80' : 'text-slate-500'}`}>
-                {promotion.summary || promotion.description}
+                {blockedByMembership ? 'Ya elegiste otra membresia. Quita esa primero para cambiarla.' : (promotion.summary || promotion.description)}
               </p>
             </button>
           );
@@ -170,8 +174,8 @@ function SelectionChooser({
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-500">
           {selection.complete
-            ? 'Ya tienes tus promociones elegidas para este mes.'
-            : 'Elige hasta 2 beneficios para activarlos.'}
+            ? 'Tus promociones estan activas por 30 dias.'
+            : 'Elige hasta 2 beneficios por 30 dias. Solo una puede ser membresia.'}
         </p>
         <Button onClick={onSaveSelection} disabled={!canSave} loading={savingSelection}>
           Guardar mis promociones
@@ -333,10 +337,12 @@ function PointsPromotionCard({ promotion, monthlyProgress }) {
   );
 }
 
-function MembershipPromotionCard({ promotion }) {
+function MembershipPromotionCard({ promotion, onPurchaseWithBalance, onPayWithCard, purchasingMembershipKey }) {
   const garrafones = Number(promotion?.config?.garrafones || 0);
   const monthlyPriceCents = Number(promotion?.config?.monthlyPriceCents || 0);
   const costPerGarrafonCents = Number(promotion?.config?.costPerGarrafonCents || 0);
+  const purchased = Boolean(promotion?.status?.purchased);
+  const loading = purchasingMembershipKey === promotion.key;
 
   return (
     <article className="rounded-[1.8rem] border border-slate-200 bg-[linear-gradient(135deg,_#f8fafc_0%,_#ffffff_100%)] p-5">
@@ -344,7 +350,7 @@ function MembershipPromotionCard({ promotion }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-white text-slate-700 shadow-sm">
           <Icon name="Crown" size={20} />
         </div>
-        <StatusPill tone="slate">Elegida</StatusPill>
+        <StatusPill tone={purchased ? 'emerald' : 'slate'}>{purchased ? 'Pagada' : 'Pendiente de pago'}</StatusPill>
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">{promotion.title}</h3>
       <p className="mt-2 text-sm text-slate-600">
@@ -365,6 +371,24 @@ function MembershipPromotionCard({ promotion }) {
           <p className="mt-1 text-2xl font-black text-slate-900">{formatCurrency(costPerGarrafonCents)}</p>
         </div>
       </div>
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <Button
+          onClick={() => onPurchaseWithBalance?.(promotion)}
+          disabled={purchased}
+          loading={loading}
+          className="flex-1 justify-center"
+        >
+          {purchased ? 'Membresia activa' : 'Pagar con saldo'}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => onPayWithCard?.(promotion)}
+          disabled={purchased}
+          className="flex-1 justify-center"
+        >
+          Pagar con tarjeta
+        </Button>
+      </div>
     </article>
   );
 }
@@ -378,6 +402,9 @@ export default function PromotionalBanner({
   onToggleSelection,
   onSaveSelection,
   savingSelection = false,
+  onPurchaseMembership,
+  onPayMembershipWithCard,
+  purchasingMembershipKey = '',
 }) {
   const selectablePromotions = (selection?.selectablePromotions || []).slice().sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
   const visiblePromotions = promotions
@@ -391,7 +418,7 @@ export default function PromotionalBanner({
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Promociones</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Beneficios automaticos y promociones a elegir</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            El garrafon gratis y los puntos se aplican solos. Ademas puedes elegir hasta 2 beneficios del mes.
+            El garrafon gratis y los puntos se aplican solos. Ademas puedes elegir hasta 2 beneficios por 30 dias.
           </p>
         </div>
 
@@ -427,7 +454,15 @@ export default function PromotionalBanner({
             return <PointsPromotionCard key={promotion.key} promotion={promotion} monthlyProgress={monthlyProgress} />;
           }
           if (promotion.kind === 'membership') {
-            return <MembershipPromotionCard key={promotion.key} promotion={promotion} />;
+            return (
+              <MembershipPromotionCard
+                key={promotion.key}
+                promotion={promotion}
+                onPurchaseWithBalance={onPurchaseMembership}
+                onPayWithCard={onPayMembershipWithCard}
+                purchasingMembershipKey={purchasingMembershipKey}
+              />
+            );
           }
           return null;
         })}

@@ -32,6 +32,7 @@ const HomeDashboard = () => {
   const [dispenseLoading, setDispenseLoading] = useState(false);
   const hasLoadedDashboardRef = useRef(false);
   const refreshTimeoutRef = useRef(null);
+  const promoNoticeShownRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -237,6 +238,17 @@ const HomeDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClerkLoaded, isSignedIn, pollInputs]);
 
+  const dashboardSelection = dashboard?.selection || { requiredCount: 0, selectedPromotionKeys: [], complete: true };
+
+  useEffect(() => {
+    if (!dashboard || promoNoticeShownRef.current || dashboardSelection.complete) return;
+    promoNoticeShownRef.current = true;
+    window.showToast?.('Activa tus promociones por 30 dias para aprovechar beneficios.', 'info', 3000, {
+      label: 'Activar',
+      onClick: () => navigate('/promotions'),
+    });
+  }, [dashboard, dashboardSelection.complete, navigate]);
+
   const handleRecharge = () => {
     sendStageCommand('recargar').catch((error) => {
       window.showToast?.(error?.message || 'No se pudo activar recarga', 'error');
@@ -298,7 +310,7 @@ const HomeDashboard = () => {
   const totalBalance = Number(dashboard.wallet?.totalAvailableCents || dashboard.wallet?.balanceCents || 0);
   const realBalance = Number(dashboard.wallet?.realBalanceCents || 0);
   const bonusBalance = Number(dashboard.wallet?.bonusBalanceCents || 0);
-  const selection = dashboard.selection || { requiredCount: 0, selectedPromotionKeys: [], complete: true };
+  const selection = dashboardSelection;
   const selectedCount = Number(selection.selectedPromotionKeys?.length || 0);
 
   return (
@@ -355,10 +367,10 @@ const HomeDashboard = () => {
                     <p className="mt-2 text-3xl font-black text-emerald-600">${moneyFromCents(bonusBalance)}</p>
                   </div>
                   <div className="rounded-[1.6rem] bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-700">Tus promos del mes</p>
+                    <p className="text-sm font-semibold text-slate-700">Tus promos activas</p>
                     <p className="mt-2 text-3xl font-black text-[#1E3F7A]">{selectedCount}/{selection.requiredCount || 0}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {selection.complete ? 'Ya elegiste tus promociones.' : 'Todavia te falta elegir tus promociones.'}
+                      {selection.complete ? 'Activas por 30 dias.' : 'Activa tus promociones por 30 dias.'}
                     </p>
                   </div>
                 </div>

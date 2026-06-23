@@ -199,9 +199,10 @@ const BalanceRecharge = () => {
     bonusBalance: 0,
   });
   const [availablePromotions, setAvailablePromotions] = useState([]);
-  const [selectedAmount, setSelectedAmount] = useState(0);
+  const initialSelectedAmount = moneyFromCents(location?.state?.selectedAmountCents || 0);
+  const [selectedAmount, setSelectedAmount] = useState(initialSelectedAmount);
   const [customAmount, setCustomAmount] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(location?.state?.paymentMethod || '');
   const [coinScreenOpen, setCoinScreenOpen] = useState(false);
   const [coinScreenSaving, setCoinScreenSaving] = useState(false);
   const [coinBaselineAmount, setCoinBaselineAmount] = useState(0);

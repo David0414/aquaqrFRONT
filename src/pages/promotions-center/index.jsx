@@ -5,6 +5,7 @@ import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import Icon from '../../components/AppIcon';
 import PromotionalBanner from '../home-dashboard/components/PromotionalBanner';
+import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -17,10 +18,12 @@ export default function PromotionsCenter() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const { user } = useUser();
+  const { machine } = useDispenseFlow();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedPromotionKeys, setSelectedPromotionKeys] = useState([]);
   const [savingSelection, setSavingSelection] = useState(false);
+  const [purchasingMembershipKey, setPurchasingMembershipKey] = useState('');
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -61,9 +64,20 @@ export default function PromotionsCenter() {
 
   const toggleSelection = (promotionKey) => {
     const requiredCount = Number(selection?.requiredCount || 0);
+    const promotion = (selection?.selectablePromotions || []).find((item) => item.key === promotionKey);
     setSelectedPromotionKeys((current) => {
       if (current.includes(promotionKey)) {
         return current.filter((key) => key !== promotionKey);
+      }
+      if (promotion?.kind === 'membership') {
+        const withoutOtherMemberships = current.filter((key) => {
+          const selectedPromotion = (selection?.selectablePromotions || []).find((item) => item.key === key);
+          return selectedPromotion?.kind !== 'membership';
+        });
+        if (withoutOtherMemberships.length >= requiredCount) {
+          return withoutOtherMemberships;
+        }
+        return [...withoutOtherMemberships, promotionKey];
       }
       if (current.length >= requiredCount) {
         return current;
@@ -86,13 +100,61 @@ export default function PromotionsCenter() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data?.error || 'No se pudo guardar tu seleccion');
-      window.showToast?.('Tus promociones del mes fueron guardadas', 'success');
+      window.showToast?.('Tus promociones fueron guardadas por 30 dias', 'success');
       await loadDashboard();
     } catch (error) {
       window.showToast?.(error?.message || 'No se pudo guardar tu seleccion', 'error');
     } finally {
       setSavingSelection(false);
     }
+  };
+
+  const handlePurchaseMembership = async (promotion) => {
+    try {
+      setPurchasingMembershipKey(promotion.key);
+      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+      const res = await fetch(`${API}/api/rewards/membership/purchase`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          promotionKey: promotion.key,
+          machineId: machine?.id,
+          hardwareId: machine?.hardwareId,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.status === 400 && data?.error === 'INSUFFICIENT_FUNDS') {
+        window.showToast?.('Saldo insuficiente. Te llevamos a pagar la membresia.', 'warning', 3000);
+        navigate('/balance-recharge', {
+          state: {
+            selectedAmountCents: promotion.config?.monthlyPriceCents,
+            paymentMethod: 'stripe',
+            membershipPromotionKey: promotion.key,
+          },
+        });
+        return;
+      }
+      if (!res.ok || !data) throw new Error(data?.message || data?.error || 'No se pudo pagar la membresia');
+      window.showToast?.('Membresia pagada y activada por 30 dias', 'success');
+      await loadDashboard();
+    } catch (error) {
+      window.showToast?.(error?.message || 'No se pudo pagar la membresia', 'error');
+    } finally {
+      setPurchasingMembershipKey('');
+    }
+  };
+
+  const handlePayMembershipWithCard = (promotion) => {
+    navigate('/balance-recharge', {
+      state: {
+        selectedAmountCents: promotion.config?.monthlyPriceCents,
+        paymentMethod: 'stripe',
+        membershipPromotionKey: promotion.key,
+      },
+    });
   };
 
   if (loading && !dashboard) {
@@ -160,6 +222,9 @@ export default function PromotionsCenter() {
           onToggleSelection={toggleSelection}
           onSaveSelection={handleSaveSelection}
           savingSelection={savingSelection}
+          onPurchaseMembership={handlePurchaseMembership}
+          onPayMembershipWithCard={handlePayMembershipWithCard}
+          purchasingMembershipKey={purchasingMembershipKey}
         />
       </main>
 
