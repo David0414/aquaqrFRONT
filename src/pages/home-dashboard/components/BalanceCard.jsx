@@ -36,7 +36,7 @@ const BalanceCard = ({
 
       <div className="relative grid gap-3 md:grid-cols-2">
         <div className="rounded-[1.6rem] border border-white/15 bg-white/12 px-4 py-4 backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">Saldo real</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">TU SALDO TOTAL</p>
           <p className="mt-2 text-2xl font-black text-white">${safeReal.toFixed(2)}</p>
         </div>
         <div className="rounded-[1.6rem] border border-white/15 bg-[linear-gradient(135deg,_rgba(16,185,129,0.26),_rgba(45,212,191,0.12))] px-4 py-4 backdrop-blur">

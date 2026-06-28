@@ -28,7 +28,7 @@ const CurrentBalanceCard = ({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl bg-white/80 px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">Saldo real</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">TU SALDO TOTAL</p>
           <p className="mt-1 text-xl font-bold text-text-primary">${Number(realBalance || 0).toFixed(2)}</p>
         </div>
         <div className="rounded-xl bg-white/80 px-4 py-3">

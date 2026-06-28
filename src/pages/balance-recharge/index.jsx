@@ -130,7 +130,7 @@ const CoinRechargeScreen = ({
             </p>
           </div>
           <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Saldo real</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">TU SALDO TOTAL</p>
             <p className="mt-1 text-xl font-black text-slate-900">${Number(realBalance || 0).toFixed(2)}</p>
             <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Promociones</p>
             <p className="mt-1 text-lg font-black text-emerald-600">${Number(bonusBalance || 0).toFixed(2)}</p>
