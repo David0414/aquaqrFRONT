@@ -7,12 +7,12 @@
 @layer base {
   :root {
     /* Background Colors */
-    --color-background: #F7FDFF;
+    --color-background: #EAF6FB;
     --color-foreground: #12335F;
-    --color-surface: #EAF8FC;
+    --color-surface: #D7EEF7;
     
     /* Border and Input Colors */
-    --color-border: #CBEFF7;
+    --color-border: #A7D8E8;
     --color-input: #FFFFFF;
     --color-ring: #42B9D4;
     
@@ -25,8 +25,8 @@
     --color-popover-foreground: #12335F;
     
     /* Muted Colors */
-    --color-muted: #EAF8FC;
-    --color-muted-foreground: #4B6D88;
+    --color-muted: #DDF1F8;
+    --color-muted-foreground: #3E637D;
     
     /* Primary Colors */
     --color-primary: #1E3F7A;

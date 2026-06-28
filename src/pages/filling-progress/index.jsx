@@ -146,6 +146,8 @@ function FillingProgressView({ tx }) {
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDispensing, setIsDispensing] = useState(true);
+  const [isUiPaused, setIsUiPaused] = useState(false);
+  const [pauseSnapshot, setPauseSnapshot] = useState(null);
   const [completionStatus, setCompletionStatus] = useState("");
   const [displayTelemetry, setDisplayTelemetry] = useState(telemetry || null);
   const [progressSnapshot, setProgressSnapshot] = useState({
@@ -462,9 +464,24 @@ function FillingProgressView({ tx }) {
     };
   }, [finishAndCharge, getToken, isLoaded, isSignedIn, pollInputs, tx?.txId]);
 
-  const displayProgress = Math.max(progress, progressSnapshot.progress);
-  const displayDispensedLiters = Math.max(dispensedLiters, progressSnapshot.dispensedLiters);
-  const displayDispensedPulseCount = Math.max(dispensedPulseCount, progressSnapshot.dispensedPulseCount);
+  const liveDisplayProgress = Math.max(progress, progressSnapshot.progress);
+  const liveDisplayDispensedLiters = Math.max(dispensedLiters, progressSnapshot.dispensedLiters);
+  const liveDisplayDispensedPulseCount = Math.max(dispensedPulseCount, progressSnapshot.dispensedPulseCount);
+  const displayProgress = isUiPaused && pauseSnapshot
+    ? pauseSnapshot.progress
+    : liveDisplayProgress;
+  const displayDispensedLiters = isUiPaused && pauseSnapshot
+    ? pauseSnapshot.dispensedLiters
+    : liveDisplayDispensedLiters;
+  const displayDispensedPulseCount = isUiPaused && pauseSnapshot
+    ? pauseSnapshot.dispensedPulseCount
+    : liveDisplayDispensedPulseCount;
+  const displayFlowRate = isUiPaused && pauseSnapshot
+    ? pauseSnapshot.flowRate
+    : flowRate;
+  const displayRemainingTime = isUiPaused && pauseSnapshot
+    ? pauseSnapshot.remainingTime
+    : remainingTime;
   const refundAmount = Number((totalCost * (1 - displayProgress / 100)).toFixed(2));
   const machineConnectionStatus = displayTelemetry?.lastSeenAt
     ? (displayTelemetry.machineOnline ? "connected" : "disconnected")
@@ -474,6 +491,33 @@ function FillingProgressView({ tx }) {
     if (completionScheduledRef.current || displayProgress >= 100) return;
     setIsCancelModalOpen(true);
   }, [displayProgress]);
+
+  const handleTogglePause = useCallback(() => {
+    if (completionScheduledRef.current || !isDispensing) return;
+
+    setIsUiPaused((current) => {
+      if (current) {
+        setPauseSnapshot(null);
+        return false;
+      }
+
+      setPauseSnapshot({
+        progress: liveDisplayProgress,
+        dispensedLiters: liveDisplayDispensedLiters,
+        dispensedPulseCount: liveDisplayDispensedPulseCount,
+        flowRate,
+        remainingTime,
+      });
+      return true;
+    });
+  }, [
+    flowRate,
+    isDispensing,
+    liveDisplayDispensedLiters,
+    liveDisplayDispensedPulseCount,
+    liveDisplayProgress,
+    remainingTime,
+  ]);
 
   const handleConfirmCancel = useCallback(async () => {
     if (completionScheduledRef.current || isCancelling) return;
@@ -530,20 +574,40 @@ function FillingProgressView({ tx }) {
 
       <div className="px-4 py-6 pb-20 space-y-8">
         <div className="text-center">
-          <WaterAnimation isActive={isDispensing} />
+          <WaterAnimation isActive={isDispensing && !isUiPaused} />
         </div>
 
         <ProgressIndicator
           progress={displayProgress}
-          remainingTime={remainingTime}
-          flowRate={flowRate}
-          isActive={isDispensing}
+          remainingTime={displayRemainingTime}
+          flowRate={displayFlowRate}
+          isActive={isDispensing && !isUiPaused}
           dispensedLiters={displayDispensedLiters}
           targetLiters={liters}
           dispensedPulseCount={displayDispensedPulseCount}
           targetPulseCount={targetPulseCount}
           pulsesPerLiter={pulsesPerLiter}
         />
+
+        <div className="mx-auto max-w-sm rounded-2xl border border-sky-200 bg-white p-3 shadow-sm">
+          <button
+            type="button"
+            onClick={handleTogglePause}
+            disabled={!isDispensing || completionScheduledRef.current}
+            className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
+              isUiPaused
+                ? "bg-success text-success-foreground hover:bg-success/90"
+                : "bg-warning text-warning-foreground hover:bg-warning/90"
+            }`}
+          >
+            {isUiPaused ? "Reanudar vista" : "Pausar vista"}
+          </button>
+          <p className="mt-2 text-center text-xs text-text-secondary">
+            {isUiPaused
+              ? "La pantalla esta pausada. El llenado real continua y se cerrara automaticamente."
+              : "Pausa solo la pantalla; no detiene la maquina ni cambia el llenado."}
+          </p>
+        </div>
 
         {completionStatus ? (
           <div className="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-center text-sm font-medium text-success">

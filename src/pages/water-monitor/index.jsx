@@ -121,7 +121,7 @@ function machinePreferenceScore(machine) {
 
 function StatusPill({ active, labelOn, labelOff, darkMode }) {
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${active ? 'border-emerald-300 bg-emerald-500/10' : darkMode ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-white'}`}>
+    <div className={`rounded-2xl border px-4 py-3 ${active ? 'border-emerald-300 bg-emerald-500/10' : darkMode ? 'border-slate-700 bg-slate-950/70' : 'border-sky-200 bg-sky-50'}`}>
       <div className="flex items-center justify-between gap-3">
         <span className={`text-sm font-medium ${darkMode ? 'text-slate-100' : 'text-text-primary'}`}>{active ? labelOn : labelOff}</span>
         <span className={`h-3 w-3 rounded-full ${active ? 'bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]' : 'bg-slate-300'}`} />
@@ -132,9 +132,9 @@ function StatusPill({ active, labelOn, labelOff, darkMode }) {
 
 function Metric({ icon, label, value, hint, darkMode }) {
   return (
-    <div className={`rounded-3xl border p-4 shadow-sm ${darkMode ? 'border-slate-800 bg-slate-950/65' : 'border-sky-100 bg-white'}`}>
+    <div className={`rounded-3xl border p-4 shadow-sm ${darkMode ? 'border-slate-700 bg-slate-950/75' : 'border-sky-200 bg-white shadow-[0_12px_28px_rgba(30,63,122,0.07)]'}`}>
       <div className="flex items-start gap-3">
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${darkMode ? 'bg-slate-900' : 'bg-sky-50'}`}>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${darkMode ? 'bg-slate-900' : 'bg-sky-100'}`}>
           <Icon name={icon} size={19} className="text-[#42B9D4]" />
         </div>
         <div className="min-w-0">
@@ -159,7 +159,7 @@ function SectionHeader({ eyebrow, title, description, darkMode }) {
 
 function CommandGrid({ title, description, commands, loadingAction, onCommand, darkMode }) {
   return (
-    <section className={`rounded-3xl border p-5 shadow-sm ${darkMode ? 'border-slate-800 bg-slate-950/65' : 'border-sky-100 bg-white'}`}>
+    <section className={`rounded-3xl border p-5 shadow-sm ${darkMode ? 'border-slate-700 bg-slate-950/75' : 'border-sky-200 bg-white shadow-[0_12px_28px_rgba(30,63,122,0.07)]'}`}>
       <div className="mb-4">
         <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{title}</h3>
         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{description}</p>
@@ -615,14 +615,14 @@ export default function WaterMonitor() {
   };
 
   const shellClass = darkMode
-    ? 'min-h-screen bg-[radial-gradient(circle_at_top_left,#0f1a2c_0,#10182a_38%,#09111f_100%)] text-slate-100'
-    : 'min-h-screen bg-[radial-gradient(circle_at_top_left,#d8f7ff_0,#f8fdff_36%,#eef9ff_100%)] text-slate-900';
-  const topBarClass = darkMode ? 'border-slate-800 bg-slate-950/85' : 'border-sky-100 bg-white/85';
-  const panelClass = darkMode ? 'border-slate-800 bg-slate-950/70' : 'border-sky-100 bg-white/92';
-  const cardClass = darkMode ? 'border-slate-800 bg-slate-950/65' : 'border-sky-100 bg-white';
-  const mutedClass = darkMode ? 'border-slate-800 bg-slate-900/80' : 'border-sky-100 bg-slate-50';
-  const darkFieldClass = darkMode ? 'border-slate-700 bg-slate-950 text-white placeholder:text-slate-500' : '';
-  const darkSelectClass = darkMode ? '[&_button]:border-slate-700 [&_button]:bg-slate-950 [&_button]:text-white [&_label]:text-white [&_p]:text-slate-400' : '';
+    ? 'min-h-screen bg-[radial-gradient(circle_at_top_left,#111827_0,#0f172a_42%,#020617_100%)] text-slate-100'
+    : 'min-h-screen bg-[linear-gradient(180deg,#d9f0f8_0%,#edf8fc_42%,#dbeef6_100%)] text-slate-900';
+  const topBarClass = darkMode ? 'border-slate-700 bg-slate-950/90' : 'border-sky-200 bg-white/90 shadow-sm';
+  const panelClass = darkMode ? 'border-slate-700 bg-slate-950/78' : 'border-sky-200 bg-white/95 shadow-[0_18px_45px_rgba(30,63,122,0.08)]';
+  const cardClass = darkMode ? 'border-slate-700 bg-slate-950/75' : 'border-sky-200 bg-white shadow-[0_12px_28px_rgba(30,63,122,0.07)]';
+  const mutedClass = darkMode ? 'border-slate-700 bg-slate-900/85' : 'border-sky-200 bg-sky-50';
+  const darkFieldClass = darkMode ? 'border-slate-600 bg-slate-950 text-white placeholder:text-slate-500' : 'border-sky-200 bg-white';
+  const darkSelectClass = darkMode ? '[&_button]:border-slate-600 [&_button]:bg-slate-950 [&_button]:text-white [&_label]:text-white [&_p]:text-slate-400' : '[&_button]:border-sky-200 [&_button]:bg-white';
   const machineFormMode = machineForm.id ? 'Editando borrador' : 'Nueva maquina';
   const machineStatusLabel = selectedMachine?.isActive ? 'Activa en catalogo' : 'Pendiente o inactiva';
   const machineStatusTone = selectedMachine?.isActive
