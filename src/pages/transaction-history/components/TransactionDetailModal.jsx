@@ -44,10 +44,11 @@ const TransactionDetailModal = ({
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, type) => {
+    const isRecharge = type === 'recharge';
     const statusConfig = {
       completed: {
-        label: 'Completada',
+        label: isRecharge ? 'Aplicada' : 'Completada',
         className: 'bg-success/10 text-success border-success/20',
         icon: 'CheckCircle'
       },
@@ -118,7 +119,7 @@ const TransactionDetailModal = ({
         <div className="p-6 space-y-6">
           {/* Status and Amount */}
           <div className="flex items-center justify-between">
-            {getStatusBadge(transaction?.status)}
+            {getStatusBadge(transaction?.status, transaction?.type)}
             <div className={`
               text-heading-sm font-bold
               ${transaction?.type === 'recharge' ? 'text-success' : 'text-text-primary'}

@@ -87,7 +87,7 @@ const CoinRechargeScreen = ({
       </div>
 
       <div className="mt-6 rounded-[2rem] bg-[linear-gradient(135deg,_#1e3f7a_0%,_#285ea5_45%,_#34d399_100%)] p-6 text-white shadow-[0_18px_40px_rgba(30,63,122,0.22)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-white/70">Saldo detectado en esta recarga</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-white/70">Saldo que tu ingresaste</p>
         <div className="mt-4 flex items-end justify-between gap-4">
           <div>
             <p className={`text-5xl font-black tracking-tight transition-all duration-300 ${coinPulseActive ? 'scale-[1.08] text-emerald-100 drop-shadow-[0_0_18px_rgba(255,255,255,0.35)]' : 'scale-100'}`}>
@@ -124,7 +124,7 @@ const CoinRechargeScreen = ({
       <div className="mt-5 rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Tu saldo actual</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Tu saldo total</p>
             <p className="mt-2 text-3xl font-black text-slate-900">
               ${Number(totalBalance || 0).toFixed(2)}
             </p>
@@ -657,6 +657,9 @@ const BalanceRecharge = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (resRecheck.status !== 404) {
+        const recheckData = await safeJson(resRecheck);
+        if (resRecheck.ok && recheckData?.status === 'SUCCEEDED') return { ok: true };
+
         const status = await getStatus();
         if (status?.status === 'SUCCEEDED') return { ok: true };
       }

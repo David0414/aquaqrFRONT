@@ -22,7 +22,7 @@ const BalanceCard = ({
 
       <div className="relative flex items-start justify-between gap-4 mb-5">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">Tu saldo</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">Tu saldo total</p>
           <div className="mt-3 flex items-end gap-2">
             <span className="text-4xl font-black tracking-tight">${safeTotal.toFixed(2)}</span>
             <span className="pb-1 text-sm font-semibold text-white/70">disponible</span>

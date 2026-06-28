@@ -26,10 +26,11 @@ const TransactionCard = ({
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, type) => {
     const key = (status || '').toLowerCase();
+    const isRecharge = (type || '').toLowerCase() === 'recharge';
     const map = {
-      completed: { label: 'Completada', className: 'bg-success/10 text-success border-success/20' },
+      completed: { label: isRecharge ? 'Aplicada' : 'Completada', className: 'bg-success/10 text-success border-success/20' },
       pending: { label: 'Pendiente', className: 'bg-warning/10 text-warning border-warning/20' },
       failed: { label: 'Fallida', className: 'bg-error/10 text-error border-error/20' },
       cancelled: { label: 'Cancelada', className: 'bg-text-secondary/10 text-text-secondary border-text-secondary/20' },
@@ -108,7 +109,7 @@ const TransactionCard = ({
                 <h3 className="text-body font-semibold text-text-primary truncate">
                   {highlightText(transaction?.description || (transaction?.type === 'recharge' ? 'Recarga de saldo' : 'Transacción'), searchTerm)}
                 </h3>
-                <div className="flex-shrink-0 ml-2">{getStatusBadge(transaction?.status)}</div>
+                <div className="flex-shrink-0 ml-2">{getStatusBadge(transaction?.status, transaction?.type)}</div>
               </div>
 
               <div className="flex items-center justify-between">

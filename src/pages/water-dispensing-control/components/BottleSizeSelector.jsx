@@ -17,9 +17,9 @@ const BottleSizeSelector = ({
     const formatPrice = (liters) => `$${(Number(liters || 0) * Number(pricePerLiter || 0)).toFixed(2)}`;
 
     const labelFor = (liters) => {
-      if (isSame(liters, quarter)) return `1 galon de agua purificada (${liters}L)`;
-      if (isSame(liters, half)) return `Medio garrafon de agua purificada (${liters}L)`;
-      if (isSame(liters, garrafonLiters)) return `Garrafon completo (${liters}L)`;
+      if (isSame(liters, quarter)) return `${liters}L de agua purificada`;
+      if (isSame(liters, half)) return `Medio garrafon de agua purificada`;
+      if (isSame(liters, garrafonLiters)) return `Garrafon completo`;
       return `${liters} litros`;
     };
 
