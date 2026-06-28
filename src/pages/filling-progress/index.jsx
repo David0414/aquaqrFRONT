@@ -127,6 +127,7 @@ function FillingProgressView({ tx }) {
   const currentPulsesPerLiter = flow?.pulsesPerLiter;
   const completeDispense = flow?.completeDispense;
   const cancelActiveSession = flow?.cancelActiveSession;
+  const sendStageCommand = flow?.sendStageCommand;
   const pollInputs = flow?.pollInputs;
 
   const liters = Number(tx.liters) || 0;
@@ -148,6 +149,7 @@ function FillingProgressView({ tx }) {
   const [isDispensing, setIsDispensing] = useState(true);
   const [isUiPaused, setIsUiPaused] = useState(false);
   const [pauseSnapshot, setPauseSnapshot] = useState(null);
+  const [pauseCommandLoading, setPauseCommandLoading] = useState(false);
   const [completionStatus, setCompletionStatus] = useState("");
   const [displayTelemetry, setDisplayTelemetry] = useState(telemetry || null);
   const [progressSnapshot, setProgressSnapshot] = useState({
@@ -492,31 +494,47 @@ function FillingProgressView({ tx }) {
     setIsCancelModalOpen(true);
   }, [displayProgress]);
 
-  const handleTogglePause = useCallback(() => {
+  const handleTogglePause = useCallback(async () => {
     if (completionScheduledRef.current || !isDispensing) return;
+    if (typeof sendStageCommand !== "function" || pauseCommandLoading) return;
 
-    setIsUiPaused((current) => {
-      if (current) {
+    const nextPaused = !isUiPaused;
+    const snapshot = {
+      progress: liveDisplayProgress,
+      dispensedLiters: liveDisplayDispensedLiters,
+      dispensedPulseCount: liveDisplayDispensedPulseCount,
+      flowRate,
+      remainingTime,
+    };
+
+    try {
+      setPauseCommandLoading(true);
+      await sendStageCommand(nextPaused ? "pausar_llenado" : "reanudar_llenado");
+      await pollInputs?.({ force: true }).catch(() => null);
+
+      if (nextPaused) {
+        setPauseSnapshot(snapshot);
+        setIsUiPaused(true);
+      } else {
         setPauseSnapshot(null);
-        return false;
+        setIsUiPaused(false);
       }
-
-      setPauseSnapshot({
-        progress: liveDisplayProgress,
-        dispensedLiters: liveDisplayDispensedLiters,
-        dispensedPulseCount: liveDisplayDispensedPulseCount,
-        flowRate,
-        remainingTime,
-      });
-      return true;
-    });
+    } catch (error) {
+      showErrorToast(error?.message || (nextPaused ? "No se pudo pausar el llenado" : "No se pudo reanudar el llenado"));
+    } finally {
+      setPauseCommandLoading(false);
+    }
   }, [
     flowRate,
     isDispensing,
+    isUiPaused,
     liveDisplayDispensedLiters,
     liveDisplayDispensedPulseCount,
     liveDisplayProgress,
+    pauseCommandLoading,
+    pollInputs,
     remainingTime,
+    sendStageCommand,
   ]);
 
   const handleConfirmCancel = useCallback(async () => {
@@ -593,19 +611,21 @@ function FillingProgressView({ tx }) {
           <button
             type="button"
             onClick={handleTogglePause}
-            disabled={!isDispensing || completionScheduledRef.current}
+            disabled={!isDispensing || completionScheduledRef.current || pauseCommandLoading}
             className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
               isUiPaused
                 ? "bg-success text-success-foreground hover:bg-success/90"
                 : "bg-warning text-warning-foreground hover:bg-warning/90"
             }`}
           >
-            {isUiPaused ? "Reanudar vista" : "Pausar vista"}
+            {pauseCommandLoading
+              ? (isUiPaused ? "Reanudando..." : "Pausando...")
+              : (isUiPaused ? "Reanudar llenado" : "Pausar llenado")}
           </button>
           <p className="mt-2 text-center text-xs text-text-secondary">
             {isUiPaused
-              ? "La pantalla esta pausada. El llenado real continua y se cerrara automaticamente."
-              : "Pausa solo la pantalla; no detiene la maquina ni cambia el llenado."}
+              ? "Llenado pausado. Toca reanudar para continuar."
+              : "Envia pausa al controlador sin cancelar el cobro ni la sesion."}
           </p>
         </div>
 

@@ -36,6 +36,7 @@ export default function SelectAmount() {
   } = useDispenseFlow();
   const [continuing, setContinuing] = useState(false);
   const [machineBusyError, setMachineBusyError] = useState(null);
+  const [rinseChoiceOpen, setRinseChoiceOpen] = useState(false);
 
   useEffect(() => {
     fetchConfig();
@@ -61,6 +62,15 @@ export default function SelectAmount() {
     hardwareId: machine.hardwareId,
     selectedLiters,
     fromQR: true,
+  };
+
+  const continueAfterBottleSelection = () => {
+    if (Number(selectedLiters) === 5) {
+      setRinseChoiceOpen(true);
+      return;
+    }
+
+    nav('/water/position-down', { state: nextRouteState });
   };
 
   const handlePrimaryAction = async () => {
@@ -105,7 +115,7 @@ export default function SelectAmount() {
       }
 
       if (canGoToRinse) {
-        nav('/water/position-down', { state: nextRouteState });
+        continueAfterBottleSelection();
         return;
       }
 
@@ -119,7 +129,7 @@ export default function SelectAmount() {
         await sendStageCommand(action);
       }
       await pollInputs({ force: true }).catch(() => {});
-      nav('/water/position-down', { state: nextRouteState });
+      continueAfterBottleSelection();
     } catch (err) {
       if (err?.code === 'MACHINE_BUSY') {
         setMachineBusyError(err);
@@ -215,6 +225,41 @@ export default function SelectAmount() {
           {primaryActionLabel} <Icon name="ArrowRight" size={18} />
         </Button>
       </div>
+
+      {rinseChoiceOpen ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-sky-200 bg-white p-5 shadow-[0_28px_70px_rgba(15,23,42,0.22)]">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-primary">
+              <Icon name="Waves" size={26} />
+            </div>
+            <div className="mt-4 text-center">
+              <h2 className="text-xl font-black text-text-primary">Quieres enjuagar?</h2>
+              <p className="mt-2 text-sm text-text-secondary">
+                Para 5L el enjuague es opcional.
+              </p>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRinseChoiceOpen(false);
+                  nav('/water/position-up', { state: nextRouteState });
+                }}
+              >
+                No
+              </Button>
+              <Button
+                onClick={() => {
+                  setRinseChoiceOpen(false);
+                  nav('/water/position-down', { state: nextRouteState });
+                }}
+              >
+                Si
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
