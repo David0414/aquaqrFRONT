@@ -149,7 +149,7 @@ function FillingProgressView({ tx }) {
   const [isDispensing, setIsDispensing] = useState(true);
   const [isUiPaused, setIsUiPaused] = useState(false);
   const [pauseSnapshot, setPauseSnapshot] = useState(null);
-  const [pauseCommandLoading, setPauseCommandLoading] = useState(false);
+  const [pauseCommandLoading, setPauseCommandLoading] = useState("");
   const [completionStatus, setCompletionStatus] = useState("");
   const [displayTelemetry, setDisplayTelemetry] = useState(telemetry || null);
   const [progressSnapshot, setProgressSnapshot] = useState({
@@ -494,46 +494,63 @@ function FillingProgressView({ tx }) {
     setIsCancelModalOpen(true);
   }, [displayProgress]);
 
-  const handleTogglePause = useCallback(async () => {
-    if (completionScheduledRef.current || !isDispensing) return;
-    if (typeof sendStageCommand !== "function" || pauseCommandLoading) return;
-
-    const nextPaused = !isUiPaused;
-    const snapshot = {
-      progress: liveDisplayProgress,
-      dispensedLiters: liveDisplayDispensedLiters,
-      dispensedPulseCount: liveDisplayDispensedPulseCount,
-      flowRate,
-      remainingTime,
-    };
-
-    try {
-      setPauseCommandLoading(true);
-      await sendStageCommand(nextPaused ? "pausar_llenado" : "reanudar_llenado");
-      await pollInputs?.({ force: true }).catch(() => null);
-
-      if (nextPaused) {
-        setPauseSnapshot(snapshot);
-        setIsUiPaused(true);
-      } else {
-        setPauseSnapshot(null);
-        setIsUiPaused(false);
-      }
-    } catch (error) {
-      showErrorToast(error?.message || (nextPaused ? "No se pudo pausar el llenado" : "No se pudo reanudar el llenado"));
-    } finally {
-      setPauseCommandLoading(false);
-    }
-  }, [
+  const buildPauseSnapshot = useCallback(() => ({
+    progress: liveDisplayProgress,
+    dispensedLiters: liveDisplayDispensedLiters,
+    dispensedPulseCount: liveDisplayDispensedPulseCount,
     flowRate,
-    isDispensing,
-    isUiPaused,
+    remainingTime,
+  }), [
+    flowRate,
     liveDisplayDispensedLiters,
     liveDisplayDispensedPulseCount,
     liveDisplayProgress,
+    remainingTime,
+  ]);
+
+  const handlePauseFilling = useCallback(async () => {
+    if (completionScheduledRef.current || !isDispensing) return;
+    if (typeof sendStageCommand !== "function" || pauseCommandLoading) return;
+
+    try {
+      setPauseCommandLoading("pause");
+      const snapshot = buildPauseSnapshot();
+      await sendStageCommand("pausar_llenado");
+      await pollInputs?.({ force: true }).catch(() => null);
+      setPauseSnapshot(snapshot);
+      setIsUiPaused(true);
+    } catch (error) {
+      showErrorToast(error?.message || "No se pudo pausar el llenado");
+    } finally {
+      setPauseCommandLoading("");
+    }
+  }, [
+    buildPauseSnapshot,
+    isDispensing,
     pauseCommandLoading,
     pollInputs,
-    remainingTime,
+    sendStageCommand,
+  ]);
+
+  const handleResumeFilling = useCallback(async () => {
+    if (completionScheduledRef.current || !isDispensing) return;
+    if (typeof sendStageCommand !== "function" || pauseCommandLoading) return;
+
+    try {
+      setPauseCommandLoading("resume");
+      await sendStageCommand("reanudar_llenado");
+      await pollInputs?.({ force: true }).catch(() => null);
+      setPauseSnapshot(null);
+      setIsUiPaused(false);
+    } catch (error) {
+      showErrorToast(error?.message || "No se pudo reanudar el llenado");
+    } finally {
+      setPauseCommandLoading("");
+    }
+  }, [
+    isDispensing,
+    pauseCommandLoading,
+    pollInputs,
     sendStageCommand,
   ]);
 
@@ -608,20 +625,25 @@ function FillingProgressView({ tx }) {
         />
 
         <div className="mx-auto max-w-sm rounded-2xl border border-sky-200 bg-white p-3 shadow-sm">
-          <button
-            type="button"
-            onClick={handleTogglePause}
-            disabled={!isDispensing || completionScheduledRef.current || pauseCommandLoading}
-            className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
-              isUiPaused
-                ? "bg-success text-success-foreground hover:bg-success/90"
-                : "bg-warning text-warning-foreground hover:bg-warning/90"
-            }`}
-          >
-            {pauseCommandLoading
-              ? (isUiPaused ? "Reanudando..." : "Pausando...")
-              : (isUiPaused ? "Reanudar llenado" : "Pausar llenado")}
-          </button>
+          {!isUiPaused ? (
+            <button
+              type="button"
+              onClick={handlePauseFilling}
+              disabled={!isDispensing || completionScheduledRef.current || Boolean(pauseCommandLoading)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-warning px-4 py-3 text-sm font-bold text-warning-foreground transition-colors duration-200 hover:bg-warning/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pauseCommandLoading === "pause" ? "Pausando..." : "Pausar llenado"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleResumeFilling}
+              disabled={!isDispensing || completionScheduledRef.current || Boolean(pauseCommandLoading)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-success px-4 py-3 text-sm font-bold text-success-foreground transition-colors duration-200 hover:bg-success/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pauseCommandLoading === "resume" ? "Reanudando..." : "Reanudar llenado"}
+            </button>
+          )}
           <p className="mt-2 text-center text-xs text-text-secondary">
             {isUiPaused
               ? "Llenado pausado. Toca reanudar para continuar."
