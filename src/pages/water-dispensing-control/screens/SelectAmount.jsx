@@ -37,6 +37,7 @@ export default function SelectAmount() {
   const [continuing, setContinuing] = useState(false);
   const [machineBusyError, setMachineBusyError] = useState(null);
   const [rinseChoiceOpen, setRinseChoiceOpen] = useState(false);
+  const [rinseChoiceSending, setRinseChoiceSending] = useState('');
 
   useEffect(() => {
     fetchConfig();
@@ -148,6 +149,27 @@ export default function SelectAmount() {
     if (requestNavigation(targetPath)) nav(targetPath);
   };
 
+  const handleRinseChoice = async (wantsRinse) => {
+    const action = wantsRinse ? 'enjuague_si' : 'enjuague_no';
+    const nextPath = wantsRinse ? '/water/position-down' : '/water/position-up';
+
+    try {
+      setRinseChoiceSending(wantsRinse ? 'yes' : 'no');
+      await sendStageCommand(action);
+      await pollInputs({ force: true }).catch(() => {});
+      setRinseChoiceOpen(false);
+      nav(nextPath, { state: nextRouteState });
+    } catch (err) {
+      if (err?.code === 'MACHINE_BUSY') {
+        setMachineBusyError(err);
+        return;
+      }
+      showErrorToast(err?.message || 'No se pudo enviar la decision de enjuague');
+    } finally {
+      setRinseChoiceSending('');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {!telemetryFresh ? (
@@ -236,18 +258,16 @@ export default function SelectAmount() {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Button
                 variant="outline"
-                onClick={() => {
-                  setRinseChoiceOpen(false);
-                  nav('/water/position-up', { state: nextRouteState });
-                }}
+                onClick={() => handleRinseChoice(false)}
+                loading={rinseChoiceSending === 'no'}
+                disabled={Boolean(rinseChoiceSending)}
               >
                 No
               </Button>
               <Button
-                onClick={() => {
-                  setRinseChoiceOpen(false);
-                  nav('/water/position-down', { state: nextRouteState });
-                }}
+                onClick={() => handleRinseChoice(true)}
+                loading={rinseChoiceSending === 'yes'}
+                disabled={Boolean(rinseChoiceSending)}
               >
                 Si
               </Button>
