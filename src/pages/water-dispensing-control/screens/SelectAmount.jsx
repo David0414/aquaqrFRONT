@@ -65,12 +65,7 @@ export default function SelectAmount() {
   };
 
   const continueAfterBottleSelection = () => {
-    if (Number(selectedLiters) === 5) {
-      setRinseChoiceOpen(true);
-      return;
-    }
-
-    nav('/water/position-down', { state: nextRouteState });
+    setRinseChoiceOpen(true);
   };
 
   const handlePrimaryAction = async () => {
@@ -235,7 +230,7 @@ export default function SelectAmount() {
             <div className="mt-4 text-center">
               <h2 className="text-xl font-black text-text-primary">Quieres enjuagar?</h2>
               <p className="mt-2 text-sm text-text-secondary">
-                Para 5L el enjuague es opcional.
+                Puedes enjuagar antes de llenar o continuar directo al dispensado.
               </p>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
