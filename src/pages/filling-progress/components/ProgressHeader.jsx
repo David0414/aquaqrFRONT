@@ -8,19 +8,19 @@ const ProgressHeader = ({
   onCancel,
 }) => {
   return (
-    <div className="flex items-center justify-between border-b border-border bg-background p-4">
-      <div className="flex items-center space-x-3">
+    <div className="flex min-h-14 items-center justify-between gap-2 border-b border-border bg-background px-3 py-2">
+      <div className="flex min-w-0 items-center space-x-2">
         <button
           onClick={onCancel}
-          className="rounded-lg p-2 transition-colors duration-200 hover:bg-muted"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors duration-200 hover:bg-muted"
           aria-label="Cancelar"
         >
           <Icon name="X" size={20} className="text-error" />
         </button>
 
-        <div>
-          <h1 className="text-heading-sm font-semibold text-text-primary">Dispensando</h1>
-          <p className="text-body-sm text-text-secondary">
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold text-text-primary">Dispensando</h1>
+          <p className="truncate text-xs text-text-secondary" title={`${machineId} · ${location || ''}`}>
             {machineId} {location ? `· ${location}` : ''}
           </p>
         </div>
@@ -28,7 +28,7 @@ const ProgressHeader = ({
 
       <div
         className={`
-          flex items-center space-x-2 rounded-full px-3 py-1.5 text-body-xs font-medium
+          flex shrink-0 items-center space-x-2 rounded-full px-3 py-1.5 text-body-xs font-medium
           ${
             connectionStatus === 'connected'
               ? 'bg-success/10 text-success'

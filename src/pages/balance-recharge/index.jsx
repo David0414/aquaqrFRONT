@@ -404,10 +404,10 @@ const BalanceRecharge = () => {
     const state = location?.state;
     if (state?.fromInsufficientBalance) {
       const requiredAmount = state?.requiredAmount || 50;
-      const suggested = presetAmounts.find((p) => p.amount >= requiredAmount)?.amount || 50;
+      const suggested = presetAmounts.find((p) => p.amount >= requiredAmount)?.amount || Math.max(10, Math.ceil(requiredAmount));
       setSelectedPaymentMethod('stripe');
       setSelectedAmount(suggested);
-      showWarningToast(`Saldo insuficiente. Sugerimos recargar $${suggested}.`);
+      window.scrollTo(0, 0);
     }
   }, [location?.state]);
 
@@ -740,6 +740,25 @@ const BalanceRecharge = () => {
 
       <main className="pb-20 px-4">
         <div className="max-w-2xl mx-auto space-y-6 py-6">
+          {location.state?.fromInsufficientBalance ? (
+            <section role="alert" className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-5 shadow-sm">
+              <div className="flex items-start gap-3">
+                <Icon name="AlertTriangle" size={30} className="shrink-0 text-amber-700" />
+                <div>
+                  <h2 className="text-2xl font-bold text-amber-950">Saldo insuficiente</h2>
+                  <p className="mt-2 text-lg leading-relaxed text-amber-950">
+                    Te llevamos a Recargas porque tu saldo no alcanza para completar la compra.
+                  </p>
+                  {Number(location.state.requiredAmount) > 0 ? (
+                    <p className="mt-3 text-lg font-bold text-amber-950">
+                      Te faltan ${Number(location.state.requiredAmount).toFixed(2)} MXN.
+                    </p>
+                  ) : null}
+                  <p className="mt-2 text-base text-amber-900">Recarga con tarjeta o monedas para continuar.</p>
+                </div>
+              </div>
+            </section>
+          ) : null}
           <CurrentBalanceCard
             totalBalance={walletBreakdown.totalBalance}
             realBalance={walletBreakdown.realBalance}

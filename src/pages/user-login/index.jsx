@@ -4,6 +4,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SignIn, SignedIn, useUser } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
 import Agua24Brand from '../../components/Agua24Brand';
+import { ADMIN_SESSION_KEY, clearAdminSession } from '../../lib/management';
 
 const loginHighlights = [
   {
@@ -34,27 +35,38 @@ export default function UserLogin() {
   const location = useLocation();
   const { isSignedIn } = useUser();
   const showMonitorLogin = new URLSearchParams(location.search).get('monitor') === '1';
+  const partnerLogin = new URLSearchParams(location.search).get('partner') === '1';
   const [monitorOpen, setMonitorOpen] = React.useState(showMonitorLogin);
   const [adminUser, setAdminUser] = React.useState('');
   const [adminPassword, setAdminPassword] = React.useState('');
   const [adminError, setAdminError] = React.useState('');
+  const [adminLoading, setAdminLoading] = React.useState(false);
 
   const onBrandClick = () => {
     if (isSignedIn) navigate('/home-dashboard');
   };
 
-  const handleMonitorLogin = (event) => {
+  const handleMonitorLogin = async (event) => {
     event.preventDefault();
-
-    if (adminUser.trim() !== 'admin' || adminPassword !== '123') {
-      setAdminError('Usuario o contrasena incorrectos');
-      return;
+    if (adminLoading) return;
+    setAdminLoading(true);
+    setAdminError('');
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/management/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: adminUser.trim(), password: adminPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.token) throw new Error(data.error || 'No se pudo iniciar sesión');
+      clearAdminSession();
+      window.sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
+      setAdminPassword('');
+      navigate('/water-monitor', { replace: true });
+    } catch (error) {
+      setAdminError(error.message);
+    } finally {
+      setAdminLoading(false);
     }
-
-    window.sessionStorage.setItem('agua24MonitorAdmin', 'true');
-    window.sessionStorage.setItem('agua24MonitorAdminUser', 'admin');
-    window.sessionStorage.setItem('agua24MonitorAdminPassword', '123');
-    navigate('/water-monitor', { replace: true });
   };
 
   return (
@@ -70,7 +82,7 @@ export default function UserLogin() {
 
       {!showMonitorLogin ? (
         <SignedIn>
-          <Navigate to="/home-dashboard" replace />
+          <Navigate to={partnerLogin ? '/partner-panel' : '/account-redirect'} replace />
         </SignedIn>
       ) : null}
 
@@ -86,14 +98,18 @@ export default function UserLogin() {
               <Agua24Brand className="h-12" />
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setMonitorOpen((value) => !value)}
                 className="inline-flex items-center gap-2 rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-sm text-[#1E3F7A] shadow-sm backdrop-blur transition hover:bg-white sm:px-4 sm:text-[15px]"
               >
                 <Icon name="MonitorCog" size={16} />
-                <span className="font-medium">Monitoreo</span>
+                <span className="font-medium">Administrador</span>
+              </button>
+              <button type="button" onClick={() => navigate('/user-login?partner=1')}
+                className="rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-sm font-medium text-[#1E3F7A]">
+                Soy socio
               </button>
               <button
                 type="button"
@@ -168,7 +184,7 @@ export default function UserLogin() {
                 <SignIn
                   routing="path"
                   path="/user-login"
-                  afterSignInUrl="/home-dashboard"
+                  afterSignInUrl={partnerLogin ? '/partner-panel' : '/account-redirect'}
                   appearance={{
                     variables: {
                       colorPrimary: '#42B9D4',
@@ -214,7 +230,7 @@ export default function UserLogin() {
                   >
                     <div className="mb-3 flex items-center gap-2">
                       <Icon name="MonitorCog" size={18} className="text-[#42B9D4]" />
-                      <h2 className="font-semibold text-[#1E3F7A]">Acceso de monitoreo</h2>
+                      <h2 className="font-semibold text-[#1E3F7A]">Acceso de administrador</h2>
                     </div>
                     <div className="space-y-3">
                       <input
@@ -239,10 +255,11 @@ export default function UserLogin() {
                       {adminError ? <p className="text-sm font-medium text-red-600">{adminError}</p> : null}
                       <button
                         type="submit"
+                        disabled={adminLoading}
                         className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#1E3F7A] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#173263]"
                       >
                         <Icon name="LockKeyhole" size={16} />
-                        Entrar al monitor
+                        {adminLoading ? 'Verificando…' : 'Entrar al panel'}
                       </button>
                     </div>
                   </form>

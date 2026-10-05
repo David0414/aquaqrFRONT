@@ -9,3 +9,42 @@ body {
   line-height: normal;
   font-family: inherit;
 }
+
+@media (max-height: 500px) and (min-width: 560px) {
+  .filling-screen .filling-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    max-width: 48rem;
+    align-items: center;
+  }
+
+  .filling-screen .filling-heading {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .filling-screen .filling-indicator {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+  }
+
+  .filling-screen .filling-controls {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .filling-screen .filling-telemetry {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .filling-screen .filling-help {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .filling-screen .filling-status {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+}

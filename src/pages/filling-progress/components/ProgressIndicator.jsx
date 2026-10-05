@@ -10,6 +10,8 @@ const ProgressIndicator = ({
   dispensedPulseCount = 0,
   targetPulseCount = 0,
   pulsesPerLiter = 0,
+  compact = false,
+  className = '',
 }) => {
   const formatTime = (seconds) => {
     if (!Number.isFinite(seconds)) return '--:--';
@@ -23,9 +25,9 @@ const ProgressIndicator = ({
   const dashOffset = 100 - pct;
 
   return (
-    <div className="space-y-6">
+    <div className={`${className} ${compact ? 'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3' : 'space-y-6'}`}>
       {/* Progress Circle */}
-      <div className="relative w-48 h-48 mx-auto">
+      <div className={compact ? 'relative h-[clamp(6rem,20dvh,8rem)] w-[clamp(6rem,20dvh,8rem)] mx-auto' : 'relative w-48 h-48 mx-auto'}>
         <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
           {/* Background */}
           <circle
@@ -57,7 +59,7 @@ const ProgressIndicator = ({
 
         {/* Text */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-4xl font-bold text-text-primary">
+          <span className={`${compact ? 'text-2xl' : 'text-4xl'} font-bold text-text-primary`}>
             {Math.round(progress)}%
           </span>
           <span className="text-body-sm text-text-secondary mt-1">Progreso</span>
@@ -68,39 +70,39 @@ const ProgressIndicator = ({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
-        <div className="text-center p-3 bg-muted rounded-lg">
+      <div className={`grid grid-cols-2 ${compact ? 'gap-2 w-full' : 'gap-4 max-w-sm mx-auto'}`}>
+        <div className={`text-center ${compact ? 'p-2' : 'p-3'} bg-muted rounded-lg`}>
           <div className="text-body-xs text-text-secondary mb-1">
             Tiempo
           </div>
-          <div className="text-heading-xs font-semibold text-text-primary">
+          <div className={`${compact ? 'text-sm' : 'text-heading-xs'} font-semibold text-text-primary`}>
             {formatTime(remainingTime)}
           </div>
         </div>
 
-        <div className="text-center p-3 bg-muted rounded-lg">
+        <div className={`text-center ${compact ? 'p-2' : 'p-3'} bg-muted rounded-lg`}>
           <div className="text-body-xs text-text-secondary mb-1">
             Flujo
           </div>
-          <div className="text-heading-xs font-semibold text-text-primary">
+          <div className={`${compact ? 'text-sm' : 'text-heading-xs'} font-semibold text-text-primary`}>
             {Number.isFinite(flowRate) && flowRate > 0 ? `${Number(flowRate).toFixed(2)} L/min` : '--'}
           </div>
         </div>
 
-        <div className="text-center p-3 bg-muted rounded-lg">
+        <div className={`text-center ${compact ? 'p-2' : 'p-3'} bg-muted rounded-lg`}>
           <div className="text-body-xs text-text-secondary mb-1">
             Pulsos
           </div>
-          <div className="text-heading-xs font-semibold text-text-primary">
+          <div className={`${compact ? 'text-xs' : 'text-heading-xs'} font-semibold text-text-primary`}>
             {dispensedPulseCount} / {targetPulseCount}
           </div>
         </div>
 
-        <div className="text-center p-3 bg-muted rounded-lg">
+        <div className={`text-center ${compact ? 'p-2' : 'p-3'} bg-muted rounded-lg`}>
           <div className="text-body-xs text-text-secondary mb-1">
             Calib.
           </div>
-          <div className="text-heading-xs font-semibold text-text-primary">
+          <div className={`${compact ? 'text-xs' : 'text-heading-xs'} font-semibold text-text-primary`}>
             {pulsesPerLiter} p/L
           </div>
         </div>

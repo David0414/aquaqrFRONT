@@ -123,7 +123,7 @@ function SelectionChooser({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Beneficios a escoger</p>
-          <h3 className="mt-2 text-2xl font-black text-slate-900">Elige maximo {requiredCount} promociones</h3>
+          <h3 className="mt-2 text-2xl font-black text-slate-900">Elige una promoción</h3>
           <p className="mt-2 text-sm text-slate-500">
             Estas promociones se activan durante 30 dias. Los beneficios automaticos no cuentan en esta eleccion.
           </p>
@@ -138,7 +138,7 @@ function SelectionChooser({
         {selectablePromotions.map((promotion) => {
           const selected = selectedPromotionKeys.includes(promotion.key);
           const blockedByMembership = promotion.kind === 'membership' && selectedMembershipKey && selectedMembershipKey !== promotion.key;
-          const disabled = !selected && (selectedPromotionKeys.length >= requiredCount || blockedByMembership);
+          const disabled = requiredCount === 1 ? false : !selected && (selectedPromotionKeys.length >= requiredCount || blockedByMembership);
 
           return (
             <button
@@ -164,7 +164,7 @@ function SelectionChooser({
               </div>
               <p className="mt-4 text-lg font-black">{promotion.title}</p>
               <p className={`mt-2 text-sm ${selected ? 'text-white/80' : 'text-slate-500'}`}>
-                {blockedByMembership ? 'Ya elegiste otra membresia. Quita esa primero para cambiarla.' : (promotion.summary || promotion.description)}
+                {promotion.summary || promotion.description}
               </p>
             </button>
           );
@@ -175,7 +175,7 @@ function SelectionChooser({
         <p className="text-sm text-slate-500">
           {selection.complete
             ? 'Tus promociones estan activas por 30 dias.'
-            : 'Elige hasta 2 beneficios por 30 dias. Solo una puede ser membresia.'}
+            : 'Elige un beneficio por 30 días.'}
         </p>
         <Button onClick={onSaveSelection} disabled={!canSave} loading={savingSelection}>
           Guardar mis promociones
@@ -418,7 +418,7 @@ export default function PromotionalBanner({
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Promociones</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Beneficios automaticos y promociones a elegir</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            El garrafon gratis y los puntos se aplican solos. Ademas puedes elegir hasta 2 beneficios por 30 dias.
+            El garrafon gratis y los puntos se aplican solos. Además puedes elegir un beneficio por 30 días.
           </p>
         </div>
 

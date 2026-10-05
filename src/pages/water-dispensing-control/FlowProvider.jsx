@@ -24,19 +24,17 @@ const INPUT_POLL_COOLDOWN_AFTER_COMMAND_MS = 1500;
 const QR_INICIO_PENDING_WINDOW_MS = 10000;
 const FLOWMETER_PULSES_PER_LITER_KEY = 'flowmeterPulsesPerLiter';
 const ACTIVE_WATER_MACHINE_KEY = 'agua24.activeWaterMachine';
-const MONITOR_ADMIN_SESSION_KEY = 'agua24MonitorAdmin';
-const MONITOR_ADMIN_USER_KEY = 'agua24MonitorAdminUser';
-const MONITOR_ADMIN_PASSWORD_KEY = 'agua24MonitorAdminPassword';
+const MONITOR_ADMIN_SESSION_KEY = 'agua24MonitorSession';
 const DEFAULT_MONITOR_MACHINE_ID = '01';
 const VALID_STAGE_CODES = new Set(['01', '02', '03', '04', '05', '06', '07', '08', '09']);
 const TELEMETRY_CONNECTION_GRACE_MS = 20000;
 
 function monitorAdminHeaders() {
   if (typeof window === 'undefined') return {};
-  if (window.sessionStorage.getItem(MONITOR_ADMIN_SESSION_KEY) !== 'true') return {};
+  const session = window.sessionStorage.getItem(MONITOR_ADMIN_SESSION_KEY);
+  if (!session) return {};
   return {
-    'X-Monitor-User': window.sessionStorage.getItem(MONITOR_ADMIN_USER_KEY) || 'admin',
-    'X-Monitor-Password': window.sessionStorage.getItem(MONITOR_ADMIN_PASSWORD_KEY) || '123',
+    'X-Monitor-Session': session,
   };
 }
 

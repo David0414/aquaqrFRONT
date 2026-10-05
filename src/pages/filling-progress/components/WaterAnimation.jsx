@@ -1,8 +1,8 @@
 import React from 'react';
 
-const WaterAnimation = ({ isActive = true }) => {
+const WaterAnimation = ({ isActive = true, compact = false }) => {
   return (
-    <div className="relative w-32 h-32 mx-auto mb-6">
+    <div className={compact ? 'relative h-8 w-8 shrink-0' : 'relative w-32 h-32 mx-auto mb-6'}>
       {/* Contenedor gota */}
       <div className="relative w-full h-full">
         {/* Gota principal */}
@@ -31,7 +31,7 @@ const WaterAnimation = ({ isActive = true }) => {
         {/* Caída de agua */}
         {isActive && (
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
-            <div className="w-1 h-8 bg-gradient-to-b from-primary to-transparent animate-pulse" />
+            <div className={`${compact ? 'h-3' : 'h-8'} w-1 bg-gradient-to-b from-primary to-transparent animate-pulse`} />
           </div>
         )}
       </div>

@@ -69,6 +69,7 @@ export default function PromotionsCenter() {
       if (current.includes(promotionKey)) {
         return current.filter((key) => key !== promotionKey);
       }
+      if (requiredCount === 1) return [promotionKey];
       if (promotion?.kind === 'membership') {
         const withoutOtherMemberships = current.filter((key) => {
           const selectedPromotion = (selection?.selectablePromotions || []).find((item) => item.key === key);

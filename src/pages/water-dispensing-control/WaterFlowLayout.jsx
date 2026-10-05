@@ -181,6 +181,11 @@ export default function WaterFlowLayout() {
             variant="ghost"
             size="icon"
             onClick={() => {
+              if (new URLSearchParams(location.search).get('rinse') === '1') {
+                if (location.state?.rinseChoiceReturn) navigate(-1);
+                else navigate('/water/choose', { replace: true, state: location.state });
+                return;
+              }
               if (requestNavigation('/home-dashboard')) navigate(-1);
             }}
             className="h-10 w-10"

@@ -4,7 +4,7 @@ import { formatMoneyAmount, getTelemetryStepInfo } from '../telemetry';
 function StatusDot({ active, activeClassName, inactiveClassName }) {
   return (
     <span
-      className={`h-4 w-4 rounded-full border ${active ? activeClassName : inactiveClassName}`}
+      className={`h-4 w-4 shrink-0 rounded-full border ${active ? activeClassName : inactiveClassName}`}
       aria-hidden="true"
     />
   );
@@ -23,12 +23,15 @@ export default function TelemetryStatusCard({
   telemetry,
   title = 'Estado',
   compact = false,
+  dense = false,
   showCoinMetrics = false,
   showStageMetric = false,
   showFlowmeterMetric = false,
 }) {
   const stepInfo = getTelemetryStepInfo(telemetry.currentStageCode);
-  const wrapperClassName = compact
+  const wrapperClassName = dense
+    ? 'space-y-2 rounded-xl border border-border bg-card p-3'
+    : compact
     ? 'space-y-3 rounded-2xl border border-border bg-card p-4'
     : 'space-y-4 rounded-2xl border border-border bg-card p-4';
 
@@ -64,18 +67,18 @@ export default function TelemetryStatusCard({
   return (
     <div className={wrapperClassName}>
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold text-text-primary">{title}</h3>
-          <p className="text-sm text-text-secondary">
+        <div className={dense ? 'flex flex-wrap items-center gap-x-2' : ''}>
+          <h3 className={`${dense ? 'text-sm' : 'text-base'} font-semibold text-text-primary`}>{title}</h3>
+          <p className={`${dense ? 'text-xs' : 'text-sm'} text-text-secondary`}>
             {stepInfo.code || '--'} · {stepInfo.label || 'Sin etapa'}
           </p>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
+      <div className={dense ? 'grid grid-cols-3 gap-2' : 'grid gap-3 sm:grid-cols-3'}>
+        <div className={`flex items-center justify-between gap-1 rounded-xl border border-border bg-background ${dense ? 'px-2 py-1' : 'px-3 py-2'}`}>
           <div>
-            <p className="text-sm font-medium text-text-primary">Bomba</p>
+            <p className={`${dense ? 'text-xs' : 'text-sm'} font-medium text-text-primary`}>Bomba</p>
             <p className="text-xs text-text-secondary">{telemetry.pumpOn ? 'On' : 'Off'}</p>
           </div>
           <StatusDot
@@ -85,9 +88,9 @@ export default function TelemetryStatusCard({
           />
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
+        <div className={`flex items-center justify-between gap-1 rounded-xl border border-border bg-background ${dense ? 'px-2 py-1' : 'px-3 py-2'}`}>
           <div>
-            <p className="text-sm font-medium text-text-primary">Llenado</p>
+            <p className={`${dense ? 'text-xs' : 'text-sm'} font-medium text-text-primary`}>Llenado</p>
             <p className="text-xs text-text-secondary">{telemetry.fillValveOn ? 'On' : 'Off'}</p>
           </div>
           <StatusDot
@@ -97,9 +100,9 @@ export default function TelemetryStatusCard({
           />
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
+        <div className={`flex items-center justify-between gap-1 rounded-xl border border-border bg-background ${dense ? 'px-2 py-1' : 'px-3 py-2'}`}>
           <div>
-            <p className="text-sm font-medium text-text-primary">Enjuague</p>
+            <p className={`${dense ? 'text-xs' : 'text-sm'} font-medium text-text-primary`}>Enjuague</p>
             <p className="text-xs text-text-secondary">{telemetry.rinseValveOn ? 'On' : 'Off'}</p>
           </div>
           <StatusDot

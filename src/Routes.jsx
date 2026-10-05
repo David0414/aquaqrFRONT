@@ -25,6 +25,8 @@ import UserProfileSettings from "./pages/user-profile-settings";
 import PromotionsCenter from "./pages/promotions-center";
 import FillingProgress from "./pages/filling-progress";
 import WaterMonitor from "./pages/water-monitor";
+import ManagementGuard from "./components/ui/ManagementGuard";
+import AccountRedirect from "./pages/account-redirect";
 
 // Flujo por pantallas
 import FlowProvider from "./pages/water-dispensing-control/FlowProvider";
@@ -48,18 +50,6 @@ const Protected = ({ children }) => (
     </SignedOut>
   </>
 );
-
-const MonitorAdminProtected = ({ children }) => {
-  const isMonitorAdmin =
-    typeof window !== "undefined"
-    && window.sessionStorage.getItem("agua24MonitorAdmin") === "true";
-
-  if (!isMonitorAdmin) {
-    return <Navigate to="/user-login?monitor=1" replace />;
-  }
-
-  return children;
-};
 
 // Header (ahora mismo no pinta nada, pero respeta tus auth-routes)
 function LayoutHeader() {
@@ -95,7 +85,7 @@ const Routes = () => {
             element={
               <>
                 <SignedIn>
-                  <Navigate to="/home-dashboard" replace />
+                  <Navigate to="/account-redirect" replace />
                 </SignedIn>
                 <SignedOut>
                   <Navigate to="/user-login" replace />
@@ -111,6 +101,7 @@ const Routes = () => {
 
           <Route path="/user-login/*" element={<UserLogin />} />
           <Route path="/user-registration/*" element={<UserRegistration />} />
+          <Route path="/account-redirect" element={<Protected><AccountRedirect /></Protected>} />
 
           {/* ==== Flujo por pantallas ==== */}
           <Route
@@ -183,11 +174,22 @@ const Routes = () => {
           <Route
             path="/water-monitor"
             element={
-              <MonitorAdminProtected>
+              <ManagementGuard>
                 <FlowProvider>
                   <WaterMonitor />
                 </FlowProvider>
-              </MonitorAdminProtected>
+              </ManagementGuard>
+            }
+          />
+
+          <Route
+            path="/partner-panel"
+            element={
+              <ManagementGuard>
+                <FlowProvider>
+                  <WaterMonitor />
+                </FlowProvider>
+              </ManagementGuard>
             }
           />
 

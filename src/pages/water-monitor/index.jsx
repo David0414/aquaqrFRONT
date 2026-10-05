@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useClerk } from '@clerk/clerk-react';
 import Agua24Brand from '../../components/Agua24Brand';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
@@ -8,6 +8,9 @@ import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import NotificationToast, { showErrorToast, showSuccessToast } from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
+import { useManagementAccess } from '../../components/ui/ManagementGuard';
+import PartnersManager from '../../components/ui/PartnersManager';
+import { managementHeaders, clearAdminSession } from '../../lib/management';
 import {
   getTargetPulseCount,
   getTelemetryStepInfo,
@@ -42,6 +45,7 @@ const SAFETY_COMMANDS = [
 const MONITOR_TABS = [
   { key: 'overview', label: 'Resumen', icon: 'LayoutDashboard' },
   { key: 'machines', label: 'Maquinas', icon: 'Factory' },
+  { key: 'partners', label: 'Socios', icon: 'Users' },
   { key: 'promotions', label: 'Promociones', icon: 'Gift' },
 ];
 
@@ -81,21 +85,8 @@ const emptyTelemetry = {
   error: '',
 };
 
-function monitorAdminHeaders() {
-  if (typeof window === 'undefined') return {};
-  if (window.sessionStorage.getItem('agua24MonitorAdmin') !== 'true') return {};
-  return {
-    'X-Monitor-User': window.sessionStorage.getItem('agua24MonitorAdminUser') || 'admin',
-    'X-Monitor-Password': window.sessionStorage.getItem('agua24MonitorAdminPassword') || '123',
-  };
-}
-
 function buildAuthHeaders(token, extra = {}) {
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...monitorAdminHeaders(),
-    ...extra,
-  };
+  return managementHeaders(token, extra);
 }
 
 function normalizeHardwareId(value) {
@@ -183,7 +174,10 @@ function CommandGrid({ title, description, commands, loadingAction, onCommand, d
 
 export default function WaterMonitor() {
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
+  const { signOut } = useClerk();
+  const access = useManagementAccess();
+  const isAdmin = access?.role === 'ADMIN';
   const { pulsesPerLiter, setPulsesPerLiter, setTelemetryEnabled } = useDispenseFlow();
 
   const [loadingAction, setLoadingAction] = useState('');
@@ -205,7 +199,7 @@ export default function WaterMonitor() {
   const [telemetry, setTelemetry] = useState(emptyTelemetry);
 
   useEffect(() => {
-    setTelemetryEnabled(true);
+    setTelemetryEnabled(false);
     return () => setTelemetryEnabled(false);
   }, [setTelemetryEnabled]);
 
@@ -248,17 +242,26 @@ export default function WaterMonitor() {
   );
 
   useEffect(() => {
-    if (!displayedMachines.length) return;
+    if (!displayedMachines.length) {
+      setSelectedMachineId('');
+      setTelemetry(emptyTelemetry);
+      if (!isAdmin) setMachineForm(emptyMachineForm);
+      return;
+    }
     setSelectedMachineId((current) => {
       if (current && displayedMachines.some((machine) => machine.id === current)) return current;
       return displayedMachines[0]?.id || '';
     });
-  }, [displayedMachines]);
+  }, [displayedMachines, isAdmin]);
 
   const selectedMachine = useMemo(
     () => displayedMachines.find((machine) => machine.id === selectedMachineId) || null,
     [displayedMachines, selectedMachineId]
   );
+
+  useEffect(() => {
+    if (!isAdmin && selectedMachine) handleMachineEdit(selectedMachine);
+  }, [isAdmin, selectedMachine]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const telemetryHardwareId = normalizeHardwareId(telemetry.hardwareId);
   const monitorMachines = useMemo(() => {
@@ -411,6 +414,7 @@ export default function WaterMonitor() {
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           action,
+          management: true,
           machineId: selectedMachine.id,
           machineLocation: selectedMachine.location,
           hardwareId: selectedMachineHardwareId,
@@ -472,15 +476,15 @@ export default function WaterMonitor() {
       }
       setMachineSaving(true);
       const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const res = await fetch(`${API}/api/monitor-admin/machines`, {
-        method: 'POST',
+      const res = await fetch(`${API}/api/monitor-admin/machines${isAdmin ? '' : `/${encodeURIComponent(machineForm.id)}`}`, {
+        method: isAdmin ? 'POST' : 'PUT',
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify(machineForm),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data?.error || 'No se pudo guardar la maquina');
       showSuccessToast(`Maquina ${data.machine.id} guardada`);
-      setMachineForm(emptyMachineForm);
+      if (isAdmin) setMachineForm(emptyMachineForm);
       fetchMonitorSummary();
     } catch (error) {
       showErrorToast(error?.message || 'No se pudo guardar la maquina');
@@ -607,11 +611,10 @@ export default function WaterMonitor() {
     }
   };
 
-  const handleLogout = () => {
-    window.sessionStorage.removeItem('agua24MonitorAdmin');
-    window.sessionStorage.removeItem('agua24MonitorAdminUser');
-    window.sessionStorage.removeItem('agua24MonitorAdminPassword');
-    navigate('/user-login?monitor=1', { replace: true });
+  const handleLogout = async () => {
+    clearAdminSession();
+    if (isSignedIn) await signOut();
+    navigate(isAdmin ? '/user-login?monitor=1' : '/user-login?partner=1', { replace: true });
   };
 
   const shellClass = darkMode
@@ -623,7 +626,7 @@ export default function WaterMonitor() {
   const mutedClass = darkMode ? 'border-slate-700 bg-slate-900/85' : 'border-sky-200 bg-sky-50';
   const darkFieldClass = darkMode ? 'border-slate-600 bg-slate-950 text-white placeholder:text-slate-500' : 'border-sky-200 bg-white';
   const darkSelectClass = darkMode ? '[&_button]:border-slate-600 [&_button]:bg-slate-950 [&_button]:text-white [&_label]:text-white [&_p]:text-slate-400' : '[&_button]:border-sky-200 [&_button]:bg-white';
-  const machineFormMode = machineForm.id ? 'Editando borrador' : 'Nueva maquina';
+  const machineFormMode = machineForm.id ? `Editando ${machineForm.id}` : isAdmin ? 'Nueva máquina' : 'Selecciona una de tus máquinas';
   const machineStatusLabel = selectedMachine?.isActive ? 'Activa en catalogo' : 'Pendiente o inactiva';
   const machineStatusTone = selectedMachine?.isActive
     ? darkMode ? 'border-emerald-900 bg-emerald-950/30 text-emerald-300' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -632,9 +635,9 @@ export default function WaterMonitor() {
   return (
     <div className={shellClass}>
       <header className={`sticky top-0 z-30 border-b backdrop-blur ${topBarClass}`}>
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4">
           <Agua24Brand className="h-11" />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant={darkMode ? 'secondary' : 'outline'} size="sm" onClick={() => setDarkMode((current) => !current)}>
               <Icon name={darkMode ? 'Sun' : 'Moon'} size={16} /> {darkMode ? 'Tema claro' : 'Tema oscuro'}
             </Button>
@@ -652,11 +655,12 @@ export default function WaterMonitor() {
         <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
           <section className={`overflow-hidden rounded-[28px] border shadow-sm ${panelClass}`}>
             <div className={`border-b px-5 py-5 ${darkMode ? 'border-slate-800 bg-slate-950/50' : 'border-sky-100 bg-[linear-gradient(135deg,#effbff_0%,#ffffff_55%,#f2f8ff_100%)]'}`}>
-              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Monitor AGUA/24</h1>
+              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>{isAdmin ? 'Administrador' : 'Mi panel de socio'}</h1>
+              {access?.name ? <p className="mt-2 text-sm">{access.name}</p> : null}
             </div>
 
             <div className="space-y-3 p-4">
-              {MONITOR_TABS.map((tab) => {
+              {MONITOR_TABS.filter((tab) => isAdmin || !['partners', 'promotions'].includes(tab.key)).map((tab) => {
                 const selected = activeTab === tab.key;
                 return (
                   <button
@@ -725,11 +729,11 @@ export default function WaterMonitor() {
         <section className={`rounded-3xl border p-6 shadow-sm ${panelClass}`}>
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-center">
             <div>
-              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>Monitor AGUA/24</h1>
+              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>{isAdmin ? 'Vista de todas las máquinas' : 'Mis máquinas'}</h1>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <Metric icon="Factory" label="Maquinas" value={monitorSummary.counts?.machines || 0} hint={`${monitorSummary.counts?.activeMachines || 0} activas`} darkMode={darkMode} />
                 <Metric icon="Wifi" label="Conexion" value={selectedMachineHasTelemetry ? 'En linea' : 'Sin lectura'} hint={formatSeenAt(telemetry.lastSeenAt)} darkMode={darkMode} />
-                <Metric icon="Gift" label="Promociones" value={monitorSummary.counts?.activePromotions || 0} hint="Activas en sistema" darkMode={darkMode} />
+                <Metric icon="ShoppingBag" label="Ventas registradas" value={monitorSummary.sales?.transactions || 0} hint="Últimos 30 días" darkMode={darkMode} />
               </div>
             </div>
 
@@ -747,7 +751,17 @@ export default function WaterMonitor() {
           </div>
         </section>
 
-        {activeTab === 'overview' ? (
+        {!displayedMachines.length ? (
+          <div role="status" className={`rounded-2xl border p-5 ${cardClass}`}>
+            {isAdmin ? 'Registra una máquina para comenzar.' : 'Aún no tienes máquinas asignadas. El administrador debe asignarte una máquina para poder administrarla.'}
+          </div>
+        ) : null}
+
+        {isAdmin && activeTab === 'partners' ? (
+          <PartnersManager machines={displayedMachines} onChanged={fetchMonitorSummary} darkMode={darkMode} />
+        ) : null}
+
+        {activeTab === 'overview' && displayedMachines.length > 0 ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
             <SectionHeader eyebrow="" title="Operacion en vivo" description="" darkMode={darkMode} />
 
@@ -816,7 +830,7 @@ export default function WaterMonitor() {
           </section>
         ) : null}
 
-        {activeTab === 'machines' ? (
+        {activeTab === 'machines' && (isAdmin || displayedMachines.length > 0) ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
             <SectionHeader eyebrow="" title="Administracion de maquinas" description="" darkMode={darkMode} />
 
@@ -842,11 +856,11 @@ export default function WaterMonitor() {
                       <p className={`mt-1 text-sm font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{selectedMachineHasTelemetry ? 'Con lectura reciente' : 'Sin lectura reciente'}</p>
                     </div>
                   </div>
-                  <Input label="ID de maquina" value={machineForm.id} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('id', event.target.value)} />
+                  <Input label="ID de maquina" value={machineForm.id} disabled={!isAdmin} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('id', event.target.value)} />
                   <Input label="Nombre comercial" value={machineForm.name} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('name', event.target.value)} />
                   <Input label="Ubicacion visible" value={machineForm.location} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('location', event.target.value)} />
                   <Input label="Direccion" value={machineForm.address} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('address', event.target.value)} />
-                  <Input label="Hardware ID" value={machineForm.hardwareId} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
+                  <Input label="Hardware ID" value={machineForm.hardwareId} disabled={!isAdmin} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
                   <Input label="Precio publico garrafon" type="number" min="1" step="0.50" value={machineForm.pricePerGarrafon} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('pricePerGarrafon', event.target.value)} description="Este precio se usa para cobrar agua y calcular membresias." />
                   <Select className={darkSelectClass} label="Estado operativo" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
                   <label className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-sm ${darkMode ? 'border-slate-800 bg-slate-950/70 text-white' : 'border-slate-200 bg-white text-text-primary'}`}>
@@ -854,12 +868,12 @@ export default function WaterMonitor() {
                     Publicar maquina como activa en catalogo
                   </label>
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <Button onClick={handleMachineSubmit} loading={machineSaving} className="flex-1 justify-center">
+                    <Button onClick={handleMachineSubmit} loading={machineSaving} disabled={!isAdmin && !machineForm.id} className="flex-1 justify-center">
                       <Icon name="Save" size={16} /> Guardar maquina
                     </Button>
-                    <Button variant="outline" className={darkMode ? 'border-slate-700 text-white hover:bg-slate-800' : ''} onClick={() => setMachineForm(emptyMachineForm)}>
+                    {isAdmin ? <Button variant="outline" className={darkMode ? 'border-slate-700 text-white hover:bg-slate-800' : ''} onClick={() => setMachineForm(emptyMachineForm)}>
                       <Icon name="RefreshCcw" size={15} /> Limpiar
-                    </Button>
+                    </Button> : null}
                   </div>
                 </div>
               </div>
@@ -889,6 +903,7 @@ export default function WaterMonitor() {
                         <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.address || 'Sin direccion guardada'}</p>
                         <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware: {machine.hardwareId || machine.id || 'N/D'} · Estado: {machine.status || 'ONLINE'}</p>
                         <p className={`mt-1 text-xs font-semibold ${darkMode ? 'text-sky-300' : 'text-[#1E3F7A]'}`}>Precio publico: ${((machine.pricePerGarrafonCents || 3500) / 100).toFixed(2)} por garrafon</p>
+                        {isAdmin ? <p className="mt-2 text-sm font-semibold">Socio: {machine.partner?.name || machine.partner?.email || 'Sin asignar'}{machine.partner?.managementAccessActive === false ? ' · Acceso suspendido' : ''}</p> : null}
                       </div>
                       <div className="flex flex-wrap gap-2 xl:max-w-[260px] xl:justify-end">
                         <Button variant="outline" size="sm" onClick={() => handleMachineEdit(machine)}>
@@ -904,9 +919,9 @@ export default function WaterMonitor() {
                           <Icon name={machine.isActive ? 'PauseCircle' : 'PlayCircle'} size={14} />
                           {machine.isActive ? 'Desactivar' : 'Activar'}
                         </Button>
-                        <Button variant="danger" size="sm" onClick={() => handleMachineDelete(machine)}>
+                        {isAdmin ? <Button variant="danger" size="sm" onClick={() => handleMachineDelete(machine)}>
                           <Icon name="Trash2" size={14} /> Eliminar
-                        </Button>
+                        </Button> : null}
                       </div>
                     </div>
                   </article>
@@ -954,7 +969,7 @@ export default function WaterMonitor() {
           </section>
         ) : null}
 
-        {activeTab === 'promotions' ? (
+        {isAdmin && activeTab === 'promotions' ? (
           <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
             <SectionHeader eyebrow="" title="Promociones y recompensas" description="" darkMode={darkMode} />
 

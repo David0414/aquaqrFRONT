@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import MachineInfoCard from '../components/MachineInfoCard';
@@ -15,6 +15,7 @@ const TELEMETRY_FRESH_MS = 20000;
 
 export default function SelectAmount() {
   const nav = useNavigate();
+  const location = useLocation();
   const { requestNavigation, shouldGuardExit } = useWaterFlowNavigation();
   const {
     machine,
@@ -36,7 +37,7 @@ export default function SelectAmount() {
   } = useDispenseFlow();
   const [continuing, setContinuing] = useState(false);
   const [machineBusyError, setMachineBusyError] = useState(null);
-  const [rinseChoiceOpen, setRinseChoiceOpen] = useState(false);
+  const rinseChoiceOpen = new URLSearchParams(location.search).get('rinse') === '1';
   const [rinseChoiceSending, setRinseChoiceSending] = useState('');
 
   useEffect(() => {
@@ -66,8 +67,23 @@ export default function SelectAmount() {
   };
 
   const continueAfterBottleSelection = () => {
-    setRinseChoiceOpen(true);
+    nav('/water/choose?rinse=1', { state: { ...location.state, rinseChoiceReturn: true } });
   };
+
+  const closeRinseChoice = () => {
+    if (rinseChoiceSending) return;
+    if (location.state?.rinseChoiceReturn) nav(-1);
+    else nav('/water/choose', { replace: true, state: nextRouteState });
+  };
+
+  useEffect(() => {
+    if (!rinseChoiceOpen) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closeRinseChoice();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [rinseChoiceOpen, rinseChoiceSending, location.state]);
 
   const handlePrimaryAction = async () => {
     const litersActionMap = {
@@ -110,18 +126,13 @@ export default function SelectAmount() {
         return;
       }
 
-      if (canGoToRinse) {
-        continueAfterBottleSelection();
-        return;
-      }
-
-      if (!canChooseBottle) {
+      if (!canChooseBottle && !canGoToRinse) {
         showErrorToast(`Paso ${currentStageCode} no valido.`);
         return;
       }
 
       const action = litersActionMap[selectedLiters];
-      if (action) {
+      if (action && currentStageCode !== '04') {
         await sendStageCommand(action);
       }
       await pollInputs({ force: true }).catch(() => {});
@@ -157,8 +168,7 @@ export default function SelectAmount() {
       setRinseChoiceSending(wantsRinse ? 'yes' : 'no');
       await sendStageCommand(action);
       await pollInputs({ force: true }).catch(() => {});
-      setRinseChoiceOpen(false);
-      nav(nextPath, { state: nextRouteState });
+      nav(nextPath, { replace: true, state: nextRouteState });
     } catch (err) {
       if (err?.code === 'MACHINE_BUSY') {
         setMachineBusyError(err);
@@ -245,12 +255,12 @@ export default function SelectAmount() {
 
       {rinseChoiceOpen ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-sky-200 bg-white p-5 shadow-[0_28px_70px_rgba(15,23,42,0.22)]">
+          <div role="dialog" aria-modal="true" aria-labelledby="rinse-choice-title" className="w-full max-w-md rounded-2xl border border-sky-200 bg-white p-5 shadow-[0_28px_70px_rgba(15,23,42,0.22)]">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-primary">
               <Icon name="Waves" size={26} />
             </div>
             <div className="mt-4 text-center">
-              <h2 className="text-xl font-black text-text-primary">Quieres enjuagar?</h2>
+              <h2 id="rinse-choice-title" className="text-xl font-black text-text-primary">¿Quieres enjuagar?</h2>
               <p className="mt-2 text-sm text-text-secondary">
                 Puedes enjuagar antes de llenar o continuar directo al dispensado.
               </p>
@@ -272,6 +282,16 @@ export default function SelectAmount() {
                 Si
               </Button>
             </div>
+            <Button
+              variant="ghost"
+              fullWidth
+              onClick={closeRinseChoice}
+              disabled={Boolean(rinseChoiceSending)}
+              className="mt-3"
+              iconName="ArrowLeft"
+            >
+              Volver a Dispensar
+            </Button>
           </div>
         </div>
       ) : null}

@@ -65,6 +65,7 @@ export default function PendingDispenseWatcher() {
     if (!isLoaded || !isSignedIn) return undefined;
     const skipResume =
       location.pathname.startsWith('/water')
+      || location.pathname === '/partner-panel'
       || location.pathname === '/filling-progress'
       || location.pathname === '/transaction-complete'
       || location.pathname === '/balance-recharge'

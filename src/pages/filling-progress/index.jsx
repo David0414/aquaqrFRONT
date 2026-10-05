@@ -4,7 +4,6 @@ import { useAuth } from "@clerk/clerk-react";
 import ProgressHeader from "./components/ProgressHeader";
 import WaterAnimation from "./components/WaterAnimation";
 import ProgressIndicator from "./components/ProgressIndicator";
-import TransactionDetails from "./components/TransactionDetails";
 import HelpModal from "./components/HelpModal";
 import CancelConfirmationModal from "./components/CancelConfirmationModal";
 import BottomTabNavigation from "../../components/ui/BottomTabNavigation";
@@ -133,8 +132,6 @@ function FillingProgressView({ tx }) {
   const liters = Number(tx.liters) || 0;
   const pricePerLiter = Number(tx.pricePerLiter) || 0;
   const totalCost = (tx.amountCents ?? Math.round(liters * pricePerLiter * 100)) / 100;
-  const prevBalance = (tx.prevBalanceCents ?? 0) / 100;
-  const newBalance = (tx.newBalanceCents ?? 0) / 100;
   const startPulseCount = Number.parseInt(tx.startPulseCount, 10) || 0;
   const pulsesPerLiter = sanitizePulsesPerLiter(
     tx.pulsesPerLiter ?? currentPulsesPerLiter,
@@ -599,7 +596,7 @@ function FillingProgressView({ tx }) {
   }, [isDispensing]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="filling-screen min-h-[100dvh] bg-background">
       <ProgressHeader
         machineId={tx.machineId}
         location={tx.location}
@@ -607,12 +604,16 @@ function FillingProgressView({ tx }) {
         onCancel={handleCancelClick}
       />
 
-      <div className="px-4 py-6 pb-20 space-y-8">
-        <div className="text-center">
-          <WaterAnimation isActive={isDispensing && !isUiPaused} />
+      <main className="filling-content mx-auto flex w-full max-w-lg flex-col gap-2 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <div className="filling-heading flex min-h-10 items-center justify-center gap-3">
+          <WaterAnimation isActive={isDispensing && !isUiPaused} compact />
+          <p className="text-sm font-medium text-text-primary">
+            {isUiPaused ? "Llenado pausado" : isDispensing ? "Llenando tu garrafón" : "Finalizando llenado"}
+          </p>
         </div>
 
         <ProgressIndicator
+          className="filling-indicator"
           progress={displayProgress}
           remainingTime={displayRemainingTime}
           flowRate={displayFlowRate}
@@ -622,15 +623,16 @@ function FillingProgressView({ tx }) {
           dispensedPulseCount={displayDispensedPulseCount}
           targetPulseCount={targetPulseCount}
           pulsesPerLiter={pulsesPerLiter}
+          compact
         />
 
-        <div className="mx-auto max-w-sm rounded-2xl border border-sky-200 bg-white p-3 shadow-sm">
+        <div className="filling-controls w-full rounded-xl border border-sky-200 bg-white p-2 shadow-sm">
           {!isUiPaused ? (
             <button
               type="button"
               onClick={handlePauseFilling}
               disabled={!isDispensing || completionScheduledRef.current || Boolean(pauseCommandLoading)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-warning px-4 py-3 text-sm font-bold text-warning-foreground transition-colors duration-200 hover:bg-warning/90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-warning px-3 py-2 text-sm font-bold text-warning-foreground transition-colors duration-200 hover:bg-warning/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {pauseCommandLoading === "pause" ? "Pausando..." : "Pausar llenado"}
             </button>
@@ -639,66 +641,39 @@ function FillingProgressView({ tx }) {
               type="button"
               onClick={handleResumeFilling}
               disabled={!isDispensing || completionScheduledRef.current || Boolean(pauseCommandLoading)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-success px-4 py-3 text-sm font-bold text-success-foreground transition-colors duration-200 hover:bg-success/90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-success px-3 py-2 text-sm font-bold text-success-foreground transition-colors duration-200 hover:bg-success/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {pauseCommandLoading === "resume" ? "Reanudando..." : "Reanudar llenado"}
             </button>
           )}
-          <p className="mt-2 text-center text-xs text-text-secondary">
+          <p className="mt-1 text-center text-xs text-text-secondary">
             {isUiPaused
               ? "Llenado pausado. Toca reanudar para continuar."
-              : "Envia pausa al controlador sin cancelar el cobro ni la sesion."}
+              : "Puedes pausar y reanudar cuando lo necesites."}
           </p>
         </div>
 
         {completionStatus ? (
-          <div className="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-center text-sm font-medium text-success">
+          <div className="filling-status rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-center text-sm font-medium text-success">
             {completionStatus}
           </div>
         ) : null}
 
         {displayTelemetry ? (
-          <TelemetryStatusCard telemetry={displayTelemetry} title="Telemetria" compact />
+          <div className="filling-telemetry">
+            <TelemetryStatusCard telemetry={displayTelemetry} title="Estado" compact dense />
+          </div>
         ) : null}
 
-        <TransactionDetails
-          selectedLiters={liters}
-          pricePerLiter={pricePerLiter}
-          totalCost={totalCost}
-          currentBalance={prevBalance}
-          remainingBalance={newBalance}
-        />
-
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border bg-background px-3 py-2">
-              <p className="text-xs uppercase tracking-wide text-text-secondary">Litros reales</p>
-              <p className="mt-1 text-lg font-semibold text-text-primary">
-                {displayDispensedLiters.toFixed(2)} / {liters.toFixed(2)} L
-              </p>
-            </div>
-            <div className="rounded-xl border border-border bg-background px-3 py-2">
-              <p className="text-xs uppercase tracking-wide text-text-secondary">Pulsos usados</p>
-              <p className="mt-1 text-lg font-semibold text-text-primary">
-                {displayDispensedPulseCount} / {targetPulseCount}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border bg-background px-3 py-2">
-              <p className="text-xs uppercase tracking-wide text-text-secondary">Calibracion</p>
-              <p className="mt-1 text-lg font-semibold text-text-primary">{pulsesPerLiter} pulsos/L</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="text-center">
+        <div className="filling-help text-center">
           <button
             onClick={() => setIsHelpModalOpen(true)}
-            className="inline-flex items-center space-x-2 px-6 py-3 bg-muted rounded-full hover:bg-muted/80 transition-colors duration-200"
+            className="inline-flex min-h-11 items-center space-x-2 px-5 py-2 bg-muted rounded-full hover:bg-muted/80 transition-colors duration-200"
           >
             <span className="text-body-sm font-medium text-text-primary">Ayuda</span>
           </button>
         </div>
-      </div>
+      </main>
 
       <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
       <CancelConfirmationModal
