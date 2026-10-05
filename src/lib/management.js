@@ -2,9 +2,13 @@ const API = import.meta.env.VITE_API_URL;
 export const ADMIN_SESSION_KEY = 'agua24MonitorSession';
 
 export function managementHeaders(token, extra = {}) {
-  const session = window.sessionStorage.getItem(ADMIN_SESSION_KEY);
-  return { ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(session ? { 'X-Monitor-Session': session } : {}), ...extra };
+  return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
+}
+
+export function accountHome(access) {
+  if (access.role === 'ADMIN') return '/water-monitor';
+  if (access.role === 'PARTNER') return '/partner-panel';
+  return '/home-dashboard';
 }
 
 export function clearAdminSession() {
@@ -15,6 +19,7 @@ export function clearAdminSession() {
 
 export async function managementRequest(path, getToken, options = {}) {
   const token = await getToken({ template: 'aquaqr-api' }).catch(() => null);
+  if (!token) throw Object.assign(new Error('Tu sesión ha terminado. Inicia sesión nuevamente.'), { status: 401 });
   const res = await fetch(`${API}${path}`, { ...options,
     headers: managementHeaders(token, { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers }),
     cache: 'no-store' });

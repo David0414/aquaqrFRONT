@@ -34,7 +34,7 @@ export default function UserRegistration() {
   const { isSignedIn } = useUser();
 
   const onBrandClick = () => {
-    if (isSignedIn) navigate('/home-dashboard');
+    if (isSignedIn) navigate('/account-redirect');
   };
 
   return (
@@ -49,7 +49,7 @@ export default function UserRegistration() {
       </Helmet>
 
       <SignedIn>
-        <Navigate to="/home-dashboard" replace />
+        <Navigate to="/account-redirect" replace />
       </SignedIn>
 
       <div className="min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(circle_at_top_left,#d7fbff_0,#eefbff_28%,#f8fcff_58%,#edf4ff_100%)]">
@@ -136,7 +136,7 @@ export default function UserRegistration() {
                 <SignUp
                   routing="path"
                   path="/user-registration"
-                  afterSignUpUrl="/home-dashboard"
+                  forceRedirectUrl="/account-redirect"
                   signInUrl="/user-login"
                   appearance={{
                     variables: {

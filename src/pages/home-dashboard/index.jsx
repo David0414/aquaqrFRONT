@@ -9,7 +9,6 @@ import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
 import Icon from '../../components/AppIcon';
 import Agua24Brand from '../../components/Agua24Brand';
-import { managementRequest } from '../../lib/management';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -27,7 +26,6 @@ const HomeDashboard = () => {
   const { balanceCents, setTelemetryEnabled, pollInputs, sendStageCommand } = useDispenseFlow();
 
   const [dashboard, setDashboard] = useState(null);
-  const [managementAccess, setManagementAccess] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
@@ -35,16 +33,6 @@ const HomeDashboard = () => {
   const hasLoadedDashboardRef = useRef(false);
   const refreshTimeoutRef = useRef(null);
   const promoNoticeShownRef = useRef(false);
-
-  useEffect(() => {
-    if (!isClerkLoaded || !isSignedIn) return undefined;
-    let cancelled = false;
-    setManagementAccess(null);
-    managementRequest('/api/management/me', getToken).then((data) => {
-      if (!cancelled) setManagementAccess(data);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [getToken, isClerkLoaded, isSignedIn, user?.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -355,16 +343,6 @@ const HomeDashboard = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20">
         <div className="space-y-6">
-          {managementAccess?.canManage ? (
-            <button type="button" onClick={() => navigate(managementAccess.defaultPath)}
-              className="flex w-full items-center justify-between rounded-2xl border border-sky-200 bg-white p-4 text-left shadow-sm">
-              <span className="flex items-center gap-3 font-semibold text-primary">
-                <Icon name="Factory" size={22} />
-                {managementAccess.role === 'ADMIN' ? 'Panel de administrador' : 'Mi panel de socio'}
-              </span>
-              <Icon name="ArrowRight" size={20} />
-            </button>
-          ) : null}
           <section className="relative overflow-hidden rounded-[2.25rem] border border-sky-100 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.15),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.16),_transparent_30%),linear-gradient(135deg,_#f8fdff_0%,_#eef8ff_52%,_#ffffff_100%)] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
             <div className="absolute -left-10 top-10 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
             <div className="absolute right-10 top-8 h-16 w-16 rounded-[38%] bg-amber-200/40 rotate-12 blur-xl" />

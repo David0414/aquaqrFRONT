@@ -17,8 +17,8 @@ root.render(
       localization={esES}
       signInUrl="/user-login"
       signUpUrl="/user-registration"
-      afterSignInUrl="/home-dashboard"
-      afterSignUpUrl="/home-dashboard"
+      signInForceRedirectUrl="/account-redirect"
+      signUpForceRedirectUrl="/account-redirect"
       appearance={{
         variables: {
           colorPrimary: "#06b6d4",

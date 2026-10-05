@@ -614,7 +614,7 @@ export default function WaterMonitor() {
   const handleLogout = async () => {
     clearAdminSession();
     if (isSignedIn) await signOut();
-    navigate(isAdmin ? '/user-login?monitor=1' : '/user-login?partner=1', { replace: true });
+    navigate('/user-login', { replace: true });
   };
 
   const shellClass = darkMode
@@ -640,9 +640,6 @@ export default function WaterMonitor() {
           <div className="flex flex-wrap items-center gap-2">
             <Button variant={darkMode ? 'secondary' : 'outline'} size="sm" onClick={() => setDarkMode((current) => !current)}>
               <Icon name={darkMode ? 'Sun' : 'Moon'} size={16} /> {darkMode ? 'Tema claro' : 'Tema oscuro'}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => navigate('/home-dashboard')}>
-              <Icon name="Home" size={16} /> App
             </Button>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <Icon name="LogOut" size={16} /> Salir

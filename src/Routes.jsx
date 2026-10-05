@@ -26,6 +26,7 @@ import PromotionsCenter from "./pages/promotions-center";
 import FillingProgress from "./pages/filling-progress";
 import WaterMonitor from "./pages/water-monitor";
 import ManagementGuard from "./components/ui/ManagementGuard";
+import { AccountAccessProvider, AccountGuard } from "./components/ui/AccountAccess";
 import AccountRedirect from "./pages/account-redirect";
 
 // Flujo por pantallas
@@ -42,14 +43,7 @@ import QRResolver from "./pages/qr-resolver";
 import UserLogin from "./pages/user-login";
 import UserRegistration from "./pages/user-registration";
 
-const Protected = ({ children }) => (
-  <>
-    <SignedIn>{children}</SignedIn>
-    <SignedOut>
-      <Navigate to="/user-login" replace />
-    </SignedOut>
-  </>
-);
+const Protected = ({ children }) => <AccountGuard roles={["CUSTOMER"]}>{children}</AccountGuard>;
 
 // Header (ahora mismo no pinta nada, pero respeta tus auth-routes)
 function LayoutHeader() {
@@ -73,6 +67,7 @@ const Routes = () => {
   return (
     <BrowserRouter>
       <ErrorBoundary>
+        <AccountAccessProvider>
         <ScrollToTop />
         <LayoutHeader />
 
@@ -101,7 +96,7 @@ const Routes = () => {
 
           <Route path="/user-login/*" element={<UserLogin />} />
           <Route path="/user-registration/*" element={<UserRegistration />} />
-          <Route path="/account-redirect" element={<Protected><AccountRedirect /></Protected>} />
+          <Route path="/account-redirect" element={<AccountGuard><AccountRedirect /></AccountGuard>} />
 
           {/* ==== Flujo por pantallas ==== */}
           <Route
@@ -232,6 +227,7 @@ const Routes = () => {
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </RouterRoutes>
+        </AccountAccessProvider>
       </ErrorBoundary>
     </BrowserRouter>
   );

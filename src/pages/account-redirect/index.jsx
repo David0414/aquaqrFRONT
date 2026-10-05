@@ -1,17 +1,22 @@
-import React, { useEffect } from 'react';
-import { useAuth } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
-import { managementRequest } from '../../lib/management';
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAccountAccess } from '../../components/ui/AccountAccess';
+import { accountHome } from '../../lib/management';
+
+function pendingQr() {
+  try {
+    const raw = window.sessionStorage.getItem('agua24.pendingDispense')
+      || window.localStorage.getItem('pendingDispense');
+    if (!raw) return null;
+    const { machineId, machineLocation, hardwareId, at } = JSON.parse(raw);
+    if (!machineId || !Number.isFinite(Number(at)) || Date.now() - Number(at) > 10 * 60 * 1000) return null;
+    return { machineId, machineLocation: machineLocation || 'Desconocida', hardwareId, fromQR: true };
+  } catch { return null; }
+}
 
 export default function AccountRedirect() {
-  const { getToken } = useAuth();
-  const navigate = useNavigate();
-  useEffect(() => {
-    let cancelled = false;
-    managementRequest('/api/management/me', getToken).then((data) => {
-      if (!cancelled) navigate(data.defaultPath || '/home-dashboard', { replace: true });
-    }).catch(() => { if (!cancelled) navigate('/home-dashboard', { replace: true }); });
-    return () => { cancelled = true; };
-  }, [getToken, navigate]);
-  return <div className="p-8 text-center">Abriendo tu cuenta…</div>;
+  const { access } = useAccountAccess();
+  const pending = access.role === 'CUSTOMER' ? pendingQr() : null;
+  if (pending) return <Navigate to="/water/choose" state={pending} replace />;
+  return <Navigate to={accountHome(access)} replace />;
 }

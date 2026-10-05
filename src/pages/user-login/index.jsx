@@ -1,10 +1,9 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { SignIn, SignedIn, useUser } from '@clerk/clerk-react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { SignIn, useUser } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
 import Agua24Brand from '../../components/Agua24Brand';
-import { ADMIN_SESSION_KEY, clearAdminSession } from '../../lib/management';
 
 const loginHighlights = [
   {
@@ -32,42 +31,9 @@ const loginStats = [
 
 export default function UserLogin() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { isSignedIn } = useUser();
-  const showMonitorLogin = new URLSearchParams(location.search).get('monitor') === '1';
-  const partnerLogin = new URLSearchParams(location.search).get('partner') === '1';
-  const [monitorOpen, setMonitorOpen] = React.useState(showMonitorLogin);
-  const [adminUser, setAdminUser] = React.useState('');
-  const [adminPassword, setAdminPassword] = React.useState('');
-  const [adminError, setAdminError] = React.useState('');
-  const [adminLoading, setAdminLoading] = React.useState(false);
-
-  const onBrandClick = () => {
-    if (isSignedIn) navigate('/home-dashboard');
-  };
-
-  const handleMonitorLogin = async (event) => {
-    event.preventDefault();
-    if (adminLoading) return;
-    setAdminLoading(true);
-    setAdminError('');
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/management/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: adminUser.trim(), password: adminPassword }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.token) throw new Error(data.error || 'No se pudo iniciar sesión');
-      clearAdminSession();
-      window.sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
-      setAdminPassword('');
-      navigate('/water-monitor', { replace: true });
-    } catch (error) {
-      setAdminError(error.message);
-    } finally {
-      setAdminLoading(false);
-    }
-  };
+  const { isLoaded, isSignedIn } = useUser();
+  if (!isLoaded) return <div className="p-8 text-center">Cargando acceso…</div>;
+  if (isSignedIn) return <Navigate to="/account-redirect" replace />;
 
   return (
     <>
@@ -80,46 +46,18 @@ export default function UserLogin() {
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Helmet>
 
-      {!showMonitorLogin ? (
-        <SignedIn>
-          <Navigate to={partnerLogin ? '/partner-panel' : '/account-redirect'} replace />
-        </SignedIn>
-      ) : null}
-
       <div className="min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(circle_at_top_left,#d7fbff_0,#eefbff_28%,#f8fcff_58%,#edf4ff_100%)]">
         <header className="w-full">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-6">
             <button
               type="button"
-              onClick={onBrandClick}
+              onClick={() => navigate('/user-login')}
               className="flex items-center gap-3 select-none"
               aria-label="AGUA/24"
             >
               <Agua24Brand className="h-12" />
             </button>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setMonitorOpen((value) => !value)}
-                className="inline-flex items-center gap-2 rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-sm text-[#1E3F7A] shadow-sm backdrop-blur transition hover:bg-white sm:px-4 sm:text-[15px]"
-              >
-                <Icon name="MonitorCog" size={16} />
-                <span className="font-medium">Administrador</span>
-              </button>
-              <button type="button" onClick={() => navigate('/user-login?partner=1')}
-                className="rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-sm font-medium text-[#1E3F7A]">
-                Soy socio
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/user-registration')}
-                className="inline-flex items-center gap-2 rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-sm text-[#1E3F7A] shadow-sm backdrop-blur transition hover:bg-white sm:px-4 sm:text-[15px]"
-              >
-                <Icon name="UserPlus" size={16} />
-                <span className="font-medium">Crear cuenta</span>
-              </button>
-            </div>
           </div>
         </header>
 
@@ -177,14 +115,14 @@ export default function UserLogin() {
                   Bienvenido de vuelta
                   </h1>
                   <p className="text-sm leading-6 text-slate-600 sm:text-base">
-                    Entra para gestionar saldo, recargas y uso de maquina desde una vista mas cuidada.
+                    Inicia sesión para acceder a tu cuenta.
                   </p>
                 </div>
 
                 <SignIn
                   routing="path"
                   path="/user-login"
-                  afterSignInUrl={partnerLogin ? '/partner-panel' : '/account-redirect'}
+                  forceRedirectUrl="/account-redirect"
                   appearance={{
                     variables: {
                       colorPrimary: '#42B9D4',
@@ -222,48 +160,6 @@ export default function UserLogin() {
                     },
                   }}
                 />
-
-                {monitorOpen ? (
-                  <form
-                    onSubmit={handleMonitorLogin}
-                    className="mt-5 rounded-[24px] border border-sky-100 bg-[linear-gradient(145deg,rgba(245,251,255,0.98),rgba(232,246,255,0.92))] p-4 shadow-sm"
-                  >
-                    <div className="mb-3 flex items-center gap-2">
-                      <Icon name="MonitorCog" size={18} className="text-[#42B9D4]" />
-                      <h2 className="font-semibold text-[#1E3F7A]">Acceso de administrador</h2>
-                    </div>
-                    <div className="space-y-3">
-                      <input
-                        value={adminUser}
-                        onChange={(event) => {
-                          setAdminUser(event.target.value);
-                          setAdminError('');
-                        }}
-                        placeholder="Usuario"
-                        className="h-11 w-full rounded-2xl border border-sky-100 bg-white px-3 text-sm outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
-                      />
-                      <input
-                        type="password"
-                        value={adminPassword}
-                        onChange={(event) => {
-                          setAdminPassword(event.target.value);
-                          setAdminError('');
-                        }}
-                        placeholder="Contrasena"
-                        className="h-11 w-full rounded-2xl border border-sky-100 bg-white px-3 text-sm outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
-                      />
-                      {adminError ? <p className="text-sm font-medium text-red-600">{adminError}</p> : null}
-                      <button
-                        type="submit"
-                        disabled={adminLoading}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#1E3F7A] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#173263]"
-                      >
-                        <Icon name="LockKeyhole" size={16} />
-                        {adminLoading ? 'Verificando…' : 'Entrar al panel'}
-                      </button>
-                    </div>
-                  </form>
-                ) : null}
 
                 <div className="mt-5 text-center">
                   <div className="flex w-full flex-wrap items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white/85 px-4 py-3 shadow-sm backdrop-blur">

@@ -2,6 +2,7 @@
 import React from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAccountAccess } from './ui/AccountAccess';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -15,6 +16,7 @@ const PENDING_DISPENSE_MAX_AGE_MS = 10 * 60 * 1000;
  */
 export default function PendingDispenseWatcher() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { access } = useAccountAccess();
   const navigate = useNavigate();
   const location = useLocation();
   const resumeKeyRef = React.useRef('');
@@ -24,7 +26,7 @@ export default function PendingDispenseWatcher() {
   }, [userId]);
 
   React.useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
+    if (!isLoaded || !isSignedIn || access?.role !== 'CUSTOMER') return;
 
     const raw =
       window.sessionStorage.getItem(PENDING_DISPENSE_STORAGE_KEY)
@@ -59,12 +61,13 @@ export default function PendingDispenseWatcher() {
     } catch {
       // no-op
     }
-  }, [isLoaded, isSignedIn, navigate, userId]);
+  }, [isLoaded, isSignedIn, navigate, userId, access?.role]);
 
   React.useEffect(() => {
-    if (!isLoaded || !isSignedIn) return undefined;
+    if (!isLoaded || !isSignedIn || access?.role !== 'CUSTOMER') return undefined;
     const skipResume =
       location.pathname.startsWith('/water')
+      || location.pathname === '/account-redirect'
       || location.pathname === '/partner-panel'
       || location.pathname === '/filling-progress'
       || location.pathname === '/transaction-complete'
@@ -115,7 +118,7 @@ export default function PendingDispenseWatcher() {
     return () => {
       cancelled = true;
     };
-  }, [getToken, isLoaded, isSignedIn, location.pathname, navigate, userId]);
+  }, [getToken, isLoaded, isSignedIn, location.pathname, navigate, userId, access?.role]);
 
   return null;
 }
