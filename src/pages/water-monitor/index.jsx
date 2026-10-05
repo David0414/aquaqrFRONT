@@ -10,7 +10,7 @@ import NotificationToast, { showErrorToast, showSuccessToast } from '../../compo
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 import { useManagementAccess } from '../../components/ui/ManagementGuard';
 import PartnersManager from '../../components/ui/PartnersManager';
-import { managementHeaders, clearAdminSession } from '../../lib/management';
+import { managementHeaders, clearAdminSession, getManagementToken, managementFetch } from '../../lib/management';
 import {
   getTargetPulseCount,
   getTelemetryStepInfo,
@@ -19,7 +19,6 @@ import {
 } from '../water-dispensing-control/telemetry';
 
 const API = import.meta.env.VITE_API_URL;
-const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 
 function sanitizePointsPerLiter(value, fallback = 0.5) {
   const next = Number.parseFloat(value);
@@ -214,8 +213,8 @@ export default function WaterMonitor() {
 
   const fetchMonitorSummary = async () => {
     try {
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const res = await fetch(`${API}/api/monitor-admin/summary`, {
+      const token = await getManagementToken(getToken);
+      const res = await managementFetch(`${API}/api/monitor-admin/summary`, {
         headers: buildAuthHeaders(token),
       });
       const data = await res.json().catch(() => null);
@@ -288,8 +287,8 @@ export default function WaterMonitor() {
 
     const loadTelemetry = async () => {
       try {
-        const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-        const res = await fetch(`${API}/api/telemetry/machine/${selectedMachineId}`, {
+        const token = await getManagementToken(getToken);
+        const res = await managementFetch(`${API}/api/telemetry/machine/${selectedMachineId}`, {
           headers: buildAuthHeaders(token),
           cache: 'no-store',
         });
@@ -362,7 +361,7 @@ export default function WaterMonitor() {
         const query = new URLSearchParams();
         if (selectedMachineHardwareId) query.set('hardwareId', selectedMachineHardwareId);
         if (selectedMachine.id) query.set('machineId', selectedMachine.id);
-        const res = await fetch(`${API}/api/dispense/config?${query.toString()}`);
+        const res = await managementFetch(`${API}/api/dispense/config?${query.toString()}`);
         const data = await res.json().catch(() => null);
         if (!cancelled && res.ok && data?.pulsesPerLiter) {
           setPulsesPerLiterInput(String(data.pulsesPerLiter));
@@ -408,8 +407,8 @@ export default function WaterMonitor() {
       setPulsesPerLiterInput(String(nextPpl));
       setLoadingAction(action);
 
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const res = await fetch(`${API}/api/dispense/demo/control`, {
+      const token = await getManagementToken(getToken);
+      const res = await managementFetch(`${API}/api/dispense/demo/control`, {
         method: 'POST',
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
@@ -439,8 +438,8 @@ export default function WaterMonitor() {
     const nextValue = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
 
     try {
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const res = await fetch(`${API}/api/dispense/config/pulses`, {
+      const token = await getManagementToken(getToken);
+      const res = await managementFetch(`${API}/api/dispense/config/pulses`, {
         method: 'POST',
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
@@ -475,8 +474,8 @@ export default function WaterMonitor() {
         throw new Error('El ID de maquina es requerido');
       }
       setMachineSaving(true);
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const res = await fetch(`${API}/api/monitor-admin/machines${isAdmin ? '' : `/${encodeURIComponent(machineForm.id)}`}`, {
+      const token = await getManagementToken(getToken);
+      const res = await managementFetch(`${API}/api/monitor-admin/machines${isAdmin ? '' : `/${encodeURIComponent(machineForm.id)}`}`, {
         method: isAdmin ? 'POST' : 'PUT',
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify(machineForm),
@@ -508,8 +507,8 @@ export default function WaterMonitor() {
 
   const handleMachineToggle = async (machine) => {
     try {
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const res = await fetch(`${API}/api/monitor-admin/machines/${machine.id}`, {
+      const token = await getManagementToken(getToken);
+      const res = await managementFetch(`${API}/api/monitor-admin/machines/${machine.id}`, {
         method: 'PUT',
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({ ...machine, isActive: !machine.isActive }),
@@ -525,8 +524,8 @@ export default function WaterMonitor() {
 
   const handleMachineDelete = async (machine) => {
     try {
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const res = await fetch(`${API}/api/monitor-admin/machines/${machine.id}`, {
+      const token = await getManagementToken(getToken);
+      const res = await managementFetch(`${API}/api/monitor-admin/machines/${machine.id}`, {
         method: 'DELETE',
         headers: buildAuthHeaders(token),
       });
@@ -549,8 +548,8 @@ export default function WaterMonitor() {
   const handleGenerateQr = async (machineId) => {
     try {
       setQrLoadingId(machineId);
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const res = await fetch(`${API}/api/monitor-admin/machines/${machineId}/qr`, {
+      const token = await getManagementToken(getToken);
+      const res = await managementFetch(`${API}/api/monitor-admin/machines/${machineId}/qr`, {
         headers: buildAuthHeaders(token),
       });
       const data = await res.json().catch(() => null);
@@ -566,12 +565,12 @@ export default function WaterMonitor() {
   const handlePromotionToggle = async (promotion) => {
     try {
       setPromotionSavingKey(promotion.key);
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
+      const token = await getManagementToken(getToken);
       const payload = { isActive: !promotion.isActive };
       if (promotion.key === 'monthly_consumption_points') {
         payload.config = { pointsPerLiter: sanitizePointsPerLiter(pointsPerLiterConfig) };
       }
-      const res = await fetch(`${API}/api/monitor-admin/promotions/${promotion.key}`, {
+      const res = await managementFetch(`${API}/api/monitor-admin/promotions/${promotion.key}`, {
         method: 'PUT',
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
@@ -590,8 +589,8 @@ export default function WaterMonitor() {
   const handleSavePointsConfig = async () => {
     try {
       setPromotionSavingKey('monthly_consumption_points');
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE }).catch(() => null);
-      const res = await fetch(`${API}/api/monitor-admin/promotions/monthly_consumption_points`, {
+      const token = await getManagementToken(getToken);
+      const res = await managementFetch(`${API}/api/monitor-admin/promotions/monthly_consumption_points`, {
         method: 'PUT',
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({

@@ -5,6 +5,8 @@ import { SignIn, useUser } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
 import Agua24Brand from '../../components/Agua24Brand';
 import StartupStatus from '../../components/StartupStatus';
+import { useAccountAccess } from '../../components/ui/AccountAccess';
+import AdminLogin from './AdminLogin';
 
 const loginHighlights = [
   {
@@ -34,9 +36,10 @@ export default function UserLogin() {
   const navigate = useNavigate();
   const location = useLocation();
   const panelAccess = new URLSearchParams(location.search).get('panel') === '1';
+  const adminAccess = panelAccess && new URLSearchParams(location.search).get('access') === 'admin';
   const { isLoaded, isSignedIn } = useUser();
-  if (!isLoaded) return <StartupStatus />;
-  if (isSignedIn) return <Navigate to="/account-redirect" replace />;
+  const { access, isSignedIn: hasSession } = useAccountAccess();
+  if ((hasSession && access?.role === 'ADMIN') || (isSignedIn && !adminAccess)) return <Navigate to="/account-redirect" replace />;
 
   return (
     <>
@@ -118,11 +121,23 @@ export default function UserLogin() {
                     {panelAccess ? 'Acceso a tu panel' : 'Bienvenido de vuelta'}
                   </h1>
                   <p className="text-sm leading-6 text-slate-600 sm:text-base">
-                    {panelAccess ? 'Ingresa con tu cuenta de socio o administrador.' : 'Inicia sesión para acceder a tu cuenta.'}
+                    {panelAccess ? adminAccess ? 'Ingresa con tu usuario y contraseña de administrador.' : 'Ingresa con el correo de tu cuenta de socio.' : 'Inicia sesión para acceder a tu cuenta.'}
                   </p>
                 </div>
 
-                <SignIn
+                {panelAccess && (
+                  <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-sky-50 p-1" aria-label="Tipo de acceso al panel">
+                    {[{ admin: false, label: 'Socio' }, { admin: true, label: 'Administrador' }].map((option) => (
+                      <button key={option.label} type="button" aria-pressed={adminAccess === option.admin}
+                        onClick={() => navigate(option.admin ? '/user-login?panel=1&access=admin' : '/user-login?panel=1')}
+                        className={`rounded-xl px-2 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${adminAccess === option.admin ? 'bg-white text-[#1E3F7A] shadow-sm' : 'text-slate-500 hover:text-[#1E3F7A]'}`}>
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {adminAccess ? <AdminLogin /> : !isLoaded ? <StartupStatus compact /> : <SignIn
                   routing="path"
                   path="/user-login"
                   forceRedirectUrl="/account-redirect"
@@ -162,7 +177,7 @@ export default function UserLogin() {
                       footerAction: 'hidden',
                     },
                   }}
-                />
+                />}
 
                 {!panelAccess ? <div className="mt-5 text-center">
                   <div className="flex w-full flex-wrap items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white/85 px-4 py-3 shadow-sm backdrop-blur">

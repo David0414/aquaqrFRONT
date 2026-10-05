@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { ClerkProvider, ClerkLoaded, ClerkLoading, ClerkFailed } from "@clerk/clerk-react";
+import { ClerkProvider } from "@clerk/clerk-react";
 import { esES } from "@clerk/localizations";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -44,9 +44,7 @@ root.render(
         },
       }}
     >
-      <ClerkLoading><StartupStatus /></ClerkLoading>
-      <ClerkFailed><StartupStatus failed /></ClerkFailed>
-      <ClerkLoaded><App /></ClerkLoaded>
+      <App />
     </ClerkProvider>
     ) : <StartupStatus failed />}
     </ErrorBoundary>

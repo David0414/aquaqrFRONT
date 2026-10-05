@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-export default function StartupStatus({ failed = false }) {
+export default function StartupStatus({ failed = false, compact = false }) {
   const [delayed, setDelayed] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => setDelayed(true), 15000);
@@ -8,7 +8,7 @@ export default function StartupStatus({ failed = false }) {
   }, []);
   return (
     <main role={failed ? 'alert' : 'status'} aria-live="polite"
-      className="flex min-h-screen min-h-[100dvh] items-center justify-center bg-sky-50 px-6 text-center text-[#1E3F7A]">
+      className={`flex items-center justify-center bg-sky-50 px-6 text-center text-[#1E3F7A] ${compact ? 'min-h-[180px] rounded-2xl py-5' : 'min-h-screen min-h-[100dvh]'}`}>
       <div className="max-w-sm space-y-4">
         <p className="text-3xl font-black">AGUA<span className="text-[#42B9D4]">/24</span></p>
         {!failed ? <div aria-hidden="true" className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-sky-100 border-t-cyan-500" /> : null}
