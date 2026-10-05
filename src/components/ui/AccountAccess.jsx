@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth, useClerk } from '@clerk/clerk-react';
 import { Navigate } from 'react-router-dom';
 import Button from './Button';
+import StartupStatus from '../StartupStatus';
 import { accountHome, clearAdminSession, managementRequest } from '../../lib/management';
 
 const AccountContext = createContext(null);
@@ -40,7 +41,7 @@ export function AccountAccessProvider({ children }) {
 export function AccountGuard({ children, roles }) {
   const { access, error, isLoaded, isSignedIn, retry } = useAccountAccess();
   const { signOut } = useClerk();
-  if (!isLoaded) return <div className="p-8 text-center">Cargando acceso…</div>;
+  if (!isLoaded) return <StartupStatus />;
   if (!isSignedIn) return <Navigate to="/user-login" replace />;
   if (error) return (
     <div className="mx-auto max-w-md space-y-4 p-8 text-center">
@@ -49,7 +50,7 @@ export function AccountGuard({ children, roles }) {
       <Button variant="outline" onClick={() => signOut({ redirectUrl: '/user-login' })}>Cerrar sesión</Button>
     </div>
   );
-  if (!access) return <div className="p-8 text-center">Verificando tu cuenta…</div>;
+  if (!access) return <StartupStatus />;
   if (roles && !roles.includes(access.role)) return <Navigate to={accountHome(access)} replace />;
   if (roles && access.role !== 'CUSTOMER' && !access.canManage) return (
     <div className="mx-auto max-w-md space-y-4 p-8 text-center">

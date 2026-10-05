@@ -1,17 +1,21 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { ClerkProvider } from "@clerk/clerk-react";
+import { ClerkProvider, ClerkLoaded, ClerkLoading, ClerkFailed } from "@clerk/clerk-react";
 import { esES } from "@clerk/localizations";
 import App from "./App";
+import ErrorBoundary from "./components/ErrorBoundary";
+import StartupStatus from "./components/StartupStatus";
 import "./styles/tailwind.css";
 import "./styles/index.css";
 
 const root = createRoot(document.getElementById("root"));
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-if (!publishableKey) throw new Error("Falta VITE_CLERK_PUBLISHABLE_KEY");
+if (!publishableKey) console.error("Falta VITE_CLERK_PUBLISHABLE_KEY");
 
 root.render(
   <React.StrictMode>
+    <ErrorBoundary>
+    {publishableKey ? (
     <ClerkProvider
       publishableKey={publishableKey}
       localization={esES}
@@ -40,7 +44,11 @@ root.render(
         },
       }}
     >
-      <App />
+      <ClerkLoading><StartupStatus /></ClerkLoading>
+      <ClerkFailed><StartupStatus failed /></ClerkFailed>
+      <ClerkLoaded><App /></ClerkLoaded>
     </ClerkProvider>
+    ) : <StartupStatus failed />}
+    </ErrorBoundary>
   </React.StrictMode>
 );

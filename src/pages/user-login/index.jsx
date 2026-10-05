@@ -4,6 +4,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SignIn, useUser } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
 import Agua24Brand from '../../components/Agua24Brand';
+import StartupStatus from '../../components/StartupStatus';
 
 const loginHighlights = [
   {
@@ -34,7 +35,7 @@ export default function UserLogin() {
   const location = useLocation();
   const panelAccess = new URLSearchParams(location.search).get('panel') === '1';
   const { isLoaded, isSignedIn } = useUser();
-  if (!isLoaded) return <div className="p-8 text-center">Cargando acceso…</div>;
+  if (!isLoaded) return <StartupStatus />;
   if (isSignedIn) return <Navigate to="/account-redirect" replace />;
 
   return (

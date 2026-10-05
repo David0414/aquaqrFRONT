@@ -7,7 +7,6 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { SignedIn, SignedOut } from "@clerk/clerk-react";
 
 import ScrollToTop from "components/ScrollToTop";
 import ErrorBoundary from "components/ErrorBoundary";
@@ -77,16 +76,7 @@ const Routes = () => {
         <RouterRoutes>
           <Route
             path="/"
-            element={
-              <>
-                <SignedIn>
-                  <Navigate to="/account-redirect" replace />
-                </SignedIn>
-                <SignedOut>
-                  <Navigate to="/user-login" replace />
-                </SignedOut>
-              </>
-            }
+            element={<AccountGuard><AccountRedirect /></AccountGuard>}
           />
 
           {/* ==== Auth ==== */}

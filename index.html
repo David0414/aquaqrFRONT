@@ -35,7 +35,33 @@
 
   <body>
     <noscript>Necesitas habilitar JavaScript para usar esta app.</noscript>
-    <div class="dhiwise-code" id="root"></div>
+    <div class="dhiwise-code" id="root">
+      <main id="startup-fallback" role="status" aria-live="polite"
+        style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f0f9ff;color:#1e3f7a;font-family:Arial,sans-serif;text-align:center;box-sizing:border-box">
+        <div style="max-width:340px">
+          <p style="font-size:30px;font-weight:800">AGUA<span style="color:#42b9d4">/24</span></p>
+          <h1 id="startup-title" style="font-size:20px">Cargando la aplicación…</h1>
+          <p id="startup-detail" style="font-size:14px;line-height:1.6;color:#475569">Estamos preparando tu acceso.</p>
+          <button id="startup-retry" type="button" hidden
+            style="border:0;border-radius:12px;background:#1e3f7a;color:white;padding:12px 20px;font-size:16px;cursor:pointer">Reintentar</button>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      (function () {
+        function showStartupProblem() {
+          if (!document.getElementById('startup-fallback')) return;
+          document.getElementById('startup-title').textContent = 'No se pudo terminar de cargar';
+          document.getElementById('startup-detail').textContent = 'Comprueba tu conexión a internet e intenta nuevamente.';
+          document.getElementById('startup-retry').hidden = false;
+        }
+        document.getElementById('startup-retry').addEventListener('click', function () { window.location.reload(); });
+        window.addEventListener('error', showStartupProblem, true);
+        window.addEventListener('unhandledrejection', showStartupProblem);
+        window.setTimeout(showStartupProblem, 15000);
+      })();
+    </script>
 
     <!-- Tu bundle de React -->
     <script type="module" src="/src/index.jsx"></script>
