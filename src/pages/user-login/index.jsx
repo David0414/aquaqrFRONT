@@ -1,6 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SignIn, useUser } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
 import Agua24Brand from '../../components/Agua24Brand';
@@ -31,6 +31,8 @@ const loginStats = [
 
 export default function UserLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const panelAccess = new URLSearchParams(location.search).get('panel') === '1';
   const { isLoaded, isSignedIn } = useUser();
   if (!isLoaded) return <div className="p-8 text-center">Cargando acceso…</div>;
   if (isSignedIn) return <Navigate to="/account-redirect" replace />;
@@ -38,7 +40,7 @@ export default function UserLogin() {
   return (
     <>
       <Helmet>
-        <title>Iniciar sesion - AGUA/24</title>
+        <title>{panelAccess ? 'Acceso al panel' : 'Iniciar sesión'} - AGUA/24</title>
         <meta
           name="description"
           content="Accede a AGUA/24 para gestionar tu saldo y dispensar agua purificada"
@@ -109,13 +111,13 @@ export default function UserLogin() {
               <div className="rounded-[32px] border border-white/80 bg-white/78 p-4 shadow-[0_30px_80px_rgba(30,63,122,0.14)] backdrop-blur-xl sm:p-6">
                 <div className="mb-6 text-center">
                   <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#42B9D4_0%,#1E3F7A_100%)] shadow-lg">
-                    <Icon name="LogIn" size={24} className="text-white" />
+                    <Icon name={panelAccess ? 'ShieldCheck' : 'LogIn'} size={24} className="text-white" />
                   </div>
                   <h1 className="mb-1 mt-4 text-[28px] font-black text-[#12356b] sm:text-4xl">
-                  Bienvenido de vuelta
+                    {panelAccess ? 'Acceso a tu panel' : 'Bienvenido de vuelta'}
                   </h1>
                   <p className="text-sm leading-6 text-slate-600 sm:text-base">
-                    Inicia sesión para acceder a tu cuenta.
+                    {panelAccess ? 'Ingresa con tu cuenta de socio o administrador.' : 'Inicia sesión para acceder a tu cuenta.'}
                   </p>
                 </div>
 
@@ -161,7 +163,7 @@ export default function UserLogin() {
                   }}
                 />
 
-                <div className="mt-5 text-center">
+                {!panelAccess ? <div className="mt-5 text-center">
                   <div className="flex w-full flex-wrap items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white/85 px-4 py-3 shadow-sm backdrop-blur">
                     <Icon name="Sparkles" size={16} className="text-[#42B9D4]" />
                     <p className="text-sm text-slate-600">
@@ -175,7 +177,28 @@ export default function UserLogin() {
                       </button>
                     </p>
                   </div>
-                </div>
+                </div> : null}
+              </div>
+
+              <div className="mt-4">
+                {panelAccess ? (
+                  <button type="button" onClick={() => navigate('/user-login')}
+                    className="mx-auto flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[#1E3F7A] transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400">
+                    <Icon name="ArrowLeft" size={16} /> Volver al acceso de clientes
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => navigate('/user-login?panel=1')}
+                    className="group flex w-full items-center gap-3 rounded-2xl border border-sky-100 bg-white/70 p-4 text-left text-[#1E3F7A] shadow-sm transition hover:border-sky-300 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100/80 text-[#238CAA]">
+                      <Icon name="ShieldCheck" size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold leading-5">Entrar como socio o administrador</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">Accede a la gestión de tus máquinas</span>
+                    </span>
+                    <Icon name="ArrowRight" size={17} className="shrink-0 transition-transform group-hover:translate-x-1" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
