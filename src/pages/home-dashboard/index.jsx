@@ -293,8 +293,8 @@ const HomeDashboard = () => {
     ?? dashboard.promotions?.filter((promotion) => promotion.requiresMonthlySelection && promotion.isEnabledForUserThisMonth).length ?? 0);
 
   return (
-    <div className="home-dashboard min-h-screen bg-background">
-      <header className="bg-card border-b border-border sticky top-0 z-30">
+    <div className="home-dashboard bg-background">
+      <header className="shrink-0 bg-card border-b border-border sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex min-w-0 items-center gap-3">
@@ -320,14 +320,14 @@ const HomeDashboard = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-3 py-3 pb-16 sm:px-5">
-        <div>
-          <section className="relative overflow-hidden rounded-3xl bg-sky-50/60 p-2">
+      <main className="home-dashboard-main mx-auto w-full max-w-7xl px-3 py-3 sm:px-5">
+        <div className="h-full min-h-0">
+          <section className="relative h-full overflow-hidden rounded-3xl bg-sky-50/60 p-2">
             <div className="absolute -left-10 top-10 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
             <div className="absolute right-10 top-8 h-16 w-16 rounded-[38%] bg-amber-200/40 rotate-12 blur-xl" />
             <div className="absolute bottom-0 right-0 h-36 w-36 rounded-full bg-emerald-200/30 blur-3xl" />
 
-            <div className="relative grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] sm:items-center">
+            <div className="home-dashboard-grid relative grid h-full min-h-0 gap-3">
               <BalanceCard
                 totalBalance={totalBalance / 100}
                 realBalance={realBalance / 100}
@@ -337,11 +337,11 @@ const HomeDashboard = () => {
                 dispenseLoading={dispenseLoading}
               />
 
-              <div className="rounded-2xl border border-sky-100 bg-white p-3 shadow-sm">
+              <div className="home-promotions-card rounded-2xl border border-sky-100 bg-white p-3 shadow-sm">
                 <button
                   type="button"
                   onClick={() => navigate('/promotions')}
-                  className="flex w-full items-center justify-between gap-2 rounded-xl px-1 py-2 text-left text-[#1E3F7A] transition-colors hover:bg-sky-50"
+                  className="flex h-full w-full items-center justify-between gap-2 rounded-xl px-1 py-2 text-left text-[#1E3F7A] transition-colors hover:bg-sky-50"
                 >
                   <div>
                     <p className="text-sm font-bold">Promociones y membresías</p>

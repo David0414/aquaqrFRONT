@@ -20,11 +20,11 @@ const BalanceCard = ({
       <div className="absolute -left-8 bottom-0 h-32 w-32 rounded-full bg-emerald-300/20 blur-2xl" />
       <div className="absolute right-16 top-16 h-16 w-16 rounded-[40%] border border-white/15 bg-white/10 rotate-12" />
 
-      <div className="relative mb-4 flex items-start justify-between gap-3">
+      <div className="home-balance-heading relative flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-white/80">Saldo depositado + promociones</p>
           <div className="mt-2 flex flex-wrap items-end gap-2">
-            <span className="text-3xl font-black tracking-tight">${safeTotal.toFixed(2)}</span>
+            <span className="home-balance-total text-3xl font-black tracking-tight">${safeTotal.toFixed(2)}</span>
             <span className="pb-1 text-xs font-semibold text-white/70">MXN disponibles</span>
           </div>
         </div>
@@ -33,7 +33,7 @@ const BalanceCard = ({
         </div>
       </div>
 
-      <div className="relative grid grid-cols-2 gap-2">
+      <div className="home-balance-breakdown relative grid grid-cols-2 gap-2">
         <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-3">
           <p className="text-xs font-medium text-white/80">Saldo depositado</p>
           <p className="mt-1 text-xl font-bold text-white">${safeReal.toFixed(2)}</p>
@@ -44,7 +44,7 @@ const BalanceCard = ({
         </div>
       </div>
 
-      <div className="relative mt-4 flex gap-2">
+      <div className="home-balance-actions relative flex gap-2">
         <Button
           variant="default"
           size="sm"

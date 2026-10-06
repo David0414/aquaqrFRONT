@@ -10,13 +10,109 @@ body {
   font-family: inherit;
 }
 
-@media (max-height: 450px) and (min-width: 600px) {
+.home-dashboard {
+  --home-nav-height: 57px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.home-dashboard .home-dashboard-main {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: calc(var(--home-nav-height) + 12px);
+}
+
+.home-dashboard-grid {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.home-dashboard .home-balance-card {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 2dvh, 20px);
+  min-height: 0;
+}
+
+.home-balance-heading,
+.home-balance-breakdown {
+  flex: 1;
+  min-height: 0;
+}
+
+.home-dashboard .home-balance-total {
+  font-size: clamp(32px, 5dvh, 60px);
+  line-height: 1.1;
+}
+
+.home-balance-breakdown > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.home-balance-breakdown .text-xs {
+  font-size: clamp(12px, 1.8dvh, 16px);
+  line-height: 1.4;
+}
+
+.home-balance-breakdown .text-xl {
+  font-size: clamp(20px, 3.5dvh, 34px);
+  line-height: 1.2;
+}
+
+.home-balance-actions {
+  flex-shrink: 0;
+}
+
+.home-balance-actions button {
+  height: clamp(36px, 7dvh, 56px);
+  font-size: clamp(13px, 2dvh, 16px);
+}
+
+.home-promotions-card {
+  height: clamp(80px, 16dvh, 160px);
+}
+
+.home-promotions-card .text-sm {
+  font-size: clamp(14px, 2.4dvh, 24px);
+  line-height: 1.3;
+}
+
+.home-promotions-card .text-xs {
+  font-size: clamp(12px, 1.8dvh, 16px);
+  line-height: 1.4;
+}
+
+@media (min-width: 900px), (orientation: landscape) {
+  .home-dashboard-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .home-promotions-card { height: auto; }
+}
+
+@media (min-width: 768px) {
+  .home-dashboard { --home-nav-height: 65px; }
+}
+
+@media (max-height: 450px) and (orientation: landscape) {
   .home-dashboard > header > div > div { height: 3rem; }
   .home-dashboard > header img { max-height: 2.5rem; }
-  .home-dashboard > main { padding-top: 0.25rem; padding-bottom: 3.5rem; }
-  .home-dashboard .home-balance-card { padding: 0.75rem; }
-  .home-dashboard .home-balance-card > .mb-4 { margin-bottom: 0.5rem; }
-  .home-dashboard .home-balance-card .grid > div { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  .home-dashboard .home-dashboard-main { padding-top: 4px; padding-bottom: calc(var(--home-nav-height) + 4px); }
+  .home-dashboard .home-balance-card { padding: 12px; }
+  .home-balance-heading { flex: 0 0 auto; }
+  .home-balance-breakdown > div { padding-top: 8px; padding-bottom: 8px; }
+}
+
+@media (max-height: 350px) and (orientation: landscape) {
+  .home-dashboard .home-balance-total { font-size: 26px; }
+  .home-balance-heading .mt-2 { flex-wrap: nowrap; margin-top: 4px; }
+  .home-balance-heading .pb-1 { padding-bottom: 0; font-size: 10px; }
+  .home-balance-breakdown .text-xs { font-size: 11px; }
+  .home-balance-breakdown .text-xl { font-size: 18px; }
+  .home-balance-breakdown > div { padding: 4px 8px; }
 }
 
 @media (max-height: 500px) and (min-width: 560px) {
