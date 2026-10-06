@@ -15,37 +15,36 @@ const BalanceCard = ({
   const safeBonus = Number(bonusBalance || 0);
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-[linear-gradient(140deg,_#0f172a_0%,_#16315f_38%,_#1d4ed8_100%)] p-6 text-white shadow-[0_28px_70px_rgba(30,63,122,0.26)]">
+    <div className="home-balance-card relative overflow-hidden rounded-3xl border border-sky-100 bg-[linear-gradient(140deg,_#0f172a_0%,_#16315f_38%,_#1d4ed8_100%)] p-4 text-white shadow-lg sm:p-5">
       <div className="absolute -right-10 top-0 h-40 w-40 rounded-full bg-cyan-300/20 blur-2xl" />
       <div className="absolute -left-8 bottom-0 h-32 w-32 rounded-full bg-emerald-300/20 blur-2xl" />
       <div className="absolute right-16 top-16 h-16 w-16 rounded-[40%] border border-white/15 bg-white/10 rotate-12" />
 
-      <div className="relative flex items-start justify-between gap-4 mb-5">
+      <div className="relative mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">Tu saldo total</p>
-          <div className="mt-3 flex items-end gap-2">
-            <span className="text-4xl font-black tracking-tight">${safeTotal.toFixed(2)}</span>
-            <span className="pb-1 text-sm font-semibold text-white/70">disponible</span>
+          <p className="text-xs font-semibold text-white/80">Saldo depositado + promociones</p>
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+            <span className="text-3xl font-black tracking-tight">${safeTotal.toFixed(2)}</span>
+            <span className="pb-1 text-xs font-semibold text-white/70">MXN disponibles</span>
           </div>
-          <p className="mt-2 text-sm text-white/75">Usa tu saldo real y tu saldo de promociones.</p>
         </div>
-        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[1.4rem] bg-white/12 backdrop-blur">
-          <Icon name="Wallet" size={24} className="text-white" />
-        </div>
-      </div>
-
-      <div className="relative grid gap-3 md:grid-cols-2">
-        <div className="rounded-[1.6rem] border border-white/15 bg-white/12 px-4 py-4 backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">TU SALDO TOTAL</p>
-          <p className="mt-2 text-2xl font-black text-white">${safeReal.toFixed(2)}</p>
-        </div>
-        <div className="rounded-[1.6rem] border border-white/15 bg-[linear-gradient(135deg,_rgba(16,185,129,0.26),_rgba(45,212,191,0.12))] px-4 py-4 backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-50/90">Saldo de promociones</p>
-          <p className="mt-2 text-2xl font-black text-white">${safeBonus.toFixed(2)}</p>
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10">
+          <Icon name="Wallet" size={20} className="text-white" />
         </div>
       </div>
 
-      <div className="relative mt-5 flex space-x-3">
+      <div className="relative grid grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-3">
+          <p className="text-xs font-medium text-white/80">Saldo depositado</p>
+          <p className="mt-1 text-xl font-bold text-white">${safeReal.toFixed(2)}</p>
+        </div>
+        <div className="rounded-2xl border border-white/15 bg-emerald-400/20 px-3 py-3">
+          <p className="text-xs font-medium text-emerald-50/90">Saldo de promociones</p>
+          <p className="mt-1 text-xl font-bold text-white">${safeBonus.toFixed(2)}</p>
+        </div>
+      </div>
+
+      <div className="relative mt-4 flex gap-2">
         <Button
           variant="default"
           size="sm"

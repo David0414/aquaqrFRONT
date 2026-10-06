@@ -339,7 +339,7 @@ function PointsPromotionCard({ promotion, monthlyProgress }) {
 
 function MembershipPromotionCard({ promotion, onPurchaseWithBalance, onPayWithCard, purchasingMembershipKey }) {
   const garrafones = Number(promotion?.config?.garrafones || 0);
-  const monthlyPriceCents = Number(promotion?.config?.monthlyPriceCents || 0);
+  const purchasePriceCents = Number(promotion?.config?.purchasePriceCents || promotion?.config?.monthlyPriceCents || 0);
   const costPerGarrafonCents = Number(promotion?.config?.costPerGarrafonCents || 0);
   const purchased = Boolean(promotion?.status?.purchased);
   const loading = purchasingMembershipKey === promotion.key;
@@ -354,7 +354,7 @@ function MembershipPromotionCard({ promotion, onPurchaseWithBalance, onPayWithCa
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">{promotion.title}</h3>
       <p className="mt-2 text-sm text-slate-600">
-        Para activar esta membresia debes pagarla primero. Despues tendras {garrafones} garrafones disponibles por 30 dias.
+        Para activar esta membresía debes pagarla primero. Después tendrás {garrafones} garrafones disponibles hasta agotar sus litros.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -363,8 +363,8 @@ function MembershipPromotionCard({ promotion, onPurchaseWithBalance, onPayWithCa
           <p className="mt-1 text-2xl font-black text-slate-900">{garrafones}</p>
         </div>
         <div className="rounded-[1.25rem] bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Pago mensual</p>
-          <p className="mt-1 text-2xl font-black text-slate-900">{formatCurrency(monthlyPriceCents)}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Pago único</p>
+          <p className="mt-1 text-2xl font-black text-slate-900">{formatCurrency(purchasePriceCents)}</p>
         </div>
         <div className="rounded-[1.25rem] bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Costo/G</p>

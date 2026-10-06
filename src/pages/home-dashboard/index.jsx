@@ -14,16 +14,12 @@ const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 const DASHBOARD_CACHE_KEY = 'agua24-home-dashboard-cache';
 
-function moneyFromCents(amountCents) {
-  return (Number(amountCents || 0) / 100).toFixed(2);
-}
-
 const HomeDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoaded: isClerkLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
-  const { balanceCents, setTelemetryEnabled, pollInputs, sendStageCommand } = useDispenseFlow();
+  const { balanceCents, setTelemetryEnabled, pollInputs } = useDispenseFlow();
 
   const [dashboard, setDashboard] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -32,7 +28,6 @@ const HomeDashboard = () => {
   const [dispenseLoading, setDispenseLoading] = useState(false);
   const hasLoadedDashboardRef = useRef(false);
   const refreshTimeoutRef = useRef(null);
-  const promoNoticeShownRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -240,25 +235,8 @@ const HomeDashboard = () => {
 
   const dashboardSelection = dashboard?.selection || { requiredCount: 0, selectedPromotionKeys: [], complete: true };
 
-  useEffect(() => {
-    if (!dashboard || promoNoticeShownRef.current || dashboardSelection.complete) return;
-    promoNoticeShownRef.current = true;
-    window.showToast?.('Activa tus promociones por 30 dias para aprovechar beneficios.', 'info', 3000, {
-      label: 'Activar',
-      onClick: () => navigate('/promotions'),
-    });
-  }, [dashboard, dashboardSelection.complete, navigate]);
-
   const handleRecharge = () => {
-    sendStageCommand('recargar').catch((error) => {
-      window.showToast?.(error?.message || 'No se pudo activar recarga', 'error');
-    });
-    navigate('/balance-recharge', {
-      state: {
-        rechargeCommandSent: true,
-        rechargeCommandSentAt: Date.now(),
-      },
-    });
+    navigate('/balance-recharge');
   };
   const handleDispense = () => {
     if (dispenseLoading) return;
@@ -311,10 +289,11 @@ const HomeDashboard = () => {
   const realBalance = Number(dashboard.wallet?.realBalanceCents || 0);
   const bonusBalance = Number(dashboard.wallet?.bonusBalanceCents || 0);
   const selection = dashboardSelection;
-  const selectedCount = Number(selection.selectedPromotionKeys?.length || 0);
+  const selectedCount = Number(selection.activePromotionKeys?.length
+    ?? dashboard.promotions?.filter((promotion) => promotion.requiresMonthlySelection && promotion.isEnabledForUserThisMonth).length ?? 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="home-dashboard min-h-screen bg-background">
       <header className="bg-card border-b border-border sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -341,14 +320,14 @@ const HomeDashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20">
-        <div className="space-y-6">
-          <section className="relative overflow-hidden rounded-[2.25rem] border border-sky-100 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.15),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.16),_transparent_30%),linear-gradient(135deg,_#f8fdff_0%,_#eef8ff_52%,_#ffffff_100%)] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
+      <main className="mx-auto max-w-3xl px-3 py-3 pb-16 sm:px-5">
+        <div>
+          <section className="relative overflow-hidden rounded-3xl bg-sky-50/60 p-2">
             <div className="absolute -left-10 top-10 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
             <div className="absolute right-10 top-8 h-16 w-16 rounded-[38%] bg-amber-200/40 rotate-12 blur-xl" />
             <div className="absolute bottom-0 right-0 h-36 w-36 rounded-full bg-emerald-200/30 blur-3xl" />
 
-            <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+            <div className="relative grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] sm:items-center">
               <BalanceCard
                 totalBalance={totalBalance / 100}
                 realBalance={realBalance / 100}
@@ -358,32 +337,17 @@ const HomeDashboard = () => {
                 dispenseLoading={dispenseLoading}
               />
 
-              <div className="rounded-[2rem] border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Promociones</p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Entiende fácil lo que ya ganaste</h2>
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-[1.6rem] bg-[linear-gradient(135deg,_rgba(16,185,129,0.12),_rgba(45,212,191,0.08))] p-4">
-                    <p className="text-sm font-semibold text-slate-700">Saldo de promociones</p>
-                    <p className="mt-2 text-3xl font-black text-emerald-600">${moneyFromCents(bonusBalance)}</p>
-                  </div>
-                  <div className="rounded-[1.6rem] bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-700">Tus promos activas</p>
-                    <p className="mt-2 text-3xl font-black text-[#1E3F7A]">{selectedCount}/{selection.requiredCount || 0}</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {selection.complete ? 'Activas por 30 dias.' : 'Activa tus promociones por 30 dias.'}
-                    </p>
-                  </div>
-                </div>
+              <div className="rounded-2xl border border-sky-100 bg-white p-3 shadow-sm">
                 <button
                   type="button"
                   onClick={() => navigate('/promotions')}
-                  className="mt-5 flex w-full items-center justify-between rounded-[1.5rem] bg-[#1E3F7A] px-4 py-4 text-left text-white shadow-sm transition-colors duration-200 hover:bg-[#17325f]"
+                  className="flex w-full items-center justify-between gap-2 rounded-xl px-1 py-2 text-left text-[#1E3F7A] transition-colors hover:bg-sky-50"
                 >
                   <div>
-                    <p className="text-sm font-semibold text-white/75">Ver explicado</p>
-                    <p className="mt-1 text-lg font-black">Ir a promociones</p>
+                    <p className="text-sm font-bold">Promociones y membresías</p>
+                    <p className="mt-1 text-xs text-slate-500">{selectedCount}/{selection.requiredCount || 0} promociones activadas · Ver beneficios</p>
                   </div>
-                  <Icon name="ArrowRight" size={18} className="text-white" />
+                  <Icon name="ArrowRight" size={18} className="shrink-0" />
                 </button>
               </div>
             </div>

@@ -39,6 +39,8 @@ const TransactionDetailModal = ({
         return { name: 'CreditCard', color: 'text-success' };
       case 'dispensing':
         return { name: 'Droplets', color: 'text-primary' };
+      case 'membership':
+        return { name: 'Crown', color: 'text-primary' };
       default:
         return { name: 'ArrowUpDown', color: 'text-text-secondary' };
     }
@@ -147,16 +149,16 @@ const TransactionDetailModal = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-text-secondary">Tipo:</span>
-                    <span className="font-medium capitalize">{transaction?.type === 'recharge' ? 'Recarga' : 'Dispensado'}</span>
+                    <span className="font-medium capitalize">{transaction?.type === 'recharge' ? 'Recarga' : transaction?.type === 'membership' ? 'Compra de membresía' : 'Dispensado'}</span>
                   </div>
                 </div>
               </div>
 
               {/* Machine Details (for dispensing) */}
-              {transaction?.type === 'dispensing' && (
+              {['dispensing', 'membership'].includes(transaction?.type) && (
                 <div className="bg-muted/50 rounded-lg p-4">
                   <h3 className="text-body font-semibold text-text-primary mb-3">
-                    Detalles del dispensado
+                    {transaction.type === 'membership' ? 'Detalles de la membresía' : 'Detalles del dispensado'}
                   </h3>
                   <div className="space-y-2 text-body-sm">
                     {transaction?.machineId && (
@@ -173,10 +175,14 @@ const TransactionDetailModal = ({
                     )}
                     {transaction?.liters && (
                       <div className="flex justify-between">
-                        <span className="text-text-secondary">Litros dispensados:</span>
+                        <span className="text-text-secondary">{transaction.type === 'membership' ? 'Litros del paquete:' : 'Litros dispensados:'}</span>
                         <span className="font-medium">{transaction?.liters}L</span>
                       </div>
                     )}
+                    {Number(transaction.membershipCoveredLiters) > 0 && <div className="flex justify-between">
+                      <span className="text-text-secondary">Incluidos en membresía:</span>
+                      <span className="font-medium">{transaction.membershipCoveredLiters}L</span>
+                    </div>}
                   </div>
                 </div>
               )}

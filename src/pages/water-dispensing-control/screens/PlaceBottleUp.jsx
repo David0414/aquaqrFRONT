@@ -9,6 +9,7 @@ import { useDispenseFlow } from '../FlowProvider';
 import { useWaterFlowNavigation } from '../WaterFlowLayout';
 import TelemetryStatusCard from '../components/TelemetryStatusCard';
 import MachineBusyAlert from '../components/MachineBusyAlert';
+import PricingCalculator from '../components/PricingCalculator';
 
 const TELEMETRY_FRESH_MS = 20000;
 
@@ -144,6 +145,8 @@ export default function PlaceBottleUp() {
       <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-text-secondary">
         {fillHint}
       </div>
+
+      <PricingCalculator />
 
       <div className="flex gap-3">
         <Button

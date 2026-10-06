@@ -338,6 +338,7 @@ export default function FlowProvider({ children }) {
   const telemetryRef = useRef(telemetry);
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
   const [coinRechargeSyncEnabled, setCoinRechargeSyncEnabled] = useState(false);
+  const [machineCoinsEnabled, setMachineCoinsEnabled] = useState(false);
   const pollingRef = useRef(false);
   const pollingCooldownUntilRef = useRef(0);
   const telemetryCreditSyncRef = useRef('');
@@ -363,6 +364,7 @@ export default function FlowProvider({ children }) {
 
   useEffect(() => {
     setMachine(machineFromRoute);
+    setMachineCoinsEnabled(false);
     writeActiveWaterMachine(machineFromRoute);
     if (typeof window !== 'undefined') {
       setPulsesPerLiterState(sanitizePulsesPerLiter(
@@ -459,6 +461,7 @@ export default function FlowProvider({ children }) {
       if (!res.ok) throw new Error(data?.error || 'No se pudo obtener config');
 
       setPricePerLiterCents(data.pricePerLiterCents ?? 175);
+      setMachineCoinsEnabled(data.coinsEnabled === true);
       const nextPulsesPerLiter = sanitizePulsesPerLiter(
         data.pulsesPerLiter ?? data.defaultPulsesPerLiter,
         pulsesPerLiter,
@@ -808,7 +811,7 @@ export default function FlowProvider({ children }) {
     }
 
     if (res.status === 400 && data?.error === 'INSUFFICIENT_FUNDS') {
-      const requiredAmount = Math.max(0, (data.amountCents - data.balanceCents) / 100);
+      const requiredAmount = Math.max(0, (data.neededCents ?? ((data.payableCents ?? data.totalCents ?? data.amountCents) - data.balanceCents)) / 100);
       const err = new Error('INSUFFICIENT_FUNDS');
       err.code = 'INSUFFICIENT_FUNDS';
       err.requiredAmount = requiredAmount;
@@ -816,7 +819,7 @@ export default function FlowProvider({ children }) {
     }
     if (!res.ok) throw new Error(data?.error || 'No se pudo iniciar el dispensado');
 
-    const amountCents = data.amountCents ?? Math.round(selectedLiters * pricePerLiter * 100);
+    const amountCents = data.payableCents ?? data.amountCents ?? Math.round(selectedLiters * pricePerLiter * 100);
     const newBalanceCents = data.newBalanceCents ?? data.balanceCents ?? balanceCents;
     const prevBalanceCents = data.prevBalanceCents ?? balanceCents;
 
@@ -825,6 +828,7 @@ export default function FlowProvider({ children }) {
       liters: selectedLiters,
       pricePerLiter,
       amountCents,
+      membershipCoveredLiters: data.membershipCoveredLiters || 0,
       prevBalanceCents,
       newBalanceCents,
       machineId: machine.id,
@@ -864,7 +868,7 @@ export default function FlowProvider({ children }) {
     const data = await res.json();
 
     if (res.status === 400 && data?.error === 'INSUFFICIENT_FUNDS') {
-      const requiredAmount = Math.max(0, (data.totalCents - data.balanceCents) / 100);
+      const requiredAmount = Math.max(0, (data.neededCents ?? ((data.payableCents ?? data.totalCents) - data.balanceCents)) / 100);
       const err = new Error('INSUFFICIENT_FUNDS');
       err.code = 'INSUFFICIENT_FUNDS';
       err.requiredAmount = requiredAmount;
@@ -876,6 +880,7 @@ export default function FlowProvider({ children }) {
       ...tx,
       completedAt: Date.now(),
       amountCents: data.amountCents ?? tx.amountCents,
+      membershipCoveredLiters: data.membershipCoveredLiters ?? tx.membershipCoveredLiters,
       newBalanceCents: data.newBalanceCents ?? tx.newBalanceCents,
       status: data.status || 'COMPLETED',
       ledgerId: data.ledgerId,
@@ -1058,11 +1063,13 @@ export default function FlowProvider({ children }) {
   }, [telemetryEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!telemetryEnabled || !coinRechargeSyncEnabled) return;
+    const ownCoinSession = machineCoinsEnabled && hasActiveSession
+      && (location.pathname.startsWith('/water/') || location.pathname === '/filling-progress');
+    if (!telemetryEnabled || !(coinRechargeSyncEnabled || ownCoinSession)) return;
     if (!telemetry?.rawFrame) return;
 
     syncTelemetryCredit(telemetry).catch(() => {});
-  }, [coinRechargeSyncEnabled, telemetryEnabled, telemetry]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [coinRechargeSyncEnabled, machineCoinsEnabled, hasActiveSession, location.pathname, telemetryEnabled, telemetry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

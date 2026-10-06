@@ -64,6 +64,7 @@ const emptyMachineForm = {
   pricePerGarrafon: '35',
   status: 'ONLINE',
   isActive: true,
+  coinsEnabled: false,
 };
 
 const emptyTelemetry = {
@@ -478,7 +479,7 @@ export default function WaterMonitor() {
       const res = await managementFetch(`${API}/api/monitor-admin/machines${isAdmin ? '' : `/${encodeURIComponent(machineForm.id)}`}`, {
         method: isAdmin ? 'POST' : 'PUT',
         headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify(machineForm),
+        body: JSON.stringify({ ...machineForm, coinsEnabled: isAdmin ? machineForm.coinsEnabled : undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data?.error || 'No se pudo guardar la maquina');
@@ -502,6 +503,7 @@ export default function WaterMonitor() {
       pricePerGarrafon: String(((machine.pricePerGarrafonCents || 3500) / 100).toFixed(2)),
       status: machine.status || 'ONLINE',
       isActive: machine.isActive !== false,
+      coinsEnabled: machine.coinsEnabled === true,
     });
   };
 
@@ -859,6 +861,14 @@ export default function WaterMonitor() {
                   <Input label="Hardware ID" value={machineForm.hardwareId} disabled={!isAdmin} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
                   <Input label="Precio publico garrafon" type="number" min="1" step="0.50" value={machineForm.pricePerGarrafon} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('pricePerGarrafon', event.target.value)} description="Este precio se usa para cobrar agua y calcular membresias." />
                   <Select className={darkSelectClass} label="Estado operativo" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
+                  {isAdmin ? <div className={`flex items-center justify-between gap-3 rounded-2xl border p-4 ${mutedClass}`}>
+                    <div><p className="text-sm font-semibold">Habilitar monedas</p><p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Permite acreditar monedas de esta máquina. Guarda para aplicar.</p></div>
+                    <button type="button" role="switch" aria-label="Habilitar monedas" aria-checked={machineForm.coinsEnabled}
+                      onClick={() => handleMachineChange('coinsEnabled', !machineForm.coinsEnabled)}
+                      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-sky-400 ${machineForm.coinsEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                      <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${machineForm.coinsEnabled ? 'left-1 translate-x-5' : 'left-1'}`} />
+                    </button>
+                  </div> : <p className="text-sm">Monedas: {machineForm.coinsEnabled ? 'habilitadas' : 'deshabilitadas'} por el administrador.</p>}
                   <label className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-sm ${darkMode ? 'border-slate-800 bg-slate-950/70 text-white' : 'border-slate-200 bg-white text-text-primary'}`}>
                     <input type="checkbox" checked={machineForm.isActive} onChange={(event) => handleMachineChange('isActive', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400" />
                     Publicar maquina como activa en catalogo

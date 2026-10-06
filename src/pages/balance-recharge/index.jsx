@@ -1,5 +1,5 @@
 // src/pages/balance-recharge/index.jsx
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -33,164 +33,13 @@ function moneyFromCents(amountCents) {
   return Number(amountCents || 0) / 100;
 }
 
-const CoinRechargeScreen = ({
-  insertedThisSession,
-  latestCoinAmount,
-  machineAccumulatedAmount,
-  totalBalance,
-  realBalance,
-  bonusBalance,
-  onSave,
-  onClose,
-  saving = false,
-}) => {
-  const [coinPulseActive, setCoinPulseActive] = useState(false);
-  const previousInsertedRef = useRef(Number(insertedThisSession || 0));
-
-  useEffect(() => {
-    const currentInserted = Number(insertedThisSession || 0);
-    const previousInserted = previousInsertedRef.current;
-
-    if (currentInserted > previousInserted) {
-      setCoinPulseActive(true);
-      const timer = window.setTimeout(() => setCoinPulseActive(false), 520);
-      previousInsertedRef.current = currentInserted;
-      return () => window.clearTimeout(timer);
-    }
-
-    previousInsertedRef.current = currentInserted;
-    return undefined;
-  }, [insertedThisSession]);
-
-  return (
-  <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.18),_transparent_34%),linear-gradient(135deg,_#f8fffb_0%,_#eefcff_42%,_#ffffff_100%)] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
-    <div className={`absolute -right-10 -top-10 h-36 w-36 rounded-full bg-emerald-200/40 blur-3xl transition-transform duration-500 ${coinPulseActive ? 'scale-125' : 'scale-100'}`} />
-    <div className={`absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl transition-transform duration-500 ${coinPulseActive ? 'scale-110' : 'scale-100'}`} />
-
-    <div className="relative">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Moneda insertada</p>
-          <h2 className="mt-2 text-3xl font-black text-slate-900">Recarga en vivo</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Inserta monedas. Esta vista te muestra en tiempo real cuanto se ha detectado.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/80 text-slate-500 shadow-sm transition-colors duration-200 hover:bg-white"
-          aria-label="Cerrar recarga con monedas"
-        >
-          <Icon name="X" size={18} />
-        </button>
-      </div>
-
-      <div className="mt-6 rounded-[2rem] bg-[linear-gradient(135deg,_#1e3f7a_0%,_#285ea5_45%,_#34d399_100%)] p-6 text-white shadow-[0_18px_40px_rgba(30,63,122,0.22)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-white/70">Saldo que tu ingresaste</p>
-        <div className="mt-4 flex items-end justify-between gap-4">
-          <div>
-            <p className={`text-5xl font-black tracking-tight transition-all duration-300 ${coinPulseActive ? 'scale-[1.08] text-emerald-100 drop-shadow-[0_0_18px_rgba(255,255,255,0.35)]' : 'scale-100'}`}>
-              ${Number(insertedThisSession || 0).toFixed(2)}
-            </p>
-            <p className={`mt-2 text-sm transition-colors duration-300 ${coinPulseActive ? 'text-emerald-50' : 'text-white/80'}`}>
-              {coinPulseActive ? 'Moneda detectada. Saldo en actualizacion.' : 'Se actualiza solo conforme entren monedas.'}
-            </p>
-          </div>
-          <div className={`flex h-20 w-20 items-center justify-center rounded-full border border-white/20 bg-white/10 backdrop-blur transition-all duration-300 ${coinPulseActive ? 'scale-110 bg-white/20 shadow-[0_0_28px_rgba(52,211,153,0.35)]' : 'animate-pulse'}`}>
-            <Icon name="Coins" size={34} className="text-white" />
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Ultima moneda</p>
-          <p className="mt-2 text-3xl font-black text-emerald-600">
-            ${Number(latestCoinAmount || 0).toFixed(2)}
-          </p>
-          <p className="mt-1 text-sm text-slate-500">Ultimo valor detectado por la telemetria.</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Total detectado en maquina</p>
-          <p className="mt-2 text-3xl font-black text-sky-700">
-            ${Number(machineAccumulatedAmount || 0).toFixed(2)}
-          </p>
-          <p className="mt-1 text-sm text-slate-500">Lectura acumulada actual de la maquina.</p>
-        </div>
-      </div>
-
-      <div className="mt-5 rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Tu saldo total</p>
-            <p className="mt-2 text-3xl font-black text-slate-900">
-              ${Number(totalBalance || 0).toFixed(2)}
-            </p>
-          </div>
-          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">TU SALDO TOTAL</p>
-            <p className="mt-1 text-xl font-black text-slate-900">${Number(realBalance || 0).toFixed(2)}</p>
-            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Promociones</p>
-            <p className="mt-1 text-lg font-black text-emerald-600">${Number(bonusBalance || 0).toFixed(2)}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-        <div className="flex items-start gap-3">
-          <Icon name="Info" size={18} className="mt-0.5 text-emerald-600" />
-          <p className="text-sm text-slate-700">
-            El sistema sigue leyendo monedas todo el tiempo. Este acceso solo manda el comando una vez y te abre esta pantalla para revisar lo ingresado.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <Button
-          variant="default"
-          size="lg"
-          fullWidth
-          onClick={onSave}
-          loading={saving}
-          disabled={saving}
-          iconName="Save"
-          iconPosition="left"
-          className="sm:flex-1"
-        >
-          Guardar saldo
-        </Button>
-        <Button
-          variant="outline"
-          size="lg"
-          fullWidth
-          onClick={onClose}
-          className="sm:flex-1"
-        >
-          Seguir despues
-        </Button>
-      </div>
-    </div>
-  </section>
-  );
-};
-
 const BalanceRecharge = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { getToken } = useAuth();
   const {
-    telemetry,
     machine,
     balanceCents,
-    pricePerLiterCents,
-    setTelemetryEnabled,
-    sendStageCommand,
-    syncTelemetryCredit,
-    resetTelemetryCreditSync,
-    setCoinRechargeSyncEnabled,
-    pollInputs,
   } = useDispenseFlow();
 
   const [walletBreakdown, setWalletBreakdown] = useState({
@@ -202,14 +51,7 @@ const BalanceRecharge = () => {
   const initialSelectedAmount = moneyFromCents(location?.state?.selectedAmountCents || 0);
   const [selectedAmount, setSelectedAmount] = useState(initialSelectedAmount);
   const [customAmount, setCustomAmount] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(location?.state?.paymentMethod || '');
-  const [coinScreenOpen, setCoinScreenOpen] = useState(false);
-  const [coinScreenSaving, setCoinScreenSaving] = useState(false);
-  const [coinBaselineAmount, setCoinBaselineAmount] = useState(0);
-  const [coinSessionStartBalanceCents, setCoinSessionStartBalanceCents] = useState(null);
-  const [coinSessionCreditedCents, setCoinSessionCreditedCents] = useState(0);
-  const [latestSessionCoinAmount, setLatestSessionCoinAmount] = useState(0);
-  const rechargeCommandSentRef = useRef(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('stripe');
   const [clientSecret, setClientSecret] = useState('');
   const [rechargeId, setRechargeId] = useState(null);
   const [creatingPI, setCreatingPI] = useState(false);
@@ -231,58 +73,16 @@ const BalanceRecharge = () => {
     [topUpPromotion]
   );
 
-  const membershipPromotions = useMemo(
-    () => availablePromotions
-      .filter((promotion) => (
-        promotion.kind === 'membership'
-        && promotion.isActive
-        && promotion.isEnabledForUserThisMonth
-        && Number(promotion.config?.monthlyPriceCents || 0) > 0
-      ))
-      .sort((a, b) => Number(a.config?.monthlyPriceCents || 0) - Number(b.config?.monthlyPriceCents || 0)),
-    [availablePromotions]
-  );
-
-  const publicPricePerGarrafonCents = useMemo(
-    () => Math.max(0, Number(pricePerLiterCents || 175) * 20),
-    [pricePerLiterCents]
-  );
-
-  const getMembershipOfferForAmount = useCallback((amount) => {
-    const amountCents = Math.round(Number(amount || 0) * 100);
-    return membershipPromotions.find((promotion) => (
-      Number(promotion.config?.monthlyPriceCents || 0) === amountCents
-    )) || null;
-  }, [membershipPromotions]);
-
-  const getMembershipBonusForAmount = useCallback((amount) => {
-    const promotion = getMembershipOfferForAmount(amount);
-    if (!promotion) return 0;
-    const garrafones = Number(promotion.config?.garrafones || 0);
-    const monthlyPriceCents = Number(promotion.config?.monthlyPriceCents || 0);
-    const planValueCents = garrafones * publicPricePerGarrafonCents;
-    return moneyFromCents(Math.max(0, planValueCents - monthlyPriceCents));
-  }, [getMembershipOfferForAmount, publicPricePerGarrafonCents]);
-
   const getBonusForAmount = useCallback((amount) => {
-    const membershipBonus = getMembershipBonusForAmount(amount);
-    if (membershipBonus > 0) return membershipBonus;
-
     const amountCents = Math.round(Number(amount || 0) * 100);
     const matchingTier = [...topUpTiers]
       .filter((tier) => Number(tier.amountCents || 0) <= amountCents)
       .sort((a, b) => Number(b.amountCents || 0) - Number(a.amountCents || 0))[0];
 
     return moneyFromCents(matchingTier?.bonusCents || 0);
-  }, [getMembershipBonusForAmount, topUpTiers]);
+  }, [topUpTiers]);
 
   const presetAmounts = useMemo(() => {
-    const membershipOptions = membershipPromotions.map((promotion) => ({
-      amount: moneyFromCents(promotion.config?.monthlyPriceCents || 0),
-      bonus: getBonusForAmount(moneyFromCents(promotion.config?.monthlyPriceCents || 0)),
-      label: promotion.title,
-    }));
-
     const standardOptions = DEFAULT_RECHARGE_OPTIONS.map((amount) => ({
       amount,
       bonus: getBonusForAmount(amount),
@@ -290,14 +90,14 @@ const BalanceRecharge = () => {
     }));
 
     const byAmount = new Map();
-    [...membershipOptions, ...standardOptions].forEach((option) => {
+    standardOptions.forEach((option) => {
       if (!byAmount.has(option.amount) || option.label) {
         byAmount.set(option.amount, option);
       }
     });
 
     return [...byAmount.values()].sort((a, b) => a.amount - b.amount);
-  }, [getBonusForAmount, membershipPromotions]);
+  }, [getBonusForAmount]);
 
   const fetchRechargeContext = useCallback(async () => {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
@@ -350,23 +150,16 @@ const BalanceRecharge = () => {
 
   useEffect(() => {
     fetchRechargeContext().catch((e) => showErrorToast(e.message || 'Error cargando saldo'));
-  }, [coinScreenOpen, coinSessionStartBalanceCents, fetchRechargeContext]);
+  }, [fetchRechargeContext]);
 
   useEffect(() => {
-    if (coinScreenOpen) {
-      const latestCoin = Number(telemetry?.insertedCoinAmount || 0);
-      if (latestCoin > 0) {
-        setLatestSessionCoinAmount(latestCoin);
-      }
-    }
-
     if (!Number.isFinite(balanceCents)) return;
     setWalletBreakdown((current) => ({
       ...current,
       totalBalance: Number(balanceCents) / 100,
     }));
 
-  }, [balanceCents, coinScreenOpen, coinSessionStartBalanceCents, telemetry?.insertedCoinAmount]);
+  }, [balanceCents]);
 
   useEffect(() => {
     if (!Number.isFinite(balanceCents)) return;
@@ -411,23 +204,6 @@ const BalanceRecharge = () => {
     }
   }, [location?.state]);
 
-  useEffect(() => {
-    setTelemetryEnabled(true);
-    return () => {
-      setTelemetryEnabled(false);
-      setCoinRechargeSyncEnabled(false);
-    };
-  }, [setCoinRechargeSyncEnabled, setTelemetryEnabled]);
-
-  useEffect(() => {
-    if (rechargeCommandSentRef.current) return;
-    rechargeCommandSentRef.current = true;
-    if (location?.state?.rechargeCommandSent) return;
-    sendStageCommand('recargar').catch((e) => {
-      showErrorToast(e?.message || 'No se pudo activar recarga');
-    });
-  }, [location?.state?.rechargeCommandSent, sendStageCommand]);
-
   const handlePresetAmountSelect = (amount) => {
     setSelectedAmount(amount);
     setCustomAmount('');
@@ -446,123 +222,8 @@ const BalanceRecharge = () => {
   };
 
   const handlePaymentMethodSelect = (method) => {
-    if (method === 'coins') {
-      return;
-    }
-
     setSelectedPaymentMethod(method);
     setErrors((prev) => ({ ...prev, paymentMethod: '', amount: method === 'stripe' ? prev.amount : '' }));
-  };
-
-  const openCoinRechargeScreen = async () => {
-    try {
-      setCoinBaselineAmount(0);
-      setCoinSessionStartBalanceCents(Math.round(Number(walletBreakdown.totalBalance || 0) * 100));
-      setCoinSessionCreditedCents(0);
-      setLatestSessionCoinAmount(0);
-      setCoinScreenOpen(true);
-      setSelectedPaymentMethod('');
-      setClientSecret('');
-      setRechargeId(null);
-      setSelectedAmount(0);
-      setCustomAmount('');
-      setErrors((prev) => ({ ...prev, paymentMethod: '' }));
-      await sendStageCommand('recarga_monedas');
-      await resetCoinRechargeCheckpoint();
-      resetTelemetryCreditSync();
-      setCoinRechargeSyncEnabled(true);
-      pollInputs({ force: true }).catch(() => {});
-    } catch (e) {
-      setCoinRechargeSyncEnabled(false);
-      setCoinScreenOpen(false);
-      showErrorToast(e?.message || 'No se pudo activar recarga con monedas');
-    }
-  };
-
-  const resetCoinRechargeCheckpoint = async () => {
-    const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-    if (!token) throw new Error('No se pudo obtener token de sesion');
-
-    const machineId =
-      telemetry?.machineHardwareId
-      || machine?.hardwareId
-      || machine?.id
-      || 'UNKNOWN';
-
-    const res = await fetch(`${API}/api/recharge/telemetry-credit/reset`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ machineId }),
-    });
-    const data = await safeJson(res);
-    if (!res.ok) {
-      throw new Error(data?.error || 'No se pudo preparar la recarga con monedas');
-    }
-    return data;
-  };
-
-  const closeCoinRechargeScreen = () => {
-    setCoinRechargeSyncEnabled(false);
-    setCoinScreenOpen(false);
-    setCoinSessionStartBalanceCents(null);
-    setCoinSessionCreditedCents(0);
-    setLatestSessionCoinAmount(0);
-  };
-
-  const handleSaveCoinRecharge = async () => {
-    try {
-      setCoinScreenSaving(true);
-
-      const finalTelemetry = await pollInputs({ force: true }).catch(() => null);
-      if (finalTelemetry?.rawFrame) {
-        const syncResult = await syncTelemetryCredit(finalTelemetry, { force: true }).catch(() => null);
-        if (syncResult?.creditedCents) {
-          setCoinSessionCreditedCents(Number(syncResult.creditedCents));
-        }
-      }
-
-      await new Promise((resolve) => window.setTimeout(resolve, 350));
-      const data = await fetchRechargeContext();
-      const nextBalanceCents = data?.wallet?.totalAvailableCents ?? data?.wallet?.balanceCents;
-      const nextRealBalanceCents = data?.wallet?.realBalanceCents;
-      const nextBonusBalanceCents = data?.wallet?.bonusBalanceCents;
-
-      setCoinRechargeSyncEnabled(false);
-      showSuccessToast('Saldo actualizado correctamente');
-      setCoinBaselineAmount(Number(telemetry.accumulatedMoney || 0));
-      setCoinScreenOpen(false);
-      setCoinSessionStartBalanceCents(null);
-      setCoinSessionCreditedCents(0);
-      setLatestSessionCoinAmount(0);
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.removeItem('agua24-home-dashboard-cache');
-        window.dispatchEvent(new CustomEvent('wallet:updated', {
-          detail: {
-            balanceCents: nextBalanceCents,
-            realBalanceCents: nextRealBalanceCents,
-            bonusBalanceCents: nextBonusBalanceCents,
-            source: 'coin-recharge-save',
-          },
-        }));
-      }
-      navigate('/home-dashboard', {
-        replace: true,
-        state: {
-          walletUpdatedAt: Date.now(),
-          source: 'coin-recharge',
-          balanceCents: nextBalanceCents,
-          realBalanceCents: nextRealBalanceCents,
-          bonusBalanceCents: nextBonusBalanceCents,
-        },
-      });
-    } catch (e) {
-      showErrorToast(e?.message || 'No se pudo actualizar el saldo');
-    } finally {
-      setCoinScreenSaving(false);
-    }
   };
 
   const validateRecharge = () => {
@@ -590,7 +251,7 @@ const BalanceRecharge = () => {
       return;
     }
     if (selectedPaymentMethod !== 'stripe') {
-      showWarningToast('La recarga por monedas se refleja automaticamente al insertar efectivo.');
+      showWarningToast('Selecciona tarjeta para recargar.');
       return;
     }
 
@@ -691,7 +352,7 @@ const BalanceRecharge = () => {
       setClientSecret('');
       setRechargeId(null);
 
-      if (location?.state?.returnTo) {
+      if (location?.state?.returnTo && location.state.returnTo !== '/promotions') {
         navigate(location.state.returnTo, {
           state: {
             machineId: location.state.machineId,
@@ -701,6 +362,8 @@ const BalanceRecharge = () => {
             fromInsufficientBalance: true,
           },
         });
+      } else if (location.state?.returnTo === '/promotions') {
+        navigate('/promotions?view=memberships', { state: { membershipKey: location.state.membershipKey, walletUpdatedAt: Date.now() } });
       } else {
         navigate('/home-dashboard');
       }
@@ -711,17 +374,6 @@ const BalanceRecharge = () => {
 
   const isStripeMode = selectedPaymentMethod === 'stripe';
   const currentBalance = walletBreakdown.totalBalance;
-  const telemetryInsertedAmount = Math.max(
-    0,
-    Number(telemetry.accumulatedMoney || 0) - Number(coinBaselineAmount || 0)
-  );
-  const liveInsertedSessionAmount = Math.max(
-    telemetryInsertedAmount,
-    Number(coinSessionCreditedCents || 0) / 100
-  );
-  const latestCoinAmount = Number(latestSessionCoinAmount || telemetry.insertedCoinAmount || 0);
-  const machineAccumulatedAmount = Number(telemetry.accumulatedMoney || 0);
-
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b border-border sticky top-0 z-30">
@@ -754,31 +406,19 @@ const BalanceRecharge = () => {
                       Te faltan ${Number(location.state.requiredAmount).toFixed(2)} MXN.
                     </p>
                   ) : null}
-                  <p className="mt-2 text-base text-amber-900">Recarga con tarjeta o monedas para continuar.</p>
+                  <p className="mt-2 text-base text-amber-900">Recarga con tarjeta para continuar.</p>
                 </div>
               </div>
             </section>
           ) : null}
+          {location.state?.membershipKey ? <section role="status" className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><strong>Recarga para activar tu membresía.</strong><p className="mt-1">Al terminar volverás a Membresías para confirmar el pago. La recarga de saldo por sí sola no activa el paquete.</p></section> : null}
           <CurrentBalanceCard
             totalBalance={walletBreakdown.totalBalance}
             realBalance={walletBreakdown.realBalance}
             bonusBalance={walletBreakdown.bonusBalance}
           />
 
-          {coinScreenOpen ? (
-            <CoinRechargeScreen
-              insertedThisSession={liveInsertedSessionAmount}
-              latestCoinAmount={latestCoinAmount}
-              machineAccumulatedAmount={machineAccumulatedAmount}
-              totalBalance={walletBreakdown.totalBalance}
-              realBalance={walletBreakdown.realBalance}
-              bonusBalance={walletBreakdown.bonusBalance}
-              onSave={handleSaveCoinRecharge}
-              onClose={closeCoinRechargeScreen}
-              saving={coinScreenSaving}
-            />
-          ) : (
-            <>
+          <>
               <section className="space-y-4">
                 <h2 className="text-lg font-semibold text-text-primary">Metodo de Recarga</h2>
                 <div className="space-y-3">
@@ -786,12 +426,6 @@ const BalanceRecharge = () => {
                     method="stripe"
                     isSelected={isStripeMode}
                     onClick={handlePaymentMethodSelect}
-                  />
-                  <PaymentMethodCard
-                    method="coins"
-                    isSelected={false}
-                    onClick={openCoinRechargeScreen}
-                    pressable
                   />
                 </div>
                 {errors?.paymentMethod ? (
@@ -881,8 +515,7 @@ const BalanceRecharge = () => {
                 </div>
               </div>
             </div>
-            </>
-          )}
+          </>
         </div>
       </main>
 

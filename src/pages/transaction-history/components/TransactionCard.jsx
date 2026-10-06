@@ -21,6 +21,8 @@ const TransactionCard = ({
         return { name: 'CreditCard', color: 'text-success' };
       case 'dispensing':
         return { name: 'Droplets', color: 'text-primary' };
+      case 'membership':
+        return { name: 'Crown', color: 'text-primary' };
       default:
         return { name: 'ArrowUpDown', color: 'text-text-secondary' };
     }

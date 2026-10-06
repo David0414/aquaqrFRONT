@@ -81,6 +81,7 @@ const QRScannerLanding = () => {
       }
 
       const redirectAfter = location?.state?.redirectAfterScan || '/water/choose';
+      const viewingMembership = location?.state?.action === 'membership';
 
       if (parsed.sig) {
         try {
@@ -96,6 +97,11 @@ const QRScannerLanding = () => {
             return;
           }
 
+          if (viewingMembership) {
+            rememberActiveMachine({ machineId: resp.machineId, machineLocation: resp.machineLocation, hardwareId: resp.hardwareId });
+            navigate(redirectAfter, { replace: true, state: { machineId: resp.machineId, machineLocation: resp.machineLocation, hardwareId: resp.hardwareId, fromQR: true } });
+            return;
+          }
           try {
             await reserveMachineStart({
               machineId: resp.machineId,
@@ -132,6 +138,11 @@ const QRScannerLanding = () => {
         }
       }
 
+      if (viewingMembership) {
+        rememberActiveMachine({ machineId: parsed.machineId, machineLocation: parsed.machineLocation, hardwareId: parsed.hardwareId });
+        navigate(redirectAfter, { replace: true, state: { machineId: parsed.machineId, machineLocation: parsed.machineLocation, hardwareId: parsed.hardwareId, fromQR: true } });
+        return;
+      }
       try {
         await reserveMachineStart({
           machineId: parsed.machineId,
@@ -165,7 +176,7 @@ const QRScannerLanding = () => {
         resolvingRef.current = false;
       }, 1200);
     }
-  }, [handleBusyOrThrow, location?.state?.redirectAfterScan, navigate, reserveMachineStart]);
+  }, [handleBusyOrThrow, location?.state?.redirectAfterScan, location?.state?.action, navigate, reserveMachineStart]);
 
   return (
     <div className="min-h-screen bg-background px-4 py-8">
@@ -173,7 +184,7 @@ const QRScannerLanding = () => {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate('/home-dashboard', { replace: true })}
+          onClick={() => navigate(location.state?.action === 'membership' ? '/promotions?view=memberships' : '/home-dashboard', { replace: true })}
           className="h-10 w-10"
           aria-label="Volver"
         >
@@ -188,8 +199,7 @@ const QRScannerLanding = () => {
         <div className="space-y-2">
           <h2 className="text-heading-sm font-semibold text-text-primary">Apunta al codigo QR</h2>
           <p className="text-text-secondary text-body-sm">
-            Escanea el QR pegado en la maquina para continuar con el llenado.
-            En produccion, accede por HTTPS para que la camara funcione.
+            {location?.state?.action === 'membership' ? 'Escanea el QR de la máquina para consultar sus membresías.' : 'Escanea el QR pegado en la máquina para continuar con el llenado.'}
           </p>
           {prepareError ? (
             <p className="text-error text-body-sm">{prepareError}</p>

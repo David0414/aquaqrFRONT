@@ -17,7 +17,8 @@ const TransactionFilters = ({
   const transactionTypeOptions = [
     { value: 'all', label: 'Todas las transacciones' },
     { value: 'recharge', label: 'Recargas' },
-    { value: 'dispensing', label: 'Servicios de dispensado' }
+    { value: 'dispensing', label: 'Servicios de dispensado' },
+    { value: 'membership', label: 'Compras de membresías' }
   ];
 
   const dateRangeOptions = [

@@ -10,6 +10,15 @@ body {
   font-family: inherit;
 }
 
+@media (max-height: 450px) and (min-width: 600px) {
+  .home-dashboard > header > div > div { height: 3rem; }
+  .home-dashboard > header img { max-height: 2.5rem; }
+  .home-dashboard > main { padding-top: 0.25rem; padding-bottom: 3.5rem; }
+  .home-dashboard .home-balance-card { padding: 0.75rem; }
+  .home-dashboard .home-balance-card > .mb-4 { margin-bottom: 0.5rem; }
+  .home-dashboard .home-balance-card .grid > div { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+}
+
 @media (max-height: 500px) and (min-width: 560px) {
   .filling-screen .filling-content {
     display: grid;
