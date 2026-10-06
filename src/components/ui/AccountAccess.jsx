@@ -3,6 +3,7 @@ import { useAuth, useClerk } from '@clerk/clerk-react';
 import { Navigate } from 'react-router-dom';
 import Button from './Button';
 import StartupStatus from '../StartupStatus';
+import PartnerAccessNotice from './PartnerAccessNotice';
 import { accountHome, clearAdminSession, getAdminSession, saveAdminSession, managementRequest } from '../../lib/management';
 
 const AccountContext = createContext(null);
@@ -70,7 +71,7 @@ export function AccountAccessProvider({ children }) {
 export function AccountGuard({ children, roles }) {
   const { access, error, isLoaded, isSignedIn, retry, logout } = useAccountAccess();
   const loginPath = roles?.includes('ADMIN') ? '/user-login?panel=1&access=admin'
-    : roles?.includes('PARTNER') ? '/user-login?panel=1' : '/user-login';
+    : roles?.includes('PARTNER') ? '/partner-login' : '/user-login';
   if (!isLoaded) return <StartupStatus />;
   if (!isSignedIn) return <Navigate to={loginPath} replace />;
   if (error) return (
@@ -81,6 +82,7 @@ export function AccountGuard({ children, roles }) {
     </div>
   );
   if (!access) return <StartupStatus />;
+  if (roles?.includes('PARTNER') && access.role === 'CUSTOMER') return <PartnerAccessNotice onRetry={retry} onLogout={logout} />;
   if (roles && !roles.includes(access.role)) return <Navigate to={accountHome(access)} replace />;
   if (roles && access.role !== 'CUSTOMER' && !access.canManage) return (
     <div className="mx-auto max-w-md space-y-4 p-8 text-center">

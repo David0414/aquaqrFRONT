@@ -49,6 +49,7 @@ function LayoutHeader() {
   const { pathname } = useLocation();
   const isAuthRoute =
     pathname.startsWith("/user-login") ||
+    pathname.startsWith("/partner-login") ||
     pathname.startsWith("/user-registration");
   if (isAuthRoute) return null;
   return null;
@@ -85,6 +86,7 @@ const Routes = () => {
           <Route path="/sign-in/*" element={<SignInAlias />} />
 
           <Route path="/user-login/*" element={<UserLogin />} />
+          <Route path="/partner-login/*" element={<UserLogin />} />
           <Route path="/user-registration/*" element={<UserRegistration />} />
           <Route path="/account-redirect" element={<AccountGuard><AccountRedirect /></AccountGuard>} />
 

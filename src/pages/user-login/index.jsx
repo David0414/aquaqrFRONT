@@ -35,11 +35,17 @@ const loginStats = [
 export default function UserLogin() {
   const navigate = useNavigate();
   const location = useLocation();
-  const panelAccess = new URLSearchParams(location.search).get('panel') === '1';
-  const adminAccess = panelAccess && new URLSearchParams(location.search).get('access') === 'admin';
+  const partnerAccess = location.pathname.startsWith('/partner-login');
+  const panelAccess = partnerAccess || new URLSearchParams(location.search).get('panel') === '1';
+  const adminAccess = !partnerAccess && panelAccess && new URLSearchParams(location.search).get('access') === 'admin';
   const { isLoaded, isSignedIn } = useUser();
   const { access, isSignedIn: hasSession } = useAccountAccess();
-  if ((hasSession && access?.role === 'ADMIN') || (isSignedIn && !adminAccess)) return <Navigate to="/account-redirect" replace />;
+  // Keep the partner flow on its own path throughout Clerk's Google/email steps.
+  if (panelAccess && !adminAccess && !partnerAccess) return <Navigate to={{
+    pathname: location.pathname.replace('/user-login', '/partner-login'), search: location.search, hash: location.hash,
+  }} replace />;
+  const redirectUrl = partnerAccess ? '/partner-panel' : '/account-redirect';
+  if ((hasSession && access?.role === 'ADMIN') || (isSignedIn && !adminAccess)) return <Navigate to={redirectUrl} replace />;
 
   return (
     <>
@@ -118,10 +124,10 @@ export default function UserLogin() {
                     <Icon name={panelAccess ? 'ShieldCheck' : 'LogIn'} size={24} className="text-white" />
                   </div>
                   <h1 className="mb-1 mt-4 text-[28px] font-black text-[#12356b] sm:text-4xl">
-                    {panelAccess ? 'Acceso a tu panel' : 'Bienvenido de vuelta'}
+                    {panelAccess ? adminAccess ? 'Acceso de administrador' : 'Acceso de socio' : 'Bienvenido de vuelta'}
                   </h1>
                   <p className="text-sm leading-6 text-slate-600 sm:text-base">
-                    {panelAccess ? adminAccess ? 'Ingresa con tu usuario y contraseña de administrador.' : 'Ingresa con el correo de tu cuenta de socio.' : 'Inicia sesión para acceder a tu cuenta.'}
+                    {panelAccess ? adminAccess ? 'Ingresa con tu usuario y contraseña de administrador.' : 'Ingresa con el correo de tu cuenta de socio o con Google.' : 'Inicia sesión para acceder a tu cuenta.'}
                   </p>
                 </div>
 
@@ -129,7 +135,7 @@ export default function UserLogin() {
                   <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-sky-50 p-1" aria-label="Tipo de acceso al panel">
                     {[{ admin: false, label: 'Socio' }, { admin: true, label: 'Administrador' }].map((option) => (
                       <button key={option.label} type="button" aria-pressed={adminAccess === option.admin}
-                        onClick={() => navigate(option.admin ? '/user-login?panel=1&access=admin' : '/user-login?panel=1')}
+                        onClick={() => navigate(option.admin ? '/user-login?panel=1&access=admin' : '/partner-login')}
                         className={`rounded-xl px-2 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${adminAccess === option.admin ? 'bg-white text-[#1E3F7A] shadow-sm' : 'text-slate-500 hover:text-[#1E3F7A]'}`}>
                         {option.label}
                       </button>
@@ -138,9 +144,13 @@ export default function UserLogin() {
                 )}
 
                 {adminAccess ? <AdminLogin /> : !isLoaded ? <StartupStatus compact /> : <SignIn
+                  key={partnerAccess ? 'partner' : 'customer'}
                   routing="path"
-                  path="/user-login"
-                  forceRedirectUrl="/account-redirect"
+                  path={partnerAccess ? '/partner-login' : '/user-login'}
+                  forceRedirectUrl={redirectUrl}
+                  signUpForceRedirectUrl={redirectUrl}
+                  withSignUp={partnerAccess ? false : undefined}
+                  transferable={partnerAccess ? false : undefined}
                   appearance={{
                     variables: {
                       colorPrimary: '#42B9D4',
@@ -203,7 +213,7 @@ export default function UserLogin() {
                     <Icon name="ArrowLeft" size={16} /> Volver al acceso de clientes
                   </button>
                 ) : (
-                  <button type="button" onClick={() => navigate('/user-login?panel=1')}
+                  <button type="button" onClick={() => navigate('/partner-login')}
                     className="group flex w-full items-center gap-3 rounded-2xl border border-sky-100 bg-white/70 p-4 text-left text-[#1E3F7A] shadow-sm transition hover:border-sky-300 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100/80 text-[#238CAA]">
                       <Icon name="ShieldCheck" size={20} />

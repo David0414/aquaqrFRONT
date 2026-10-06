@@ -19,6 +19,10 @@ export default function PendingDispenseWatcher() {
   const { access } = useAccountAccess();
   const navigate = useNavigate();
   const location = useLocation();
+  const managementAccess = location.pathname.startsWith('/partner-login')
+    || location.pathname === '/partner-panel'
+    || location.pathname === '/water-monitor'
+    || (location.pathname.startsWith('/user-login') && new URLSearchParams(location.search).get('panel') === '1');
   const resumeKeyRef = React.useRef('');
 
   React.useEffect(() => {
@@ -26,7 +30,7 @@ export default function PendingDispenseWatcher() {
   }, [userId]);
 
   React.useEffect(() => {
-    if (!isLoaded || !isSignedIn || access?.role !== 'CUSTOMER') return;
+    if (!isLoaded || !isSignedIn || access?.role !== 'CUSTOMER' || managementAccess) return;
 
     const raw =
       window.sessionStorage.getItem(PENDING_DISPENSE_STORAGE_KEY)
@@ -61,10 +65,10 @@ export default function PendingDispenseWatcher() {
     } catch {
       // no-op
     }
-  }, [isLoaded, isSignedIn, navigate, userId, access?.role]);
+  }, [isLoaded, isSignedIn, navigate, userId, access?.role, managementAccess]);
 
   React.useEffect(() => {
-    if (!isLoaded || !isSignedIn || access?.role !== 'CUSTOMER') return undefined;
+    if (!isLoaded || !isSignedIn || access?.role !== 'CUSTOMER' || managementAccess) return undefined;
     const skipResume =
       location.pathname.startsWith('/water')
       || location.pathname === '/account-redirect'
@@ -118,7 +122,7 @@ export default function PendingDispenseWatcher() {
     return () => {
       cancelled = true;
     };
-  }, [getToken, isLoaded, isSignedIn, location.pathname, navigate, userId, access?.role]);
+  }, [getToken, isLoaded, isSignedIn, location.pathname, navigate, userId, access?.role, managementAccess]);
 
   return null;
 }
