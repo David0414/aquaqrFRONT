@@ -50,7 +50,7 @@ export async function managementRequest(path, getToken, options = {}) {
     cache: 'no-store' });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const error = Object.assign(new Error(data.message || data.error || 'No se pudo completar la operación'), { status: res.status, code: data.error });
+    const error = Object.assign(new Error(data.message || data.error || 'No se pudo completar la operación'), { status: res.status, code: data.error, data });
     if (res.status === 401) clearAdminSession();
     throw error;
   }

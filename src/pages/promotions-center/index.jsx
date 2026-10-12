@@ -11,10 +11,6 @@ import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 
-function moneyFromCents(amountCents) {
-  return (Number(amountCents || 0) / 100).toFixed(2);
-}
-
 export default function PromotionsCenter() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -22,9 +18,11 @@ export default function PromotionsCenter() {
   const membershipView = new URLSearchParams(location.search).get('view') === 'memberships';
   const purchaseIds = useRef(new Map());
   const purchaseInFlight = useRef(false);
+  const dashboardRequest = useRef(0);
   const [purchaseError, setPurchaseError] = useState('');
   const [loadError, setLoadError] = useState('');
   const { machine } = useDispenseFlow();
+  const [membershipMachineId, setMembershipMachineId] = useState(() => location.state?.membershipMachineId || '');
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedPromotionKeys, setSelectedPromotionKeys] = useState([]);
@@ -32,23 +30,26 @@ export default function PromotionsCenter() {
   const [purchasingMembershipKey, setPurchasingMembershipKey] = useState('');
 
   const loadDashboard = useCallback(async () => {
+    const requestNumber = ++dashboardRequest.current;
     try {
       setLoading(true);
       const token = await getToken({ template: CLERK_JWT_TEMPLATE });
       setLoadError('');
-      const query = new URLSearchParams({ ...(machine?.id ? { machineId: machine.id } : {}), ...(machine?.hardwareId ? { hardwareId: machine.hardwareId } : {}) });
+      const query = new URLSearchParams({ membershipContext: '1', ...(membershipMachineId ? { machineId: membershipMachineId }
+        : { ...(machine?.id ? { machineId: machine.id } : {}), ...(machine?.hardwareId ? { hardwareId: machine.hardwareId } : {}) }) });
       let res = await fetch(`${API}/api/rewards/summary?${query}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-      if (res.status === 400) res = await fetch(`${API}/api/rewards/summary`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+      if (res.status === 400) res = await fetch(`${API}/api/rewards/summary?membershipContext=1`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data?.error || 'No se pudo cargar promociones');
+      if (dashboardRequest.current !== requestNumber) return;
       setDashboard(data);
       setSelectedPromotionKeys(data?.selection?.selectedPromotionKeys || []);
     } catch (error) {
-      setLoadError(error?.message || 'No se pudo cargar promociones');
+      if (dashboardRequest.current === requestNumber) setLoadError(error?.message || 'No se pudo cargar promociones');
     } finally {
-      setLoading(false);
+      if (dashboardRequest.current === requestNumber) setLoading(false);
     }
-  }, [getToken, machine?.id, machine?.hardwareId]);
+  }, [getToken, machine?.id, machine?.hardwareId, membershipMachineId]);
 
   useEffect(() => {
     loadDashboard();
@@ -108,7 +109,7 @@ export default function PromotionsCenter() {
   };
 
   const handlePurchaseMembership = async (promotion) => {
-    if (purchaseInFlight.current) return;
+    if (purchaseInFlight.current || loading || !dashboard?.machine?.id) return;
     purchaseInFlight.current = true;
     setPurchaseError('');
     try {
@@ -125,8 +126,7 @@ export default function PromotionsCenter() {
         },
         body: JSON.stringify({
           promotionKey: promotion.key,
-          machineId: machine?.id,
-          hardwareId: machine?.hardwareId,
+          machineId: dashboard.machine.id,
           expectedPriceCents: promotion.config.purchasePriceCents,
           purchaseId: purchaseIds.current.get(requestKey),
         }),
@@ -153,8 +153,8 @@ export default function PromotionsCenter() {
   const handlePayMembershipWithCard = (promotion, extra = {}) => {
     const missingCents = Math.max(0, Number(promotion.config.purchasePriceCents) - Number(dashboard?.wallet?.totalAvailableCents || 0));
     navigate('/balance-recharge', { state: {
-      selectedAmountCents: Math.min(50000, Math.max(1000, missingCents)), paymentMethod: 'stripe',
-      returnTo: '/promotions', membershipKey: promotion.key,
+      selectedAmountCents: Math.min(50000, Math.max(1000, missingCents)), paymentMethod: 'clip',
+      returnTo: '/promotions', membershipKey: promotion.key, membershipMachineId: dashboard?.machine?.id,
       ...(missingCents > 0 ? { fromInsufficientBalance: true, requiredAmount: missingCents / 100 } : {}), ...extra,
     } });
   };
@@ -173,7 +173,6 @@ export default function PromotionsCenter() {
   const paidMembership = activePromotions.some((promotion) => promotion.kind === 'membership' && promotion.status?.purchased);
   const ordinaryPromotions = activePromotions.filter((promotion) => promotion.kind !== 'membership');
   const ordinarySelection = { ...selection, selectablePromotions: selection.selectablePromotions.filter((promotion) => promotion.kind !== 'membership') };
-  const pointsProgress = monthlyProgress;
   return (
     <div className="min-h-screen bg-sky-50/50">
       <header className="sticky top-0 z-30 border-b border-sky-100 bg-white">
@@ -189,20 +188,17 @@ export default function PromotionsCenter() {
             className={`rounded-lg py-2 text-sm font-semibold ${membershipView === tab.membership ? 'bg-white text-sky-900 shadow-sm' : 'text-slate-600'}`}>{tab.label}</button>)}
         </div>
         {loadError && <div role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{loadError}<button onClick={loadDashboard} className="ml-3 font-bold underline">Reintentar</button></div>}
-        {membershipView ? <MembershipPlans promotions={activePromotions} machine={dashboard?.machine} walletCents={dashboard?.wallet?.totalAvailableCents || 0}
+        {membershipView ? <MembershipPlans promotions={activePromotions} machine={dashboard?.machine} machines={dashboard?.membershipMachines || []}
+          loading={loading} onChangeMachine={(id) => { setLoading(true); setPurchaseError(''); setMembershipMachineId(id); }}
+          walletCents={dashboard?.wallet?.totalAvailableCents || 0}
           preferredKey={location.state?.membershipKey} purchasingKey={purchasingMembershipKey} onPurchase={handlePurchaseMembership}
           onRecharge={handlePayMembershipWithCard} error={purchaseError}
-          onScan={() => navigate('/qr-scanner-landing', { state: { action: 'membership', redirectAfterScan: '/promotions?view=memberships' } })}
           onDispense={() => navigate('/qr-scanner-landing', { state: { action: 'dispense', redirectAfterScan: '/water/choose', prepareQrOnMount: true } })} />
           : <>
-            <div className="mb-4 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-sky-100 bg-white p-3"><p className="text-xs text-slate-500">Saldo de promociones</p><p className="mt-1 text-xl font-bold text-emerald-700">${moneyFromCents(bonusBalance)}</p></div>
-              <div className="rounded-2xl border border-sky-100 bg-white p-3"><p className="text-xs text-slate-500">Puntos del mes</p><p className="mt-1 text-xl font-bold text-sky-800">{Number(pointsProgress.points || 0).toLocaleString('es-MX')}</p></div>
-            </div>
             {paidMembership && <p className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Tu paquete de agua está activo: conservas cashback y EVA Coins, y reemplaza el bono por depósito.</p>}
             <PromotionalBanner promotions={ordinaryPromotions} monthlyProgress={monthlyProgress} bonusBalanceCents={bonusBalance}
               selection={ordinarySelection} selectedPromotionKeys={selectedPromotionKeys} onToggleSelection={toggleSelection}
-              onSaveSelection={handleSaveSelection} savingSelection={savingSelection} />
+              onSaveSelection={handleSaveSelection} savingSelection={savingSelection} compact />
           </>}
       </main>
       <BottomTabNavigation />

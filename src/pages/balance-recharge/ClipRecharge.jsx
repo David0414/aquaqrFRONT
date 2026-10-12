@@ -8,6 +8,7 @@ import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 import { checkoutRequestId } from '../../lib/checkout.mjs';
+import ClipCardPayment from '../../components/ui/ClipCardPayment';
 
 const API = import.meta.env.VITE_API_URL;
 const RESUME_KEY = 'agua24.clip-recharge';
@@ -16,12 +17,6 @@ function savedReturn(userId, id) {
   try { const value = JSON.parse(sessionStorage.getItem(RESUME_KEY)); return value?.userId === userId && value.rechargeId === id ? value.state : {}; }
   catch { return {}; }
 }
-function openPayment(value) {
-  const url = new URL(value);
-  if (url.protocol !== 'https:' || !(url.hostname === 'pago.clip.mx' || url.hostname.endsWith('.payclip.com'))) throw new Error('El enlace de pago no es válido.');
-  window.location.assign(url.href);
-}
-
 export default function ClipRecharge() {
   const navigate = useNavigate(), location = useLocation();
   const { getToken, userId } = useAuth();
@@ -33,10 +28,18 @@ export default function ClipRecharge() {
   const [wallet, setWallet] = useState(Number(balanceCents || 0));
   const [promotion, setPromotion] = useState(null);
   const [payment, setPayment] = useState(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState('');
-  const inFlight = useRef(false), request = useRef(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const [error, setError] = useState('');
+  const requestId = useRef(null);
   const returnState = location.state || savedReturn(userId, returnedId);
   const tokenHeaders = useCallback(async () => ({ Authorization: `Bearer ${await getToken({ template: 'aquaqr-api' })}` }), [getToken]);
+  const request = useCallback(async (path, options = {}) => {
+    const response = await fetch(`${API}${path}`, { ...options, headers: { ...await tokenHeaders(),
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}) }, cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw Object.assign(new Error(data.message || data.error || 'No se pudo completar el pago.'), { data, status: response.status });
+    return data;
+  }, [tokenHeaders]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,52 +67,32 @@ export default function ClipRecharge() {
       realBalanceCents: data.wallet.balanceCents, bonusBalanceCents: data.wallet.bonusBalanceCents,
       balanceCents: Number(data.wallet.balanceCents || 0) + Number(data.wallet.bonusBalanceCents || 0),
     } }));
-    if (returnState.returnTo === '/promotions') navigate('/promotions?view=memberships', { replace: true, state: { membershipKey: returnState.membershipKey, walletUpdatedAt: Date.now() } });
+    if (returnState.returnTo === '/promotions') navigate('/promotions?view=memberships', { replace: true, state: {
+      membershipKey: returnState.membershipKey, membershipMachineId: returnState.membershipMachineId, walletUpdatedAt: Date.now() } });
     else navigate(returnState.returnTo || '/home-dashboard', { replace: true, state: { ...returnState, fromInsufficientBalance: true } });
   };
 
-  const verify = async (id = returnedId || payment?.rechargeId) => {
-    if (!id || inFlight.current) return;
-    inFlight.current = true; setBusy(true); setError('');
-    try {
-      const response = await fetch(`${API}/api/recharge/clip/status/${encodeURIComponent(id)}`, { headers: await tokenHeaders(), cache: 'no-store' });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || data.error || 'No se pudo verificar el pago.');
-      setPayment(data); setAmount(data.amountCents / 100);
-      if (data.status === 'SUCCEEDED') finish(data);
-      else if (['FAILED', 'CANCELED'].includes(data.status)) setError('El pago fue cancelado o venció. Puedes iniciar una nueva recarga.');
-    } catch (failure) { setError(failure.message); }
-    finally { inFlight.current = false; setBusy(false); }
+  const prepare = async ({ newAttempt } = {}) => {
+    if (!validAmount) throw new Error('El monto debe estar entre $10 y $500.');
+    if (newAttempt || requestId.current?.amountCents !== amountCents) requestId.current = { amountCents, requestId: checkoutRequestId() };
+    return request('/api/recharge/clip/prepare', { method: 'POST', body: JSON.stringify(requestId.current) });
   };
-
-  useEffect(() => { if (returnedId) verify(returnedId); }, [returnedId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const pay = async () => {
-    if (!validAmount || inFlight.current) return;
-    inFlight.current = true; setBusy(true); setError('');
-    try {
-      if (request.current?.amountCents !== amountCents) request.current = { amountCents, requestId: checkoutRequestId() };
-      const response = await fetch(`${API}/api/recharge/clip/create-checkout`, { method: 'POST',
-        headers: { ...await tokenHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(request.current) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || data.error || 'No se pudo preparar el pago.');
-      setPayment(data);
-      if (data.status === 'SUCCEEDED') { finish(data); return; }
-      try { sessionStorage.setItem(RESUME_KEY, JSON.stringify({ userId, rechargeId: data.rechargeId, state: returnState })); } catch { /* Returning still verifies by authenticated payment ID. */ }
-      openPayment(data.checkoutUrl);
-    } catch (failure) { request.current = null; setError(failure.message); }
-    finally { inFlight.current = false; setBusy(false); }
+  const paymentChanged = (data) => {
+    setPayment(data); setAmount(data.amountCents / 100);
+    try { sessionStorage.setItem(RESUME_KEY, JSON.stringify({ userId, rechargeId: data.rechargeId, state: returnState })); } catch { /* Verification remains authenticated. */ }
+    if (data.rechargeId && data.rechargeId !== returnedId) navigate(`/balance-recharge?clipRecharge=${encodeURIComponent(data.rechargeId)}`, { replace: true, state: returnState });
   };
+  const locked = paymentBusy || (payment?.status === 'PENDING' && !payment.canPay);
 
   const backToAmount = () => {
-    setStep(1); setPayment(null); setError(''); request.current = null;
+    setStep(1); setPayment(null); setError(''); requestId.current = null;
     navigate('/balance-recharge', { replace: true, state: returnState });
   };
   return (
-    <div className="recharge-screen flex h-[100dvh] flex-col bg-background">
+    <div className={`recharge-screen ${step === 2 ? 'recharge-payment-step' : ''} flex h-[100dvh] flex-col bg-background`}>
       <header className="shrink-0 border-b border-border bg-card">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
-          <button type="button" aria-label="Volver" disabled={busy} onClick={() => step === 2 ? backToAmount() : navigate(-1)} className="rounded-xl p-2"><Icon name="ArrowLeft" size={24} /></button>
+          <button type="button" aria-label="Volver" disabled={locked} onClick={() => step === 2 ? backToAmount() : navigate(-1)} className="rounded-xl p-2"><Icon name="ArrowLeft" size={24} /></button>
           <h1 className="text-xl font-bold">{step === 1 ? '1. Elige tu monto' : '2. Realiza el pago'}</h1>
           <span className="text-sm font-semibold">{step}/2</span>
         </div>
@@ -125,26 +108,22 @@ export default function ClipRecharge() {
               onClick={() => { setAmount(value); setCustom(''); setError(''); }}
               className={`rounded-2xl border-2 px-4 py-3 text-2xl font-bold ${amount === value && !custom ? 'border-sky-700 bg-sky-100 text-sky-950' : 'border-sky-200 bg-white text-slate-800'}`}>${value}</button>)}
           </section>
-          <div className="recharge-custom"><Input label="Otro monto (de $10 a $500)" type="text" inputMode="decimal" placeholder="Monto personalizado" value={custom}
+          <div className="recharge-custom rounded-2xl border-2 border-slate-400 bg-white px-3 py-2 text-slate-950"><Input label="Otro monto (de $10 a $500)" type="text" inputMode="decimal" placeholder="Por ejemplo: 150" value={custom}
+            inputClassName="border-2 border-slate-500 bg-white text-lg font-semibold text-slate-950 placeholder:text-slate-600 focus-visible:ring-sky-700"
             onChange={(event) => { const value = event.target.value; if (/^\d*(\.\d{0,2})?$/.test(value)) { setCustom(value); setAmount(Number(value)); setError(''); } }} /></div>
           {amount > 0 && !validAmount && <p className="text-sm font-semibold text-red-700">El monto debe estar entre $10 y $500.</p>}
           <Button className="recharge-continue" fullWidth size="lg" disabled={!validAmount} onClick={() => { setStep(2); setError(''); }}>Continuar con {money(amountCents)}</Button>
         </> : <>
-          <section className="recharge-summary rounded-2xl border border-sky-200 bg-white p-5">
-            <h2 className="text-xl font-bold">Tu recarga</h2>
-            <dl className="mt-3 space-y-2 text-base">
-              <div className="flex justify-between"><dt>Saldo a recargar</dt><dd className="font-bold">{money(amountCents)}</dd></div>
-              {(payment?.bonusCents ?? bonus) > 0 && <div className="flex justify-between text-emerald-800"><dt>Bono de promoción</dt><dd className="font-bold">+{money(payment?.bonusCents ?? bonus)}</dd></div>}
-              <div className="flex justify-between border-t border-sky-100 pt-3"><dt>Recibirás</dt><dd className="text-xl font-bold">{money(amountCents + (payment?.bonusCents ?? bonus))}</dd></div>
-            </dl>
+          <section className="recharge-summary grid shrink-0 grid-cols-3 gap-2 rounded-xl border border-sky-200 bg-white px-3 py-1 text-xs">
+            <span>Recarga<strong className="block text-base">{money(amountCents)}</strong></span>
+            <span className="text-emerald-800">Bono<strong className="block text-base">+{money(payment?.bonusCents ?? bonus)}</strong></span>
+            <span>Recibes<strong className="block text-base">{money(amountCents + (payment?.bonusCents ?? bonus))}</strong></span>
           </section>
-          <p className="recharge-payment-help text-base text-slate-700">Paga con tarjeta en Clip. Al volver verificaremos tu pago y actualizaremos el saldo.</p>
-          {payment?.status === 'PENDING' ? <>
-            <p role="status" className="rounded-xl bg-amber-50 p-3 font-medium text-amber-950">Tu pago aún está pendiente de confirmación.</p>
-            <Button fullWidth loading={busy} onClick={() => verify()}>Verificar pago</Button>
-            {payment.checkoutUrl && <Button fullWidth variant="outline" disabled={busy} onClick={() => { try { openPayment(payment.checkoutUrl); } catch (failure) { setError(failure.message); } }}>Volver al pago en Clip</Button>}
-          </> : <Button className="recharge-pay" fullWidth size="lg" loading={busy} disabled={busy || !validAmount || Boolean(returnedId && !payment)} onClick={pay} iconName="CreditCard">Pagar {money(amountCents)} con Clip</Button>}
-          <Button className="recharge-change" fullWidth variant="outline" disabled={busy} onClick={backToAmount}>Cambiar monto</Button>
+          <ClipCardPayment request={request} amountCents={amountCents} prepare={prepare} resumeId={returnedId}
+            submit={(id, cardToken, customer) => request(`/api/recharge/clip/pay/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ cardToken, customer }) })}
+            verify={(id) => request(`/api/recharge/clip/status/${encodeURIComponent(id)}`)}
+            onSuccess={finish} onPaymentChange={paymentChanged} onBusyChange={setPaymentBusy} />
+          <Button className="recharge-change" fullWidth variant="outline" disabled={locked} onClick={backToAmount}>Cambiar monto</Button>
         </>}
       </main>
       <BottomTabNavigation />

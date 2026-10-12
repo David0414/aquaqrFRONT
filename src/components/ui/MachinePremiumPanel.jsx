@@ -5,6 +5,7 @@ import { managementRequest } from '../../lib/management';
 import Button from './Button';
 import Icon from '../AppIcon';
 import { checkoutRequestId } from '../../lib/checkout.mjs';
+import ClipCardPayment from './ClipCardPayment';
 
 const money = (cents) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(cents / 100);
 export default function MachinePremiumPanel({ machineId, isAdmin, darkMode }) {
@@ -13,11 +14,13 @@ export default function MachinePremiumPanel({ machineId, isAdmin, darkMode }) {
   const [premium, setPremium] = useState(null), [stats, setStats] = useState(null);
   const [prices, setPrices] = useState([]);
   const [error, setError] = useState(''), [message, setMessage] = useState(''), [busy, setBusy] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(Boolean(new URLSearchParams(location.search).get('premiumPayment')));
   const requestId = useRef(null), inFlight = useRef(false);
   const card = darkMode ? 'border-slate-500 bg-slate-800 text-white' : 'border-sky-200 bg-white text-slate-900';
   const paymentId = new URLSearchParams(location.search).get('premiumPayment');
   const returnMachine = new URLSearchParams(location.search).get('machineId');
   const path = `/api/monitor-admin/machines/${encodeURIComponent(machineId)}`;
+  const request = useCallback((target, options) => managementRequest(target, getToken, options), [getToken]);
   const load = useCallback(async () => {
     if (!machineId) return;
     setBusy(true); setError('');
@@ -38,19 +41,15 @@ export default function MachinePremiumPanel({ machineId, isAdmin, darkMode }) {
   }, [getToken, machineId, path, isAdmin, paymentId, returnMachine, navigate, location.pathname]);
   useEffect(() => { load(); }, [load]);
 
-  const pay = async () => {
-    if (!premium || inFlight.current) return;
-    inFlight.current = true; setBusy(true); setError('');
+  const prepare = async ({ newAttempt } = {}) => {
+    if (newAttempt || !requestId.current) requestId.current = checkoutRequestId();
     try {
-      requestId.current ||= checkoutRequestId();
-      const payment = await managementRequest(`${path}/premium/checkout`, getToken, { method: 'POST',
+      return await request(`${path}/premium/prepare`, { method: 'POST',
         body: JSON.stringify({ expectedPriceCents: premium.quote.amountCents, requestId: requestId.current }) });
-      if (payment.status === 'SUCCEEDED') { await load(); return; }
-      const url = new URL(payment.checkoutUrl);
-      if (url.protocol !== 'https:' || !(url.hostname === 'pago.clip.mx' || url.hostname.endsWith('.payclip.com'))) throw new Error('Enlace de pago inválido');
-      window.location.assign(url.href);
-    } catch (failure) { requestId.current = null; if (failure.status === 409) await load(); setError(failure.message); }
-    finally { inFlight.current = false; setBusy(false); }
+    } catch (failure) {
+      if (failure.code === 'PRICE_CHANGED') { requestId.current = null; await load(); }
+      throw failure;
+    }
   };
   const savePrices = async () => {
     if (inFlight.current) return;
@@ -78,8 +77,15 @@ export default function MachinePremiumPanel({ machineId, isAdmin, darkMode }) {
         <p className="mt-2">Volumen del último mes completo: <strong>{premium.quote.volumeGarrafones.toLocaleString('es-MX', { maximumFractionDigits: 2 })} garrafones de 20 L</strong>.</p>
         <p className="mt-2 text-3xl font-black">{money(premium.quote.amountCents)} <span className="text-base font-medium">MXN / mes</span></p>
         <p className="mt-2">{premium.active ? `Activo hasta ${new Date(premium.endsAt).toLocaleDateString('es-MX')}` : 'Esta máquina todavía no tiene Premium activo.'}</p>
-      </div>{!isAdmin && <Button loading={busy} disabled={busy} onClick={pay} iconName="Crown">{premium.active ? 'Renovar con Clip' : 'Activar Premium con Clip'}</Button>}</div>
+      </div>{!isAdmin && !showCheckout && <Button loading={busy} disabled={busy} onClick={() => setShowCheckout(true)} iconName="Crown">{premium.active ? 'Renovar con Clip' : 'Activar Premium con Clip'}</Button>}</div>
       {!isAdmin && <p className="mt-3 text-sm">Pago por un mes, sin renovación automática. Si renuevas antes de vencer, el mes se agrega a tu vigencia actual.</p>}
+      {!isAdmin && showCheckout && <div className="mx-auto mt-4 max-w-xl"><ClipCardPayment request={request} darkMode={darkMode}
+        amountCents={premium.quote.amountCents} prepare={prepare} resumeId={returnMachine === machineId ? paymentId : null}
+        submit={(id, cardToken, customer) => request(`${path}/premium/payments/${encodeURIComponent(id)}/pay`, { method: 'POST', body: JSON.stringify({ cardToken, customer }) })}
+        verify={(id) => request(`${path}/premium/payments/${encodeURIComponent(id)}`)}
+        onPaymentChange={(value) => { if (value.paymentId && value.paymentId !== paymentId) navigate(`${location.pathname}?premiumPayment=${encodeURIComponent(value.paymentId)}&machineId=${encodeURIComponent(machineId)}`, { replace: true }); }}
+        onSuccess={async () => { setShowCheckout(false); setMessage('Pago confirmado. Premium está activo para esta máquina.'); await load(); }} />
+      </div>}
     </div>}
     {stats ? <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {[['Ventas', stats.transactions], ['Litros vendidos', Number(stats.liters).toLocaleString('es-MX')], ['Garrafones equivalentes', (Number(stats.liters) / 20).toLocaleString('es-MX', { maximumFractionDigits: 2 })],

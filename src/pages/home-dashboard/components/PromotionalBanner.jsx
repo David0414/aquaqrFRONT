@@ -107,6 +107,7 @@ function SelectionChooser({
   onToggleSelection,
   onSaveSelection,
   savingSelection,
+  compact = false,
 }) {
   const requiredCount = Number(selection?.requiredCount || 0);
   const canSave = requiredCount === 0 || (selectedPromotionKeys.length > 0 && selectedPromotionKeys.length <= requiredCount);
@@ -119,22 +120,22 @@ function SelectionChooser({
   }
 
   return (
-    <section className="rounded-[1.9rem] border border-sky-100 bg-[linear-gradient(135deg,_#eff6ff_0%,_#ffffff_100%)] p-5">
+    <section className={`rounded-2xl border border-sky-200 bg-sky-50 ${compact ? 'p-3' : 'p-5'}`}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Beneficios a escoger</p>
-          <h3 className="mt-2 text-2xl font-black text-slate-900">Elige una promoción</h3>
-          <p className="mt-2 text-sm text-slate-500">
-            Estas promociones se activan durante 30 dias. Los beneficios automaticos no cuentan en esta eleccion.
+          {!compact && <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Beneficios a escoger</p>}
+          <h3 className={`font-black text-slate-900 ${compact ? 'text-xl' : 'mt-2 text-2xl'}`}>Elige 1 de {selectablePromotions.length} {selectablePromotions.length === 1 ? 'opción' : 'opciones'}</h3>
+          <p className="mt-2 text-sm text-slate-700">
+            {compact ? 'Elige una opción por 30 días.' : 'Activa una promoción por 30 días. EVA Coins se aplica automáticamente y no ocupa esta elección.'}
           </p>
         </div>
-        <div className="rounded-[1.3rem] bg-white px-4 py-3 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Elegidas</p>
+        {!compact && <div className="rounded-[1.3rem] bg-white px-4 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Activadas</p>
           <p className="mt-1 text-2xl font-black text-[#1E3F7A]">{selectedPromotionKeys.length}/{requiredCount}</p>
-        </div>
+        </div>}
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
+      <div className={`grid grid-cols-2 ${compact ? 'mt-3 gap-2' : 'mt-5 gap-4'}`}>
         {selectablePromotions.map((promotion) => {
           const selected = selectedPromotionKeys.includes(promotion.key);
           const blockedByMembership = promotion.kind === 'membership' && selectedMembershipKey && selectedMembershipKey !== promotion.key;
@@ -144,9 +145,10 @@ function SelectionChooser({
             <button
               key={promotion.key}
               type="button"
+              aria-pressed={selected}
               onClick={() => onToggleSelection?.(promotion.key)}
               disabled={disabled}
-              className={`rounded-[1.6rem] border p-4 text-left transition-all duration-200 ${
+              className={`rounded-2xl border text-left transition-all duration-200 ${compact ? 'p-3' : 'p-4'} ${
                 selected
                   ? 'border-[#1E3F7A] bg-[#1E3F7A] text-white shadow-[0_14px_30px_rgba(30,63,122,0.18)]'
                   : disabled
@@ -155,15 +157,15 @@ function SelectionChooser({
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-[1.2rem] ${selected ? 'bg-white/15 text-white' : 'bg-sky-50 text-[#1E3F7A]'}`}>
+                <div className={`flex items-center justify-center rounded-xl ${compact ? 'h-9 w-9' : 'h-12 w-12'} ${selected ? 'bg-white/15 text-white' : 'bg-sky-50 text-[#1E3F7A]'}`}>
                   <Icon name={PROMOTION_ICONS[promotion.key] || 'Gift'} size={20} />
                 </div>
                 <div className={`flex h-6 w-6 items-center justify-center rounded-full border ${selected ? 'border-white bg-white text-[#1E3F7A]' : 'border-slate-300 bg-white text-transparent'}`}>
                   <Icon name="Check" size={14} />
                 </div>
               </div>
-              <p className="mt-4 text-lg font-black">{promotion.title}</p>
-              <p className={`mt-2 text-sm ${selected ? 'text-white/80' : 'text-slate-500'}`}>
+              <p className={`font-black ${compact ? 'mt-2 text-base' : 'mt-4 text-lg'}`}>{promotion.key === 'topup_bonus' ? 'Bono por recarga' : promotion.title}</p>
+              <p className={`mt-2 text-sm ${selected ? 'text-white' : 'text-slate-700'}`}>
                 {promotion.summary || promotion.description}
               </p>
             </button>
@@ -178,7 +180,7 @@ function SelectionChooser({
             : 'Elige un beneficio por 30 días.'}
         </p>
         <Button onClick={onSaveSelection} disabled={!canSave} loading={savingSelection}>
-          Guardar mis promociones
+          Guardar mi promoción
         </Button>
       </div>
     </section>
@@ -405,6 +407,7 @@ export default function PromotionalBanner({
   onPurchaseMembership,
   onPayMembershipWithCard,
   purchasingMembershipKey = '',
+  compact = false,
 }) {
   const selectablePromotions = (selection?.selectablePromotions || []).slice().sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
   const visiblePromotions = promotions
@@ -412,8 +415,10 @@ export default function PromotionalBanner({
     .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
 
   return (
-    <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.04)]">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <section className={`rounded-2xl border border-slate-200 bg-white ${compact ? 'p-3' : 'p-6'} shadow-[0_18px_45px_rgba(15,23,42,0.04)]`}>
+      {compact ? <div><h2 className="text-xl font-bold text-slate-900">Tus beneficios</h2>
+        <p className="mt-1 text-sm text-slate-700">{selection?.hasMembership ? 'Tu paquete incluye cashback y EVA Coins.' : 'EVA Coins se aplica automáticamente.'}</p></div>
+        : <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Promociones</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Beneficios automaticos y promociones a elegir</h2>
@@ -426,7 +431,7 @@ export default function PromotionalBanner({
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Saldo de promociones</p>
           <p className="mt-1 text-3xl font-black text-emerald-700">{formatCurrency(bonusBalanceCents)}</p>
         </div>
-      </div>
+      </div>}
 
       <div className="mt-5">
         {selection?.hasMembership ? <p className="rounded-2xl bg-emerald-50 p-4 font-semibold text-emerald-900">Tu membresía incluye cashback y EVA Coins. El bono por depósito está reemplazado mientras tengas litros disponibles.</p> : <SelectionChooser
@@ -436,8 +441,14 @@ export default function PromotionalBanner({
           onToggleSelection={onToggleSelection}
           onSaveSelection={onSaveSelection}
           savingSelection={savingSelection}
+          compact={compact}
         />}
       </div>
+
+      {compact && <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-xs text-slate-600">Saldo de promociones</p><p className="mt-1 text-xl font-bold text-emerald-800">{formatCurrency(bonusBalanceCents)}</p></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-xs text-slate-600">Puntos del mes</p><p className="mt-1 text-xl font-bold text-sky-900">{Number(monthlyProgress?.points || 0).toLocaleString('es-MX')}</p></div>
+      </div>}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {visiblePromotions.map((promotion) => {

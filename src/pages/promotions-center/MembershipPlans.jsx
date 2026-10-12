@@ -3,8 +3,8 @@ import Icon from '../../components/AppIcon';
 
 const money = (cents) => `$${(Number(cents || 0) / 100).toFixed(2)}`;
 
-export default function MembershipPlans({ promotions, machine, walletCents, preferredKey, purchasingKey,
-  onPurchase, onRecharge, onScan, onDispense, error }) {
+export default function MembershipPlans({ promotions, machine, machines = [], loading = false, onChangeMachine,
+  walletCents, preferredKey, purchasingKey, onPurchase, onRecharge, onDispense, error }) {
   const plans = promotions.filter((promotion) => promotion.kind === 'membership');
   const active = plans.find((plan) => plan.status?.purchased);
   const [chosenKey, setChosenKey] = useState(preferredKey || active?.key || plans[0]?.key || '');
@@ -15,7 +15,7 @@ export default function MembershipPlans({ promotions, machine, walletCents, pref
   const paid = Boolean(selected.status?.purchased);
   const availablePrice = Boolean(machine && Number(config.purchasePriceCents) > 0);
   const price = paid ? selected.status.pricePaidCents : config.purchasePriceCents;
-  const busy = Boolean(purchasingKey);
+  const busy = Boolean(purchasingKey) || loading;
   const enoughBalance = availablePrice && Number(walletCents) >= Number(price);
   return (
     <section className="space-y-3 pb-28" aria-label="Membresías">
@@ -23,6 +23,17 @@ export default function MembershipPlans({ promotions, machine, walletCents, pref
         <h1 className="text-xl font-bold text-slate-900">{active ? 'Tu membresía' : 'Elige tu membresía'}</h1>
         <span className={`rounded-full px-3 py-1 text-xs font-bold ${active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{active ? '1/1 activada' : '0/1 activadas'}</span>
       </div>
+      {!active && machine && <div className="rounded-xl border border-sky-200 bg-white p-3 text-slate-900">
+        <p className="text-sm font-semibold">Compra desde aquí, sin escanear</p>
+        {machines.length > 1 ? <label className="mt-2 block text-sm font-medium">Máquina donde usarás tu membresía
+          <select aria-label="Máquina para mi membresía" value={machine.id} disabled={busy}
+            onChange={(event) => onChangeMachine?.(event.target.value)}
+            className="mt-1 h-11 w-full rounded-lg border-2 border-slate-400 bg-white px-3 text-base text-slate-950 disabled:opacity-70">
+            {machines.map((item) => <option key={item.id} value={item.id}>{item.name || item.id}{item.location ? ` · ${item.location}` : ''} · {item.id}</option>)}
+          </select>
+        </label> : <p className="mt-1 text-sm">Máquina: {machine.name || machine.id} · {machine.id}</p>}
+        <p className="mt-2 text-xs text-slate-600">El QR se utiliza cuando vas a dispensar agua. El precio y los litros de este paquete corresponden a esta máquina.</p>
+      </div>}
       <div className="grid grid-cols-3 gap-2" aria-label="Paquetes disponibles">
         {plans.map((plan) => <button key={plan.key} type="button" aria-pressed={plan.key === selected.key}
           disabled={busy || Boolean(active && active.key !== plan.key)} onClick={() => setChosenKey(plan.key)}
@@ -49,7 +60,7 @@ export default function MembershipPlans({ promotions, machine, walletCents, pref
           <p className="mt-3 text-sm text-slate-600">Precio normal: {money(config.pricePerGarrafonCents)} por garrafón.</p>
           <p className="mt-1 text-sm font-semibold text-emerald-700">Ahorras {money(config.savingsCents)} en este paquete.</p>
           <p className="mt-1 text-xs text-slate-500">Precio de {machine.name || machine.id} · {machine.id}</p>
-        </> : <p className="mt-4 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">Escanea el QR de la máquina para ver su precio y el ahorro de cada paquete.</p>}
+        </> : <p className="mt-4 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">Actualmente no hay máquinas activas para comprar este paquete.</p>}
         <p className="mt-4 text-sm font-semibold text-slate-700">Sin vencimiento de 30 días: termina al agotar los litros.</p>
         <details className="mt-3 text-sm text-slate-600">
           <summary className="cursor-pointer font-medium text-sky-800">Cómo se usa y diferencia con cashback</summary>
@@ -62,12 +73,12 @@ export default function MembershipPlans({ promotions, machine, walletCents, pref
         <div className="mx-auto max-w-2xl">
           {error && <p role="alert" className="mb-2 rounded-xl bg-red-50 p-2 text-sm text-red-700">{error}</p>}
           {paid ? <button onClick={onDispense} className="h-11 w-full rounded-xl bg-emerald-600 text-sm font-semibold text-white">Dispensar con mi membresía</button>
-            : !availablePrice ? <button onClick={onScan} className="h-11 w-full rounded-xl bg-sky-700 text-sm font-semibold text-white">Escanear máquina para ver precios</button>
+            : !availablePrice ? <button disabled className="h-11 w-full rounded-xl bg-slate-200 text-sm font-semibold text-slate-700">No hay máquinas disponibles</button>
               : <>
                 <div className="flex items-center justify-between gap-3 text-xs text-slate-600"><span>Saldo disponible: {money(walletCents)}</span><span>{enoughBalance ? 'Pago único' : `Te faltan ${money(Number(price) - Number(walletCents))}`}</span></div>
                 <button disabled={busy} onClick={() => enoughBalance ? onPurchase(selected) : onRecharge(selected)}
                   className="mt-2 h-11 w-full rounded-xl bg-sky-700 text-sm font-semibold text-white disabled:opacity-60">
-                  {busy ? 'Confirmando compra…' : enoughBalance ? `Pagar ${money(price)} y activar` : 'Recargar saldo para activar'}
+                  {busy ? loading ? 'Actualizando precios…' : 'Confirmando compra…' : enoughBalance ? `Pagar ${money(price)} y activar` : 'Recargar saldo para activar'}
                 </button>
                 {enoughBalance && <button disabled={busy} onClick={() => onRecharge(selected)} className="mt-2 w-full text-center text-xs font-medium text-sky-700">Recargar primero con tarjeta</button>}
               </>}
