@@ -1,0 +1,78 @@
+.clip-payment {
+  --clip-ink: #142d4e;
+  --clip-muted: #526579;
+  --clip-border: #d9e3ec;
+  --clip-surface: #fff;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--clip-border);
+  border-radius: 22px;
+  background: var(--clip-surface);
+  color: var(--clip-ink);
+  box-shadow: 0 8px 32px #142d4e06;
+}
+.clip-payment.clip-payment-dark { --clip-ink: #f1f5f9; --clip-muted: #cbd5e1; --clip-border: #64748b; --clip-surface: #0f172a; }
+.clip-payment .clip-payment-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.clip-payment .clip-payment-title { display: flex; align-items: center; gap: 8px; }
+.clip-payment .clip-payment-title > svg { color: #087481; }
+.clip-payment-dark .clip-payment-title > svg { color: #67e8f9; }
+.clip-payment .clip-payment-heading h2 { font-size: 18px; font-weight: 700; letter-spacing: -.4px; }
+.clip-payment .clip-provider { padding: 4px 9px; background: #fff1e8; border: 1px solid #f4d5be; border-radius: 8px; color: #b44013; font-size: 13px; font-weight: 700; }
+.clip-payment .clip-sandbox { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 5px 10px; border: 1px solid #e9c46c; border-radius: 9px; background: #fff8e5; color: #764b0d; font-size: 11px; font-weight: 600; }
+.clip-payment .clip-error { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; padding: 10px 12px; border: 1px solid #f2c6bf; border-radius: 10px; background: #fff3f0; color: #9b251b; font-size: 13px; font-weight: 500; line-height: 1.45; }
+.clip-payment .clip-error > svg { flex-shrink: 0; margin-top: 1px; }
+.clip-payment-dark .clip-error { border-color: #f87171; color: #fecaca; background: #450a0a; }
+.clip-payment .clip-card-form { display: flex; flex-direction: column; gap: 10px; }
+.clip-payment .clip-card-form.hidden, .clip-payment .clip-card-frame.hidden { display: none; }
+.clip-payment .clip-card-frame { --clip-card-scale: 1; position: relative; height: calc(var(--clip-card-height, 258px) * var(--clip-card-scale)); }
+.clip-payment .clip-card-mount { transform-origin: top left; transform: scale(var(--clip-card-scale)); width: calc(100% / var(--clip-card-scale)); }
+.clip-payment .clip-card-mount #clip-iframe { min-width: 0; }
+.clip-payment .clip-card-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; border: 1px dashed var(--clip-border); border-radius: 12px; background: var(--clip-surface); color: var(--clip-muted); font-size: 13px; text-align: center; }
+.clip-payment .clip-card-loading > svg { animation: clip-loading-spin 1s linear infinite; }
+.clip-payment .clip-setup-error { grid-column: 1 / -1; }
+.clip-payment .clip-setup-error > button { width: 100%; border: 1px solid var(--clip-border); border-radius: 10px; color: var(--clip-ink); background: var(--clip-surface); }
+.clip-payment .clip-customer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.clip-payment .clip-field { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
+.clip-payment .clip-field > span { font-size: 12px; font-weight: 600; color: var(--clip-muted); }
+.clip-payment .clip-field input { min-width: 0; width: 100%; height: 42px; padding: 0 12px; border: 1px solid #a6bbc9; border-radius: 10px; color: var(--clip-ink); background: var(--clip-surface); font-size: 16px; outline: 0; }
+.clip-payment .clip-field input::placeholder { color: var(--clip-muted); opacity: 1; }
+.clip-payment .clip-field input:focus-visible { border-color: #087481; box-shadow: 0 0 0 3px #087e8b22; }
+.clip-payment .clip-field input:disabled { opacity: .7; }
+.clip-payment-dark .clip-field input { border-color: #94a3b8; }
+.clip-payment .clip-billing { display: flex; align-items: center; gap: 5px; width: 100%; padding-top: 8px; border-top: 1px solid var(--clip-border); color: var(--clip-muted); font-size: 12px; line-height: 1.5; text-align: left; }
+.clip-payment .clip-billing > svg:last-child { margin-left: auto; }
+.clip-payment .clip-billing:focus-visible { outline: 2px solid #087481; outline-offset: 3px; }
+.clip-payment .clip-billing-fields { display: grid; gap: 10px; margin-top: 10px; }
+.clip-payment .clip-billing-dialog { position: fixed; top: calc(var(--recharge-viewport-top, 0px) + var(--recharge-viewport-height, 100dvh) / 2); left: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100% - 24px)); max-height: calc(var(--recharge-viewport-height, 100dvh) - 24px); margin: 0; padding: 20px; border: 1px solid var(--clip-border); border-radius: 20px; background: var(--clip-surface); color: var(--clip-ink); overflow: hidden; overflow: clip; box-shadow: 0 24px 80px #142d4e33; }
+.clip-payment .clip-billing-dialog::backdrop { background: #142d4e99; }
+.clip-payment .clip-billing-dialog-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.clip-payment .clip-billing-dialog-heading h2 { font-size: 20px; font-weight: 700; }
+.clip-payment .clip-billing-dialog-heading p { margin-top: 4px; font-size: 12px; color: var(--clip-muted); }
+.clip-payment .clip-billing-dialog-heading > button { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--clip-border); }
+.clip-payment .clip-billing-dialog .clip-billing-fields { margin-top: 18px; }
+.clip-payment .clip-billing-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 18px; }
+.clip-payment .clip-billing-actions > button { height: 42px; border-radius: 10px; }
+.clip-payment .clip-billing-actions > button:first-child { border: 1px solid var(--clip-border); color: var(--clip-ink); background: var(--clip-surface); }
+.clip-payment .clip-billing-actions > button:last-child { background: #142d4e; color: white; }
+.clip-payment .clip-remove-billing { margin-top: 12px; font-size: 12px; text-decoration: underline; color: var(--clip-muted); }
+.clip-payment .clip-billing-compact { padding: 12px; }
+.clip-payment .clip-billing-compact .clip-billing-dialog-heading h2 { font-size: 16px; }
+.clip-payment .clip-billing-compact .clip-billing-dialog-heading p { display: none; }
+.clip-payment .clip-billing-compact .clip-billing-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 10px; gap: 6px; }
+.clip-payment .clip-billing-compact .clip-field > span { font-size: 10px; }
+.clip-payment .clip-billing-compact .clip-field input { height: 36px; padding: 0 8px; }
+.clip-payment .clip-billing-compact .clip-billing-actions { margin-top: 12px; }
+.clip-payment .clip-submit { height: 48px; border-radius: 12px; background: #142d4e; color: #fff; font-size: 15px; font-weight: 600; }
+.clip-payment .clip-submit:hover { background: #23476f; }
+.clip-payment .clip-submit:disabled { opacity: 1; background: #e6edf3; color: #5c6d7e; }
+.clip-payment-dark .clip-submit { background: #0e7490; }
+.clip-payment-dark .clip-submit:disabled { background: #334155; color: #cbd5e1; }
+.clip-payment .clip-security-note { display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: 10px; color: var(--clip-muted); font-size: 11px; line-height: 1.4; text-align: center; }
+.clip-payment .clip-pending { display: flex; flex-direction: column; gap: 12px; padding: 16px 0; }
+.clip-payment .clip-pending h3 { font-size: 18px; font-weight: 700; }
+.clip-payment .clip-pending p { color: var(--clip-muted); font-size: 14px; line-height: 1.5; }
+.clip-payment .clip-pending > svg { color: #087481; }
+.clip-payment-dark .clip-pending > svg { color: #67e8f9; }
+@keyframes clip-loading-spin { to { transform: rotate(360deg); } }
+@media (max-width: 799px) { .clip-payment { padding: 16px; border-radius: 20px; } }
+@media (prefers-reduced-motion: reduce) { .clip-payment .clip-card-loading > svg { animation: none; } }

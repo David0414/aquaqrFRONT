@@ -3,12 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
 import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 import { checkoutRequestId } from '../../lib/checkout.mjs';
 import ClipCardPayment from '../../components/ui/ClipCardPayment';
+import useRechargeViewport from './useRechargeViewport';
+import './recharge.css';
 
 const API = import.meta.env.VITE_API_URL;
 const RESUME_KEY = 'agua24.clip-recharge';
@@ -18,6 +19,7 @@ function savedReturn(userId, id) {
   catch { return {}; }
 }
 export default function ClipRecharge() {
+  const viewport = useRechargeViewport();
   const navigate = useNavigate(), location = useLocation();
   const { getToken, userId } = useAuth();
   const { balanceCents } = useDispenseFlow();
@@ -57,9 +59,15 @@ export default function ClipRecharge() {
   }, [tokenHeaders]);
 
   const amountCents = Math.round(amount * 100);
-  const tier = [...(promotion?.config?.tiers || [])].filter((t) => t.amountCents <= amountCents).sort((a, b) => b.amountCents - a.amountCents)[0];
-  const bonus = tier ? tier.bonusPercent !== undefined ? Math.round(amountCents * Number(tier.bonusPercent) / 100) : Number(tier.bonusCents || 0) : 0;
+  const bonusFor = (cents) => {
+    const tier = [...(promotion?.config?.tiers || [])].filter((t) => t.amountCents <= cents).sort((a, b) => b.amountCents - a.amountCents)[0];
+    return tier ? tier.bonusPercent !== undefined ? Math.round(cents * Number(tier.bonusPercent) / 100) : Number(tier.bonusCents || 0) : 0;
+  };
+  const bonus = bonusFor(amountCents);
   const validAmount = Number.isFinite(amount) && amountCents >= 1000 && amountCents <= 50000;
+  const quotedBonus = payment?.bonusCents ?? bonus;
+  const receives = amountCents + quotedBonus;
+  const invalidCustom = custom !== '' && !validAmount;
 
   const finish = (data) => {
     try { sessionStorage.removeItem(RESUME_KEY); } catch { /* Storage may be disabled. */ }
@@ -89,44 +97,71 @@ export default function ClipRecharge() {
     navigate('/balance-recharge', { replace: true, state: returnState });
   };
   return (
-    <div className={`recharge-screen ${step === 2 ? 'recharge-payment-step' : ''} flex h-[100dvh] flex-col bg-background`}>
-      <header className="shrink-0 border-b border-border bg-card">
-        <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
-          <button type="button" aria-label="Volver" disabled={locked} onClick={() => step === 2 ? backToAmount() : navigate(-1)} className="rounded-xl p-2"><Icon name="ArrowLeft" size={24} /></button>
-          <h1 className="text-xl font-bold">{step === 1 ? '1. Elige tu monto' : '2. Realiza el pago'}</h1>
-          <span className="text-sm font-semibold">{step}/2</span>
+    <div ref={viewport.screen} className={`recharge-screen ${step === 2 ? 'recharge-payment-step' : ''}`}>
+      <header className="recharge-header">
+        <div className="recharge-header-inner">
+          <div className="recharge-header-title">
+            <button type="button" aria-label="Volver" disabled={locked} onClick={() => step === 2 ? backToAmount() : navigate(-1)} className="recharge-back"><Icon name="ArrowLeft" size={20} /></button>
+            <div><h1>Recargar saldo</h1><span className="recharge-small-step">Paso {step} de 2 · {step === 1 ? 'Monto' : 'Pago'}</span></div>
+          </div>
+          <span className="recharge-secure"><Icon name="ShieldCheck" size={17} /><span>Pago protegido</span></span>
         </div>
       </header>
-      <main className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col gap-3 px-4 pb-20 pt-3">
-        {error && <p role="alert" className="recharge-message rounded-xl border border-red-300 bg-red-50 p-3 font-semibold text-red-900">{error}</p>}
-        {step === 1 ? <>
-          {returnState.fromInsufficientBalance && <section role="alert" className="recharge-message rounded-xl border-2 border-amber-400 bg-amber-50 px-4 py-3 text-amber-950"><h2 className="text-lg font-bold">Tu saldo no alcanza</h2><p className="text-sm">{Number(returnState.requiredAmount) > 0 ? `Te faltan $${Number(returnState.requiredAmount).toFixed(2)}. ` : ''}Elige cuánto recargar para continuar.</p></section>}
-          {returnState.membershipKey && !returnState.fromInsufficientBalance && <p className="recharge-message text-sm font-medium text-sky-900">Después de recargar volverás a confirmar tu paquete de agua.</p>}
-          <p className="recharge-balance text-base text-slate-700">Saldo disponible: <strong>{money(wallet)}</strong></p>
-          <section className="recharge-amounts grid grid-cols-2 gap-3" aria-label="Montos de recarga">
-            {[50, 100, 200, 500].map((value) => <button type="button" key={value} aria-pressed={amount === value && !custom}
-              onClick={() => { setAmount(value); setCustom(''); setError(''); }}
-              className={`rounded-2xl border-2 px-4 py-3 text-2xl font-bold ${amount === value && !custom ? 'border-sky-700 bg-sky-100 text-sky-950' : 'border-sky-200 bg-white text-slate-800'}`}>${value}</button>)}
-          </section>
-          <div className="recharge-custom rounded-2xl border-2 border-slate-400 bg-white px-3 py-2 text-slate-950"><Input label="Otro monto (de $10 a $500)" type="text" inputMode="decimal" placeholder="Por ejemplo: 150" value={custom}
-            inputClassName="border-2 border-slate-500 bg-white text-lg font-semibold text-slate-950 placeholder:text-slate-600 focus-visible:ring-sky-700"
-            onChange={(event) => { const value = event.target.value; if (/^\d*(\.\d{0,2})?$/.test(value)) { setCustom(value); setAmount(Number(value)); setError(''); } }} /></div>
-          {amount > 0 && !validAmount && <p className="text-sm font-semibold text-red-700">El monto debe estar entre $10 y $500.</p>}
-          <Button className="recharge-continue" fullWidth size="lg" disabled={!validAmount} onClick={() => { setStep(2); setError(''); }}>Continuar con {money(amountCents)}</Button>
-        </> : <>
-          <section className="recharge-summary grid shrink-0 grid-cols-3 gap-2 rounded-xl border border-sky-200 bg-white px-3 py-1 text-xs">
-            <span>Recarga<strong className="block text-base">{money(amountCents)}</strong></span>
-            <span className="text-emerald-800">Bono<strong className="block text-base">+{money(payment?.bonusCents ?? bonus)}</strong></span>
-            <span>Recibes<strong className="block text-base">{money(amountCents + (payment?.bonusCents ?? bonus))}</strong></span>
-          </section>
-          <ClipCardPayment request={request} amountCents={amountCents} prepare={prepare} resumeId={returnedId}
+      <ol className="recharge-steps" aria-label="Pasos de la recarga">
+        <li className={step === 1 ? 'is-current' : 'is-complete'} aria-current={step === 1 ? 'step' : undefined}><span className="recharge-step-number">{step === 2 ? <Icon name="Check" size={14} /> : '1'}</span>Elige el monto</li>
+        <li className={step === 2 ? 'is-current' : ''} aria-current={step === 2 ? 'step' : undefined}><span className="recharge-step-number">2</span>Pago con tarjeta</li>
+      </ol>
+      <main className="recharge-main">
+        <div ref={viewport.viewport} className="recharge-viewport"><div ref={viewport.content} className="recharge-content">
+        {error && <p role="alert" className="recharge-message recharge-error">{error}</p>}
+        {step === 1 && returnState.fromInsufficientBalance && <section role="alert" className="recharge-message recharge-insufficient"><Icon name="CircleAlert" size={22} /><div><h2>Tu saldo no alcanza</h2><p>{Number(returnState.requiredAmount) > 0 ? `Te faltan $${Number(returnState.requiredAmount).toFixed(2)}. ` : ''}Elige cuánto recargar para continuar.</p></div></section>}
+        {step === 1 && returnState.membershipKey && !returnState.fromInsufficientBalance && <p className="recharge-message recharge-membership">Después de recargar volverás a confirmar tu paquete de agua.</p>}
+        <div className="recharge-workspace">
+          {step === 1 && <section className="recharge-entry" aria-labelledby="recharge-amount-title">
+            <div className="recharge-section-heading">
+              <div><span className="recharge-eyebrow">A tu medida</span><h2 id="recharge-amount-title">Elige tu monto</h2><p>Selecciona o escribe un monto.</p></div>
+              <div className="recharge-balance"><Icon name="Wallet" size={18} /><div><span>Saldo disponible</span><strong>{money(wallet)}</strong></div></div>
+            </div>
+            <div className="recharge-amounts" role="group" aria-label="Montos de recarga">
+              {[50, 100, 200, 500].map((value) => {
+                const selected = amount === value && !custom;
+                const optionBonus = bonusFor(value * 100);
+                return <button type="button" key={value} aria-pressed={selected} aria-label={`Recargar ${value} pesos`}
+                  onClick={() => { setAmount(value); setCustom(''); setError(''); }} className={`recharge-amount-option ${selected ? 'is-selected' : ''}`}>
+                  <span className="recharge-option-value">${value}<span>MXN</span></span>
+                  <span className="recharge-option-check" aria-hidden="true">{selected && <Icon name="Check" size={14} />}</span>
+                  <span className={`recharge-option-note ${optionBonus > 0 ? 'has-bonus' : ''}`}>{optionBonus > 0 ? `+${money(optionBonus)} de bono` : 'Para tu saldo'}</span>
+                </button>;
+              })}
+            </div>
+            <div className={`recharge-custom ${invalidCustom ? 'is-invalid' : ''}`}>
+              <label htmlFor="recharge-custom-amount">Otro monto <span>Personalizado</span></label>
+              <div className="recharge-custom-field"><span aria-hidden="true">$</span><input id="recharge-custom-amount" type="text" inputMode="decimal" autoComplete="off" placeholder="Ingresa el monto" value={custom}
+                aria-invalid={invalidCustom} aria-describedby="recharge-custom-help"
+                onChange={(event) => { const value = event.target.value; if (/^\d*(\.\d{0,2})?$/.test(value)) { setCustom(value); setAmount(Number(value)); setError(''); } }} /><span>MXN</span></div>
+              <p id="recharge-custom-help" role={invalidCustom ? 'alert' : undefined}>{invalidCustom ? 'El monto debe estar entre $10 y $500.' : 'Desde $10 hasta $500. Puedes incluir centavos.'}</p>
+            </div>
+          </section>}
+          <aside className="recharge-order" aria-label="Resumen de la recarga">
+            <div className="recharge-order-heading"><Icon name="ReceiptText" size={19} /><h2>Tu recarga</h2><span>MXN</span></div>
+            <dl className="recharge-summary">
+              <div className="recharge-pay-amount"><dt>{step === 1 ? 'Monto elegido' : 'Pagarás'}</dt><dd>{validAmount ? money(amountCents) : '—'}</dd></div>
+              {quotedBonus > 0 && <div className="recharge-bonus"><dt>Bono aplicado</dt><dd>+{money(quotedBonus)}</dd></div>}
+              <div className="recharge-received"><dt>Recibirás en saldo</dt><dd aria-live="polite" aria-atomic="true">{validAmount ? money(receives) : '—'}</dd></div>
+            </dl>
+            <div className="recharge-projected"><Icon name="Wallet" size={18} /><div><span>Tu saldo después de recargar</span><strong>{money(wallet + (validAmount ? receives : 0))}</strong></div></div>
+            {step === 1 ? <Button className="recharge-continue" fullWidth size="lg" disabled={!validAmount} aria-label={validAmount ? `Continuar con ${money(amountCents)}` : 'Continuar'} iconName="ArrowRight" iconPosition="right" onClick={() => { setStep(2); setError(''); }}><span>Continuar<span className="recharge-continue-amount">{validAmount ? ` con ${money(amountCents)}` : ''}</span></span></Button>
+              : <Button className="recharge-change" type="button" variant="outline" disabled={locked} onClick={backToAmount} aria-label="Cambiar monto" iconName="Pencil" iconSize={15}><span>Cambiar monto</span></Button>}
+            <p className="recharge-order-note"><Icon name="LockKeyhole" size={13} />{step === 1 ? 'Paga con tu tarjeta a través de Clip' : 'El saldo se acredita al confirmar el pago'}</p>
+          </aside>
+          {step === 2 && <ClipCardPayment request={request} amountCents={amountCents} prepare={prepare} resumeId={returnedId}
             submit={(id, cardToken, customer) => request(`/api/recharge/clip/pay/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ cardToken, customer }) })}
             verify={(id) => request(`/api/recharge/clip/status/${encodeURIComponent(id)}`)}
-            onSuccess={finish} onPaymentChange={paymentChanged} onBusyChange={setPaymentBusy} />
-          <Button className="recharge-change" fullWidth variant="outline" disabled={locked} onClick={backToAmount}>Cambiar monto</Button>
-        </>}
+            onSuccess={finish} onPaymentChange={paymentChanged} onBusyChange={setPaymentBusy} />}
+        </div>
+        </div></div>
       </main>
-      <BottomTabNavigation />
+      <BottomTabNavigation className="recharge-navigation" onNavigate={() => !paymentBusy} />
       <NotificationToast />
     </div>
   );
