@@ -139,7 +139,7 @@ function SelectionChooser({
         {selectablePromotions.map((promotion) => {
           const selected = selectedPromotionKeys.includes(promotion.key);
           const blockedByMembership = promotion.kind === 'membership' && selectedMembershipKey && selectedMembershipKey !== promotion.key;
-          const disabled = requiredCount === 1 ? false : !selected && (selectedPromotionKeys.length >= requiredCount || blockedByMembership);
+          const disabled = savingSelection || (requiredCount === 1 ? false : !selected && (selectedPromotionKeys.length >= requiredCount || blockedByMembership));
 
           return (
             <button

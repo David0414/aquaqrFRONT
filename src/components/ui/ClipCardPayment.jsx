@@ -67,11 +67,12 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
     const timeout = setTimeout(() => failed(new Error('El formulario de Clip tardó demasiado en cargar. Revisa tu conexión e intenta nuevamente.')), 30000);
     setConfig(null); setReady(false); setSetupStatus('loading'); setSetupError('');
     (async () => {
-      const value = await request('/api/payments/clip/config', { signal: controller.signal });
-      if (cancelled) return;
-      if (typeof value?.apiKey !== 'string' || !value.apiKey.trim()) throw new Error('No se pudo preparar el formulario de Clip. Intenta nuevamente más tarde.');
-      setConfig(value);
-      const SDK = await loadClipSdk();
+      const configuration = request('/api/payments/clip/config', { signal: controller.signal }).then((value) => {
+        if (typeof value?.apiKey !== 'string' || !value.apiKey.trim()) throw new Error('No se pudo preparar el formulario de Clip. Intenta nuevamente más tarde.');
+        if (!cancelled) setConfig(value);
+        return value;
+      });
+      const [value, SDK] = await Promise.all([configuration, loadClipSdk()]);
       if (cancelled) return;
       const sdk = new SDK(value.apiKey);
       const element = sdk.element.create('Card', { locale: 'es', theme: darkMode ? 'dark' : 'light' });
@@ -182,7 +183,7 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
         <Icon name={billing ? 'CircleCheck' : 'MapPin'} size={13} />{billing ? 'Facturación guardada · Editar' : 'Facturación · American Express'}<Icon name="ChevronRight" size={13} />
       </button>
       <Button className="clip-submit" type="submit" fullWidth loading={busy} disabled={busy || !ready || !config || !Number.isFinite(payableCents) || payableCents <= 0 || payment?.status === 'SUCCEEDED'} iconName="LockKeyhole" iconSize={16}>
-        {config?.environment === 'sandbox' ? 'Probar pago' : 'Pagar'} ${(payableCents / 100).toFixed(2)} con Clip
+        Pagar ${(payableCents / 100).toFixed(2)} con Clip
       </Button>
       <p className="clip-security-note"><Icon name="ShieldCheck" size={13} />Tu tarjeta se procesa directamente con Clip</p>
     </form>

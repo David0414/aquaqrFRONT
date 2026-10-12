@@ -9,6 +9,8 @@ import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 import { checkoutRequestId } from '../../lib/checkout.mjs';
 import ClipCardPayment from '../../components/ui/ClipCardPayment';
 import useRechargeViewport from './useRechargeViewport';
+import { loadCustomerSummary, readCustomerSummary, recordCustomerWallet } from '../../lib/customerSummary.mjs';
+import { loadClipSdk } from '../../lib/clipSdk.mjs';
 import './recharge.css';
 
 const API = import.meta.env.VITE_API_URL;
@@ -25,10 +27,10 @@ export default function ClipRecharge() {
   const { balanceCents } = useDispenseFlow();
   const returnedId = new URLSearchParams(location.search).get('clipRecharge');
   const [step, setStep] = useState(returnedId ? 2 : 1);
-  const [amount, setAmount] = useState(Number(location.state?.selectedAmountCents || 0) / 100);
+  const [amount, setAmount] = useState(Number(location.state?.selectedAmountCents || savedReturn(userId, returnedId)?.selectedAmountCents || 0) / 100);
   const [custom, setCustom] = useState('');
   const [wallet, setWallet] = useState(Number(balanceCents || 0));
-  const [promotion, setPromotion] = useState(null);
+  const [promotion, setPromotion] = useState(() => readCustomerSummary(userId)?.promotions?.find((p) => p.key === 'topup_bonus' && p.isActive && p.isEnabledForUserThisMonth) || null);
   const [payment, setPayment] = useState(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [error, setError] = useState('');
@@ -45,18 +47,18 @@ export default function ClipRecharge() {
 
   useEffect(() => {
     let cancelled = false;
+    loadClipSdk().catch(() => {});
     (async () => {
       try {
-        const response = await fetch(`${API}/api/rewards/summary`, { headers: await tokenHeaders(), cache: 'no-store' });
-        const data = await response.json();
-        if (!cancelled && response.ok) {
+        const data = await loadCustomerSummary(userId, getToken);
+        if (!cancelled) {
           setWallet(Number(data.wallet?.totalAvailableCents ?? data.wallet?.balanceCents ?? 0));
           setPromotion(data.promotions?.find((p) => p.key === 'topup_bonus' && p.isActive && p.isEnabledForUserThisMonth) || null);
         }
       } catch { /* Existing wallet balance remains visible if rewards cannot be loaded. */ }
     })();
     return () => { cancelled = true; };
-  }, [tokenHeaders]);
+  }, [getToken, userId]);
 
   const amountCents = Math.round(amount * 100);
   const bonusFor = (cents) => {
@@ -71,13 +73,12 @@ export default function ClipRecharge() {
 
   const finish = (data) => {
     try { sessionStorage.removeItem(RESUME_KEY); } catch { /* Storage may be disabled. */ }
-    if (data.wallet) window.dispatchEvent(new CustomEvent('wallet:updated', { detail: {
-      realBalanceCents: data.wallet.balanceCents, bonusBalanceCents: data.wallet.bonusBalanceCents,
-      balanceCents: Number(data.wallet.balanceCents || 0) + Number(data.wallet.bonusBalanceCents || 0),
-    } }));
+    const wallet = recordCustomerWallet(userId, data.wallet);
+    if (wallet) window.dispatchEvent(new CustomEvent('wallet:updated', { detail: { ...wallet, userId, source: 'clip' } }));
+    const walletState = { ...(wallet || {}), walletUserId: userId, walletUpdatedAt: Date.now() };
     if (returnState.returnTo === '/promotions') navigate('/promotions?view=memberships', { replace: true, state: {
-      membershipKey: returnState.membershipKey, membershipMachineId: returnState.membershipMachineId, walletUpdatedAt: Date.now() } });
-    else navigate(returnState.returnTo || '/home-dashboard', { replace: true, state: { ...returnState, fromInsufficientBalance: true } });
+      membershipKey: returnState.membershipKey, membershipMachineId: returnState.membershipMachineId, ...walletState } });
+    else navigate(returnState.returnTo || '/home-dashboard', { replace: true, state: { ...returnState, ...walletState, fromInsufficientBalance: false } });
   };
 
   const prepare = async ({ newAttempt } = {}) => {
@@ -87,8 +88,9 @@ export default function ClipRecharge() {
   };
   const paymentChanged = (data) => {
     setPayment(data); setAmount(data.amountCents / 100);
-    try { sessionStorage.setItem(RESUME_KEY, JSON.stringify({ userId, rechargeId: data.rechargeId, state: returnState })); } catch { /* Verification remains authenticated. */ }
-    if (data.rechargeId && data.rechargeId !== returnedId) navigate(`/balance-recharge?clipRecharge=${encodeURIComponent(data.rechargeId)}`, { replace: true, state: returnState });
+    const state = { ...returnState, selectedAmountCents: data.amountCents };
+    try { sessionStorage.setItem(RESUME_KEY, JSON.stringify({ userId, rechargeId: data.rechargeId, state })); } catch { /* Verification remains authenticated. */ }
+    if (data.rechargeId && data.rechargeId !== returnedId) navigate(`/balance-recharge?clipRecharge=${encodeURIComponent(data.rechargeId)}`, { replace: true, state });
   };
   const locked = paymentBusy || (payment?.status === 'PENDING' && !payment.canPay);
 
@@ -151,7 +153,7 @@ export default function ClipRecharge() {
             </dl>
             <div className="recharge-projected"><Icon name="Wallet" size={18} /><div><span>Tu saldo después de recargar</span><strong>{money(wallet + (validAmount ? receives : 0))}</strong></div></div>
             {step === 1 ? <Button className="recharge-continue" fullWidth size="lg" disabled={!validAmount} aria-label={validAmount ? `Continuar con ${money(amountCents)}` : 'Continuar'} iconName="ArrowRight" iconPosition="right" onClick={() => { setStep(2); setError(''); }}><span>Continuar<span className="recharge-continue-amount">{validAmount ? ` con ${money(amountCents)}` : ''}</span></span></Button>
-              : <Button className="recharge-change" type="button" variant="outline" disabled={locked} onClick={backToAmount} aria-label="Cambiar monto" iconName="Pencil" iconSize={15}><span>Cambiar monto</span></Button>}
+              : <Button className="recharge-change" type="button" variant="outline" disabled={locked} onClick={backToAmount} aria-label="Cambiar monto"><span className="recharge-change-short">Cambiar</span><span className="recharge-change-long">Cambiar monto</span></Button>}
             <p className="recharge-order-note"><Icon name="LockKeyhole" size={13} />{step === 1 ? 'Paga con tu tarjeta a través de Clip' : 'El saldo se acredita al confirmar el pago'}</p>
           </aside>
           {step === 2 && <ClipCardPayment request={request} amountCents={amountCents} prepare={prepare} resumeId={returnedId}

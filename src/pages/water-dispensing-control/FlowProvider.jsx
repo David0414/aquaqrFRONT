@@ -347,11 +347,23 @@ export default function FlowProvider({ children }) {
   const cancelActiveSessionPromiseRef = useRef(null);
   const lastGuidedStageCodeRef = useRef('00');
   const authOwnerRef = useRef(userId || null);
+  const walletRevision = useRef(0);
   const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
 
   useEffect(() => {
     telemetryRef.current = telemetry;
   }, [telemetry]);
+
+  useEffect(() => {
+    const updated = (event) => {
+      if (event.detail?.userId && event.detail.userId !== userId) return;
+      if (Number.isFinite(event.detail?.balanceCents)) {
+        walletRevision.current++; setBalanceCents(event.detail.balanceCents);
+      }
+    };
+    window.addEventListener('wallet:updated', updated);
+    return () => window.removeEventListener('wallet:updated', updated);
+  }, [userId]);
 
   const setPulsesPerLiter = (value) => {
     const nextValue = sanitizePulsesPerLiter(value);
@@ -396,6 +408,7 @@ export default function FlowProvider({ children }) {
     if (authOwnerRef.current === userId) return;
 
     authOwnerRef.current = userId || null;
+    walletRevision.current++; setBalanceCents(null);
     setMachine(machineFromRoute);
     setSelectedLiters(Number.isFinite(Number(routeState.selectedLiters)) && Number(routeState.selectedLiters) > 0
       ? Number(routeState.selectedLiters)
@@ -479,6 +492,7 @@ export default function FlowProvider({ children }) {
   }
 
   async function fetchWallet() {
+    const revision = walletRevision.current, owner = userId;
     try {
       const token = await getToken({ template: CLERK_JWT_TEMPLATE });
       const res = await fetch(`${API}/api/me/wallet`, {
@@ -486,6 +500,7 @@ export default function FlowProvider({ children }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'No se pudo obtener el saldo');
+      if (authOwnerRef.current !== owner || walletRevision.current !== revision) return;
       if (typeof data?.balanceCents === 'number') {
         setBalanceCents(data.balanceCents);
         window.dispatchEvent(new CustomEvent('wallet:updated', {
@@ -494,6 +509,7 @@ export default function FlowProvider({ children }) {
             realBalanceCents: data.realBalanceCents,
             bonusBalanceCents: data.bonusBalanceCents,
             source: 'wallet-fetch',
+            userId: owner,
           },
         }));
       }

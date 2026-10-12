@@ -7,25 +7,29 @@ import Icon from '../../components/AppIcon';
 import MembershipPlans from './MembershipPlans';
 import PromotionalBanner from '../home-dashboard/components/PromotionalBanner';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
+import { loadCustomerSummary, readCustomerSummary, recordCustomerWallet, invalidateCustomerSummary } from '../../lib/customerSummary.mjs';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
 
 export default function PromotionsCenter() {
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const location = useLocation();
   const membershipView = new URLSearchParams(location.search).get('view') === 'memberships';
   const purchaseIds = useRef(new Map());
   const purchaseInFlight = useRef(false);
   const dashboardRequest = useRef(0);
+  const dashboardOwner = useRef(userId);
   const [purchaseError, setPurchaseError] = useState('');
   const [loadError, setLoadError] = useState('');
   const { machine } = useDispenseFlow();
   const [membershipMachineId, setMembershipMachineId] = useState(() => location.state?.membershipMachineId || '');
-  const [dashboard, setDashboard] = useState(null);
+  const summaryQuery = new URLSearchParams(membershipView ? { membershipContext: '1', ...(membershipMachineId ? { machineId: membershipMachineId }
+    : { ...(machine?.id ? { machineId: machine.id } : {}), ...(machine?.hardwareId ? { hardwareId: machine.hardwareId } : {}) }) } : {}).toString();
+  const [dashboard, setDashboard] = useState(() => readCustomerSummary(userId, summaryQuery));
   const [loading, setLoading] = useState(true);
-  const [selectedPromotionKeys, setSelectedPromotionKeys] = useState([]);
+  const [selectedPromotionKeys, setSelectedPromotionKeys] = useState(() => readCustomerSummary(userId, summaryQuery)?.selection?.selectedPromotionKeys || []);
   const [savingSelection, setSavingSelection] = useState(false);
   const [purchasingMembershipKey, setPurchasingMembershipKey] = useState('');
 
@@ -33,14 +37,18 @@ export default function PromotionsCenter() {
     const requestNumber = ++dashboardRequest.current;
     try {
       setLoading(true);
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
       setLoadError('');
-      const query = new URLSearchParams({ membershipContext: '1', ...(membershipMachineId ? { machineId: membershipMachineId }
-        : { ...(machine?.id ? { machineId: machine.id } : {}), ...(machine?.hardwareId ? { hardwareId: machine.hardwareId } : {}) }) });
-      let res = await fetch(`${API}/api/rewards/summary?${query}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-      if (res.status === 400) res = await fetch(`${API}/api/rewards/summary?membershipContext=1`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo cargar promociones');
+      const cached = readCustomerSummary(userId, summaryQuery);
+      if (dashboardOwner.current !== userId) {
+        dashboardOwner.current = userId; setDashboard(cached); setSelectedPromotionKeys(cached?.selection?.selectedPromotionKeys || []);
+      }
+      if (cached && !cached.partial) { setDashboard(cached); setSelectedPromotionKeys(cached.selection?.selectedPromotionKeys || []); }
+      let data;
+      try { data = await loadCustomerSummary(userId, getToken, summaryQuery); }
+      catch (error) {
+        if (error.status !== 400 || !membershipView) throw error;
+        data = await loadCustomerSummary(userId, getToken, 'membershipContext=1');
+      }
       if (dashboardRequest.current !== requestNumber) return;
       setDashboard(data);
       setSelectedPromotionKeys(data?.selection?.selectedPromotionKeys || []);
@@ -49,7 +57,7 @@ export default function PromotionsCenter() {
     } finally {
       if (dashboardRequest.current === requestNumber) setLoading(false);
     }
-  }, [getToken, machine?.id, machine?.hardwareId, membershipMachineId]);
+  }, [getToken, userId, summaryQuery, membershipView]);
 
   useEffect(() => {
     loadDashboard();
@@ -61,6 +69,7 @@ export default function PromotionsCenter() {
   const selection = dashboard?.selection || { requiredCount: 0, selectedPromotionKeys: [], complete: true, selectablePromotions: [] };
 
   const toggleSelection = (promotionKey) => {
+    if (loading || savingSelection) return;
     const requiredCount = Number(selection?.requiredCount || 0);
     const promotion = (selection?.selectablePromotions || []).find((item) => item.key === promotionKey);
     setSelectedPromotionKeys((current) => {
@@ -100,6 +109,7 @@ export default function PromotionsCenter() {
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data?.error || 'No se pudo guardar tu seleccion');
       window.showToast?.('Tu promoción fue guardada por 30 días', 'success');
+      invalidateCustomerSummary(userId);
       await loadDashboard();
     } catch (error) {
       window.showToast?.(error?.message || 'No se pudo guardar tu seleccion', 'error');
@@ -139,7 +149,9 @@ export default function PromotionsCenter() {
       if (data?.error === 'PRICE_CHANGED') await loadDashboard();
       if (!res.ok || !data) throw new Error(data?.message || data?.error || 'No se pudo pagar la membresía');
       window.showToast?.('Membresía pagada: tus litros están disponibles hasta agotarlos', 'success');
-      window.dispatchEvent(new CustomEvent('wallet:updated', { detail: data.wallet }));
+      invalidateCustomerSummary(userId);
+      const wallet = recordCustomerWallet(userId, data.wallet);
+      window.dispatchEvent(new CustomEvent('wallet:updated', { detail: { ...wallet, userId } }));
       purchaseIds.current.clear();
       await loadDashboard();
     } catch (error) {
@@ -159,7 +171,7 @@ export default function PromotionsCenter() {
     } });
   };
 
-  if (loading && !dashboard) {
+  if (dashboardOwner.current !== userId || (loading && !dashboard)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -198,7 +210,7 @@ export default function PromotionsCenter() {
             {paidMembership && <p className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Tu paquete de agua está activo: conservas cashback y EVA Coins, y reemplaza el bono por depósito.</p>}
             <PromotionalBanner promotions={ordinaryPromotions} monthlyProgress={monthlyProgress} bonusBalanceCents={bonusBalance}
               selection={ordinarySelection} selectedPromotionKeys={selectedPromotionKeys} onToggleSelection={toggleSelection}
-              onSaveSelection={handleSaveSelection} savingSelection={savingSelection} compact />
+              onSaveSelection={handleSaveSelection} savingSelection={savingSelection || loading} compact />
           </>}
       </main>
       <BottomTabNavigation />

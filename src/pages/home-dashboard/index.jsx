@@ -9,41 +9,35 @@ import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 
 import Icon from '../../components/AppIcon';
 import Agua24Brand from '../../components/Agua24Brand';
+import { loadCustomerSummary, readCustomerSummary, recordCustomerWallet } from '../../lib/customerSummary.mjs';
 
-const API = import.meta.env.VITE_API_URL;
-const CLERK_JWT_TEMPLATE = 'aquaqr-api';
-const DASHBOARD_CACHE_KEY = 'agua24-home-dashboard-cache';
 
 const HomeDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoaded: isClerkLoaded, isSignedIn, user } = useUser();
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const { balanceCents, setTelemetryEnabled, pollInputs } = useDispenseFlow();
+  const flowActions = useRef({ setTelemetryEnabled, pollInputs });
+  flowActions.current = { setTelemetryEnabled, pollInputs };
 
-  const [dashboard, setDashboard] = useState(null);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboard, setDashboard] = useState(() => readCustomerSummary(userId));
+  const [dashboardLoading, setDashboardLoading] = useState(() => !readCustomerSummary(userId));
   const [dashboardRefreshing, setDashboardRefreshing] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
   const [dispenseLoading, setDispenseLoading] = useState(false);
-  const hasLoadedDashboardRef = useRef(false);
+  const hasLoadedDashboardRef = useRef(Boolean(readCustomerSummary(userId)));
   const refreshTimeoutRef = useRef(null);
+  const dashboardRequest = useRef(0), dashboardOwner = useRef(userId);
+  const dashboardDataOwner = useRef(userId);
+  dashboardOwner.current = userId;
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const cached = window.sessionStorage.getItem(DASHBOARD_CACHE_KEY);
-      if (!cached) return;
-      const parsed = JSON.parse(cached);
-      if (parsed?.wallet && parsed?.promotions) {
-        setDashboard(parsed);
-        setDashboardLoading(false);
-        hasLoadedDashboardRef.current = true;
-      }
-    } catch {
-      // Ignorado a proposito
-    }
-  }, []);
+    const cached = readCustomerSummary(userId);
+    dashboardDataOwner.current = userId;
+    setDashboard(cached); setDashboardLoading(!cached);
+    hasLoadedDashboardRef.current = Boolean(cached);
+  }, [userId]);
 
   const displayName = useMemo(() => {
     if (!user) return 'AGUA/24';
@@ -57,6 +51,8 @@ const HomeDashboard = () => {
   }, [user]);
 
   const fetchDashboard = async ({ silent = false } = {}) => {
+    if (!userId) return;
+    const requestNumber = ++dashboardRequest.current;
     const shouldKeepCurrentView = silent || hasLoadedDashboardRef.current || Boolean(dashboard);
 
     try {
@@ -67,22 +63,13 @@ const HomeDashboard = () => {
         setDashboardLoading(true);
       }
 
-      const token = await getToken({ template: CLERK_JWT_TEMPLATE });
-      if (!token) throw new Error('No se pudo obtener token de sesion');
-
-      const res = await fetch(`${API}/api/rewards/summary`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) {
-        throw new Error(data?.error || 'No se pudo cargar tu resumen');
-      }
+      const data = await loadCustomerSummary(userId, getToken);
+      if (dashboardOwner.current !== userId || dashboardRequest.current !== requestNumber) return;
       setDashboard(data);
+      dashboardDataOwner.current = userId;
       hasLoadedDashboardRef.current = true;
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(data));
-      }
     } catch (error) {
+      if (dashboardOwner.current !== userId || dashboardRequest.current !== requestNumber) return;
       console.error(error);
       const message = error.message || 'Error cargando dashboard';
       setDashboardError(message);
@@ -92,8 +79,9 @@ const HomeDashboard = () => {
         window.showToast?.(message, 'error');
       }
     } finally {
-      setDashboardLoading(false);
-      setDashboardRefreshing(false);
+      if (dashboardOwner.current === userId && dashboardRequest.current === requestNumber) {
+        setDashboardLoading(false); setDashboardRefreshing(false);
+      }
     }
   };
 
@@ -102,10 +90,11 @@ const HomeDashboard = () => {
       fetchDashboard({ silent: hasLoadedDashboardRef.current });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClerkLoaded, isSignedIn]);
+  }, [isClerkLoaded, isSignedIn, userId]);
 
   useEffect(() => {
     if (!isClerkLoaded || !isSignedIn || !location.state?.walletUpdatedAt) return;
+    if (location.state.walletUserId && location.state.walletUserId !== userId) return;
 
     const {
       balanceCents: nextTotalCents,
@@ -140,7 +129,7 @@ const HomeDashboard = () => {
 
     fetchDashboard({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClerkLoaded, isSignedIn, location.state?.walletUpdatedAt]);
+  }, [isClerkLoaded, isSignedIn, userId, location.state?.walletUpdatedAt]);
 
   useEffect(() => {
     if (!Number.isFinite(balanceCents) || !dashboard?.wallet) return;
@@ -162,13 +151,13 @@ const HomeDashboard = () => {
   useEffect(() => {
     if (!isClerkLoaded || !isSignedIn) return undefined;
 
-    setTelemetryEnabled(true);
-    pollInputs({ force: true }).catch(() => {});
+    flowActions.current.setTelemetryEnabled(true);
+    flowActions.current.pollInputs({ force: true }).catch(() => {});
 
     return () => {
-      setTelemetryEnabled(false);
+      flowActions.current.setTelemetryEnabled(false);
     };
-  }, [isClerkLoaded, isSignedIn, pollInputs, setTelemetryEnabled]);
+  }, [isClerkLoaded, isSignedIn, userId]);
 
   useEffect(() => {
     const scheduleRefresh = () => {
@@ -184,14 +173,16 @@ const HomeDashboard = () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       scheduleRefresh();
       if (isClerkLoaded && isSignedIn) {
-        pollInputs({ force: true }).catch(() => {});
+        flowActions.current.pollInputs({ force: true }).catch(() => {});
       }
     };
 
     const onWalletUpdated = (event) => {
+      if (event?.detail?.userId && event.detail.userId !== userId) return;
       const nextTotalCents = event?.detail?.balanceCents;
       const nextRealCents = event?.detail?.realBalanceCents;
       const nextBonusCents = event?.detail?.bonusBalanceCents;
+      if (Number.isFinite(nextRealCents) && Number.isFinite(nextBonusCents)) recordCustomerWallet(userId, event.detail);
 
       if (
         Number.isFinite(nextTotalCents)
@@ -216,7 +207,7 @@ const HomeDashboard = () => {
               }
             : current
         ));
-        return;
+        if (Number.isFinite(nextRealCents) && Number.isFinite(nextBonusCents)) return;
       }
 
       scheduleRefresh();
@@ -232,7 +223,7 @@ const HomeDashboard = () => {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClerkLoaded, isSignedIn, pollInputs]);
+  }, [isClerkLoaded, isSignedIn, userId]);
 
   const dashboardSelection = dashboard?.selection || { requiredCount: 0, selectedPromotionKeys: [], complete: true };
 
@@ -252,7 +243,7 @@ const HomeDashboard = () => {
     });
   };
 
-  if (!isClerkLoaded || !isSignedIn || (dashboardLoading && !dashboard)) {
+  if (!isClerkLoaded || !isSignedIn || dashboardDataOwner.current !== userId || (dashboardLoading && !dashboard)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -347,7 +338,7 @@ const HomeDashboard = () => {
                 >
                   <div>
                     <p className="text-sm font-bold">Promociones y membresías</p>
-                    <p className="mt-1 text-xs text-slate-700">{availableBenefits.length} promociones disponibles · {selection.hasMembership ? 'Cashback + EVA Coins incluidos' : `${selectedCount}/${selection.requiredCount || 0} elegidas`}</p>
+                    <p className="mt-1 text-xs text-slate-700">{dashboard.partial && dashboardRefreshing ? 'Actualizando tus promociones…' : `${availableBenefits.length} promociones disponibles · ${selection.hasMembership ? 'Cashback + EVA Coins incluidos' : `${selectedCount}/${selection.requiredCount || 0} elegidas`}`}</p>
                     <p className="home-promotion-preview mt-2 text-sm font-semibold text-sky-800">{availableBenefits.slice(0, 3).map((promotion) => ({ points: 'EVA Coins', cashback: 'Cashback', topup: 'Bono por recarga', welcome: 'Regalo de bienvenida' }[promotion.kind] || promotion.title)).filter(Boolean).join(' · ') || 'Consulta tus beneficios y paquetes de agua'}</p>
                   </div>
                   <Icon name="ArrowRight" size={18} className="shrink-0" />
