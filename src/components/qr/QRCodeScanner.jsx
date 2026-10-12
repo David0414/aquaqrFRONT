@@ -6,8 +6,6 @@ import Icon from '../../components/AppIcon';
 export default function QRCodeScanner({ onDetected, className = '' }) {
   const videoRef = useRef(null);
   const scannerRef = useRef(null);
-  const [devices, setDevices] = useState([]);
-  const [currentDeviceId, setCurrentDeviceId] = useState(null);
   const [error, setError] = useState('');
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -15,47 +13,48 @@ export default function QRCodeScanner({ onDetected, className = '' }) {
 
   useEffect(() => {
     let mounted = true;
+    let stream;
+    let scanner;
 
     async function init() {
       try {
         setIsStarting(true);
-        // Lista de cámaras
-        const cams = await QrScanner.listCameras(true);
-        if (!mounted) return;
-
-        setDevices(cams);
-        const preferred = cams.find(c => /back|trás|rear|environment/i.test(`${c.label}`));
-        const deviceId = preferred?.id || cams[0]?.id || null;
-        setCurrentDeviceId(deviceId);
+        const mobile = /Android|iPhone|iPad/i.test(navigator.userAgent) || window.matchMedia('(pointer: coarse)').matches;
+        stream = await navigator.mediaDevices.getUserMedia({ audio: false,
+          video: { facingMode: mobile ? { exact: 'environment' } : { ideal: 'environment' } } });
+        if (!mounted) { stream.getTracks().forEach((track) => track.stop()); return; }
+        videoRef.current.srcObject = stream;
 
         // Instancia del scanner
-        scannerRef.current = new QrScanner(
+        scanner = new QrScanner(
           videoRef.current,
           (result) => {
-            if (!result?.data) return;
-            onDetected?.(result.data);
+            const data = typeof result === 'string' ? result : result?.data;
+            if (data) onDetected?.(data);
           },
           {
-            preferredCamera: deviceId || 'environment',
+            preferredCamera: 'environment',
             highlightScanRegion: true,
             highlightCodeOutline: true,
-            returnDetailedScanResult: false,
+            returnDetailedScanResult: true,
             maxScansPerSecond: 12,
           }
         );
 
         // Arranca
-        await scannerRef.current.start();
+        scannerRef.current = scanner;
+        await scanner.start();
         // Torch?
         try {
-          const hasTorch = await scannerRef.current.hasFlash();
+          const hasTorch = await scanner.hasFlash();
           if (mounted) setTorchAvailable(!!hasTorch);
         } catch (_) {
           if (mounted) setTorchAvailable(false);
         }
-        setError('');
+        if (mounted) setError('');
       } catch (e) {
-        setError('No se pudo iniciar la cámara. Revisa permisos o usa HTTPS.');
+        stream?.getTracks().forEach((track) => track.stop());
+        if (mounted) setError(e.name === 'OverconstrainedError' ? 'No se encontró una cámara trasera disponible.' : 'No se pudo iniciar la cámara. Revisa los permisos.');
       } finally {
         if (mounted) setIsStarting(false);
       }
@@ -65,22 +64,12 @@ export default function QRCodeScanner({ onDetected, className = '' }) {
     return () => {
       mounted = false;
       try {
-        scannerRef.current?.stop();
-        scannerRef.current?.destroy();
+        scanner?.stop();
+        scanner?.destroy();
+        stream?.getTracks().forEach((track) => track.stop());
       } catch (_) {}
     };
   }, [onDetected]);
-
-  // Cambiar cámara
-  const handleChangeDevice = async (e) => {
-    const id = e.target.value || null;
-    setCurrentDeviceId(id);
-    try {
-      await scannerRef.current?.setCamera(id || 'environment');
-    } catch (e2) {
-      setError('No se pudo cambiar la cámara');
-    }
-  };
 
   // Torch
   const toggleTorch = async () => {
@@ -120,22 +109,6 @@ export default function QRCodeScanner({ onDetected, className = '' }) {
           </div>
         </div>
       </div>
-
-      {/* selector de cámara (si hay varias) */}
-      {devices.length > 1 && (
-        <div className="mt-3">
-          <label className="text-body-sm text-text-secondary block mb-1">Cámara</label>
-          <select
-            value={currentDeviceId || ''}
-            onChange={handleChangeDevice}
-            className="w-full bg-card border border-border rounded-lg px-3 py-2"
-          >
-            {devices.map(d => (
-              <option key={d.id} value={d.id}>{d.label || d.id}</option>
-            ))}
-          </select>
-        </div>
-      )}
 
       {/* mensaje de error */}
       {error && (

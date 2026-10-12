@@ -227,6 +227,14 @@ const QRScannerLanding = () => {
 };
 
 function ManualImageDecoder({ onDetected }) {
+  const [allowUpload, setAllowUpload] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 1023px) and (pointer: coarse)');
+    const update = () => setAllowUpload(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -241,6 +249,7 @@ function ManualImageDecoder({ onDetected }) {
     }
   };
 
+  if (!allowUpload) return null;
   return (
     <div className="space-y-2">
       <label className="text-body-sm text-text-secondary">

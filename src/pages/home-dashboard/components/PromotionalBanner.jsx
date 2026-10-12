@@ -218,10 +218,10 @@ function TopupPromotionCard({ promotion }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-white text-sky-700 shadow-sm">
           <Icon name={PROMOTION_ICONS.topup_bonus} size={20} />
         </div>
-        <StatusPill tone="sky">Elegida</StatusPill>
+        <StatusPill tone="sky">{promotion.blockedByMembership ? 'Reemplazado por tu paquete' : promotion.isEnabledForUserThisMonth ? 'Elegida' : 'Disponible para elegir'}</StatusPill>
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">Recompensa por deposito</h3>
-      <p className="mt-2 text-sm text-slate-600">Si eliges esta promocion, cada recarga indicada te da saldo adicional.</p>
+      <p className="mt-2 text-sm text-slate-600">{promotion.blockedByMembership ? 'Tu paquete reemplaza el bono por depósito y conserva cashback + EVA Coins. Podrás elegir este bono al agotar los litros.' : 'Si eliges esta promoción, cada recarga indicada te da saldo adicional.'}</p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <StepRow icon="Wallet" title="1. Recarga" text="Elige un monto." tone="sky" />
         <StepRow icon="BadgePlus" title="2. Ganas extra" text="Te damos saldo adicional." tone="emerald" />
@@ -250,7 +250,7 @@ function CashbackPromotionCard({ promotion, monthlyProgress }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-white text-emerald-600 shadow-sm">
           <Icon name={PROMOTION_ICONS.monthly_cashback} size={20} />
         </div>
-        <StatusPill tone="emerald">Elegida</StatusPill>
+        <StatusPill tone="emerald">{promotion.isEnabledForUserThisMonth ? 'Activo' : 'Disponible para elegir'}</StatusPill>
       </div>
       <h3 className="mt-4 text-xl font-black text-slate-900">Cashback mensual</h3>
       <p className="mt-2 text-sm text-slate-600">Si eliges esta promocion, recibes $0.50 por cada garrafon comprado durante el mes.</p>
@@ -408,7 +408,7 @@ export default function PromotionalBanner({
 }) {
   const selectablePromotions = (selection?.selectablePromotions || []).slice().sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
   const visiblePromotions = promotions
-    .filter((promotion) => !promotion.requiresMonthlySelection || promotion.isSelectedForMonth)
+    .filter((promotion) => promotion.isActive || promotion.status?.purchased)
     .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
 
   return (
@@ -418,7 +418,7 @@ export default function PromotionalBanner({
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Promociones</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Beneficios automaticos y promociones a elegir</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            El garrafon gratis y los puntos se aplican solos. Además puedes elegir un beneficio por 30 días.
+            EVA Coins siempre se acumula. Sin membresía elige cashback o bono por depósito. Con membresía conservas cashback y EVA Coins; el paquete reemplaza el bono por depósito.
           </p>
         </div>
 
@@ -429,14 +429,14 @@ export default function PromotionalBanner({
       </div>
 
       <div className="mt-5">
-        <SelectionChooser
+        {selection?.hasMembership ? <p className="rounded-2xl bg-emerald-50 p-4 font-semibold text-emerald-900">Tu membresía incluye cashback y EVA Coins. El bono por depósito está reemplazado mientras tengas litros disponibles.</p> : <SelectionChooser
           selection={selection}
           selectablePromotions={selectablePromotions}
           selectedPromotionKeys={selectedPromotionKeys}
           onToggleSelection={onToggleSelection}
           onSaveSelection={onSaveSelection}
           savingSelection={savingSelection}
-        />
+        />}
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">

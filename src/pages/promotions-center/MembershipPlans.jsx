@@ -54,7 +54,7 @@ export default function MembershipPlans({ promotions, machine, walletCents, pref
         <details className="mt-3 text-sm text-slate-600">
           <summary className="cursor-pointer font-medium text-sky-800">Cómo se usa y diferencia con cashback</summary>
           <p className="mt-2">La membresía se activa al pagar. Cada llenado descuenta los litros del paquete. Al agotarlo, puedes comprar otro o seguir comprando al precio normal, sin bloquearte.</p>
-          <p className="mt-2">La membresía da un descuento al comprar el paquete. Cashback devuelve saldo después de tus compras y se paga al cierre del mes. Elige una opción; no se combinan.</p>
+          <p className="mt-2">El paquete reemplaza el bono por depósito. Conservas cashback y EVA Coins: cashback devuelve saldo al cierre del mes y EVA Coins se acumula con tu consumo.</p>
           <p className="mt-2">Si quedan menos litros de los que pides, se usan esos litros y se cobra únicamente la diferencia con tu saldo.</p>
         </details>
       </article>

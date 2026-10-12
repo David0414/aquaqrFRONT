@@ -199,9 +199,9 @@ export default function PromotionsCenter() {
               <div className="rounded-2xl border border-sky-100 bg-white p-3"><p className="text-xs text-slate-500">Saldo de promociones</p><p className="mt-1 text-xl font-bold text-emerald-700">${moneyFromCents(bonusBalance)}</p></div>
               <div className="rounded-2xl border border-sky-100 bg-white p-3"><p className="text-xs text-slate-500">Puntos del mes</p><p className="mt-1 text-xl font-bold text-sky-800">{Number(pointsProgress.points || 0).toLocaleString('es-MX')}</p></div>
             </div>
-            {paidMembership && <p className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Tu membresía está activa. Al agotar sus litros podrás elegir otra promoción.</p>}
+            {paidMembership && <p className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Tu paquete de agua está activo: conservas cashback y EVA Coins, y reemplaza el bono por depósito.</p>}
             <PromotionalBanner promotions={ordinaryPromotions} monthlyProgress={monthlyProgress} bonusBalanceCents={bonusBalance}
-              selection={paidMembership ? null : ordinarySelection} selectedPromotionKeys={selectedPromotionKeys} onToggleSelection={toggleSelection}
+              selection={ordinarySelection} selectedPromotionKeys={selectedPromotionKeys} onToggleSelection={toggleSelection}
               onSaveSelection={handleSaveSelection} savingSelection={savingSelection} />
           </>}
       </main>

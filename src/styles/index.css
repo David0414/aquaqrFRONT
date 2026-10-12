@@ -1,7 +1,7 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: Inter;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 * {
@@ -53,12 +53,12 @@ body {
 }
 
 .home-balance-breakdown .text-xs {
-  font-size: clamp(12px, 1.8dvh, 16px);
+  font-size: clamp(14px, 2.1dvh, 20px);
   line-height: 1.4;
 }
 
 .home-balance-breakdown .text-xl {
-  font-size: clamp(20px, 3.5dvh, 34px);
+  font-size: clamp(24px, 4.2dvh, 42px);
   line-height: 1.2;
 }
 
@@ -68,11 +68,11 @@ body {
 
 .home-balance-actions button {
   height: clamp(36px, 7dvh, 56px);
-  font-size: clamp(13px, 2dvh, 16px);
+  font-size: clamp(15px, 2.3dvh, 20px);
 }
 
 .home-promotions-card {
-  height: clamp(80px, 16dvh, 160px);
+  height: clamp(120px, 22dvh, 210px);
 }
 
 .home-promotions-card .text-sm {
@@ -81,7 +81,7 @@ body {
 }
 
 .home-promotions-card .text-xs {
-  font-size: clamp(12px, 1.8dvh, 16px);
+  font-size: clamp(13px, 2dvh, 18px);
   line-height: 1.4;
 }
 
@@ -113,6 +113,69 @@ body {
   .home-balance-breakdown .text-xs { font-size: 11px; }
   .home-balance-breakdown .text-xl { font-size: 18px; }
   .home-balance-breakdown > div { padding: 4px 8px; }
+}
+
+.home-dashboard > header .text-sm { font-size: clamp(15px, 2.3dvh, 20px); }
+.home-dashboard > header .text-xs { font-size: clamp(12px, 1.9dvh, 16px); }
+.management-panel { font-size: 16px; }
+.management-panel .text-xs { font-size: 14px; line-height: 1.5; }
+.management-panel .text-sm { font-size: 16px; line-height: 1.5; }
+.management-panel input, .management-panel select { font-size: 16px; }
+.management-panel button { min-height: 42px; }
+.management-light { --color-text-secondary: #334155; --color-warning: #92400e; --color-secondary: #0e7490; }
+.management-light [class*='text-[#42B9D4]'] { color: #0e7490; }
+.management-dark {
+  color-scheme: dark;
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+  --color-card: #1e293b;
+  --color-card-foreground: #f8fafc;
+  --color-surface: #1e293b;
+  --color-muted: #334155;
+  --color-muted-foreground: #e2e8f0;
+  --color-border: #64748b;
+  --color-input: #1e293b;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-primary: #1d4ed8;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #334155;
+  --color-secondary-foreground: #f8fafc;
+  --color-popover: #1e293b;
+  --color-popover-foreground: #f8fafc;
+  --color-warning: #b45309;
+  --color-error: #b91c1c;
+}
+.management-dark :is(.text-text-primary, label, .text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900) { color: #f1f5f9; }
+.management-dark :is(.text-text-secondary, .text-slate-400) { color: #cbd5e1; }
+.management-dark input, .management-dark select, .management-dark textarea { color: #f8fafc; background: #1e293b; border-color: #94a3b8; }
+.management-dark input::placeholder { color: #cbd5e1; }
+.management-dark :is(.bg-card, .bg-muted, .bg-surface) { background-color: #1e293b; }
+.management-dark [role='listbox'] { background: #1e293b; color: #f8fafc; border-color: #94a3b8; }
+.management-dark [role='option'] { color: #f8fafc; }
+.management-dark [role='option']:hover, .management-dark [aria-selected='true'] { background: #1d4ed8; color: white; }
+.management-dark button[class*='border']:hover { background-color: #334155; color: white; }
+.management-dark [class*='bg-slate-950/75'], .management-dark [class*='bg-slate-950/78'] { background-color: #1e293b; border-color: #64748b; }
+.management-dark [class*='bg-slate-900/85'] { background-color: #334155; }
+.management-dark button[aria-current='page'] { background-color: #164e63; border-color: #22d3ee; color: white; }
+.management-light .text-success { color: #047857; }
+.management-dark .text-success { color: #6ee7b7; }
+.management-dark .text-error, .management-dark .text-destructive { color: #fecaca; }
+.recharge-screen main > button { flex-shrink: 0; }
+@media (max-height: 700px) {
+  .recharge-screen main { gap: 8px; padding-top: 8px; padding-bottom: 66px; }
+  .recharge-amounts { gap: 8px; }
+  .recharge-amounts button { min-height: 48px; padding: 8px; }
+  .recharge-message { padding: 8px 12px; }
+}
+@media (max-height: 500px) and (min-width: 560px) {
+  .recharge-screen main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-content: start; }
+  .recharge-balance, .recharge-message { grid-column: 1 / -1; }
+  .recharge-amounts { grid-column: 1; grid-row: span 2; }
+  .recharge-custom, .recharge-continue { grid-column: 2; }
+  .recharge-summary { grid-column: 1; grid-row: span 3; padding: 12px; }
+  .recharge-payment-help, .recharge-pay, .recharge-change { grid-column: 2; }
+  .recharge-screen main p { font-size: 14px; }
 }
 
 @media (max-height: 500px) and (min-width: 560px) {

@@ -145,7 +145,8 @@ const HomeDashboard = () => {
   useEffect(() => {
     if (!Number.isFinite(balanceCents) || !dashboard?.wallet) return;
     setDashboard((current) => (
-      current
+      current && current.wallet?.balanceCents === balanceCents && current.wallet?.totalAvailableCents === balanceCents
+        ? current : current
         ? {
             ...current,
             wallet: {
@@ -291,6 +292,7 @@ const HomeDashboard = () => {
   const selection = dashboardSelection;
   const selectedCount = Number(selection.activePromotionKeys?.length
     ?? dashboard.promotions?.filter((promotion) => promotion.requiresMonthlySelection && promotion.isEnabledForUserThisMonth).length ?? 0);
+  const availableBenefits = (dashboard.promotions || []).filter((promotion) => promotion.isActive && promotion.kind !== 'membership');
 
   return (
     <div className="home-dashboard bg-background">
@@ -345,7 +347,8 @@ const HomeDashboard = () => {
                 >
                   <div>
                     <p className="text-sm font-bold">Promociones y membresías</p>
-                    <p className="mt-1 text-xs text-slate-500">{selectedCount}/{selection.requiredCount || 0} promociones activadas · Ver beneficios</p>
+                    <p className="mt-1 text-xs text-slate-700">{availableBenefits.length} promociones disponibles · {selection.hasMembership ? 'Cashback + EVA Coins incluidos' : `${selectedCount}/${selection.requiredCount || 0} elegidas`}</p>
+                    <p className="home-promotion-preview mt-2 text-sm font-semibold text-sky-800">{availableBenefits.slice(0, 3).map((promotion) => ({ points: 'EVA Coins', cashback: 'Cashback', topup: 'Bono por recarga', welcome: 'Regalo de bienvenida' }[promotion.kind] || promotion.title)).filter(Boolean).join(' · ') || 'Consulta tus beneficios y paquetes de agua'}</p>
                   </div>
                   <Icon name="ArrowRight" size={18} className="shrink-0" />
                 </button>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useClerk } from '@clerk/clerk-react';
 import Agua24Brand from '../../components/Agua24Brand';
 import Icon from '../../components/AppIcon';
@@ -10,9 +10,10 @@ import NotificationToast, { showErrorToast, showSuccessToast } from '../../compo
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 import { useManagementAccess } from '../../components/ui/ManagementGuard';
 import PartnersManager from '../../components/ui/PartnersManager';
+import MachinePremiumPanel from '../../components/ui/MachinePremiumPanel';
+import { calibrationFromOffset, offsetFromCalibration } from '../../lib/calibration.mjs';
 import { managementHeaders, clearAdminSession, getManagementToken, managementFetch } from '../../lib/management';
 import {
-  getTargetPulseCount,
   getTelemetryStepInfo,
   pulsesToLiters,
   sanitizePulsesPerLiter,
@@ -30,9 +31,9 @@ const MONITOR_THEME_KEY = 'agua24-monitor-dark-mode';
 const HARDWARE_COMMANDS = [
   { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]' },
   { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', className: 'bg-[#334155] text-white hover:bg-[#1e293b]' },
-  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', className: 'bg-[#42B9D4] text-white hover:bg-[#35a9c4]' },
+  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', className: 'bg-[#0e7490] text-white hover:bg-[#155e75]' },
   { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', className: 'bg-[#64748b] text-white hover:bg-[#475569]' },
-  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', className: 'bg-[#0F9F6E] text-white hover:bg-[#0d875e]' },
+  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', className: 'bg-[#047857] text-white hover:bg-[#065f46]' },
   { key: 'valvula_llenado_off', label: 'Llenado OFF', icon: 'CircleOff', className: 'bg-[#475569] text-white hover:bg-[#334155]' },
 ];
 
@@ -42,7 +43,8 @@ const SAFETY_COMMANDS = [
 ];
 
 const MONITOR_TABS = [
-  { key: 'overview', label: 'Resumen', icon: 'LayoutDashboard' },
+  { key: 'overview', label: 'Operación y desfase', icon: 'SlidersHorizontal' },
+  { key: 'premium', label: 'Estadísticas / Premium', icon: 'Crown' },
   { key: 'machines', label: 'Maquinas', icon: 'Factory' },
   { key: 'partners', label: 'Socios', icon: 'Users' },
   { key: 'promotions', label: 'Promociones', icon: 'Gift' },
@@ -124,11 +126,11 @@ function StatusPill({ active, labelOn, labelOff, darkMode }) {
 function Metric({ icon, label, value, hint, darkMode }) {
   return (
     <div className={`rounded-3xl border p-4 shadow-sm ${darkMode ? 'border-slate-700 bg-slate-950/75' : 'border-sky-200 bg-white shadow-[0_12px_28px_rgba(30,63,122,0.07)]'}`}>
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${darkMode ? 'bg-slate-900' : 'bg-sky-100'}`}>
           <Icon name={icon} size={19} className="text-[#42B9D4]" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 basis-[120px] grow">
           <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{label}</p>
           <p className={`mt-1 text-xl font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{value}</p>
           {hint ? <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{hint}</p> : null}
@@ -174,6 +176,7 @@ function CommandGrid({ title, description, commands, loadingAction, onCommand, d
 
 export default function WaterMonitor() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { getToken, isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const access = useManagementAccess();
@@ -183,6 +186,9 @@ export default function WaterMonitor() {
   const [loadingAction, setLoadingAction] = useState('');
   const [lastResponse, setLastResponse] = useState(null);
   const [pulsesPerLiterInput, setPulsesPerLiterInput] = useState(String(pulsesPerLiter || 360));
+  const [calibrationBase, setCalibrationBase] = useState(360);
+  const [offsetMlInput, setOffsetMlInput] = useState('0');
+  const [calibrationLoading, setCalibrationLoading] = useState(true);
   const [monitorSummary, setMonitorSummary] = useState({ machines: [], promotions: [], counts: {} });
   const [machineForm, setMachineForm] = useState(emptyMachineForm);
   const [machineSaving, setMachineSaving] = useState(false);
@@ -190,12 +196,13 @@ export default function WaterMonitor() {
   const [qrLoadingId, setQrLoadingId] = useState('');
   const [promotionSavingKey, setPromotionSavingKey] = useState('');
   const [pointsPerLiterConfig, setPointsPerLiterConfig] = useState('0.5');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(location.search).get('premiumPayment') ? 'premium' : 'overview');
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(MONITOR_THEME_KEY) === 'true';
   });
-  const [selectedMachineId, setSelectedMachineId] = useState('');
+  const [selectedMachineId, setSelectedMachineId] = useState(() => new URLSearchParams(location.search).get('machineId') || '');
+  const qrRequestMachine = React.useRef('');
   const [telemetry, setTelemetry] = useState(emptyTelemetry);
 
   useEffect(() => {
@@ -258,6 +265,12 @@ export default function WaterMonitor() {
     () => displayedMachines.find((machine) => machine.id === selectedMachineId) || null,
     [displayedMachines, selectedMachineId]
   );
+
+  useEffect(() => {
+    qrRequestMachine.current = selectedMachineId;
+    setSelectedQr(null);
+    setLastResponse(null);
+  }, [selectedMachineId]);
 
   useEffect(() => {
     if (!isAdmin && selectedMachine) handleMachineEdit(selectedMachine);
@@ -329,7 +342,7 @@ export default function WaterMonitor() {
   const flowmeterLiters = pulsesToLiters(telemetry.flowmeterPulses, configuredPulsesPerLiter);
   const targetPulseOptions = [5, 10, 20].map((liters) => ({
     liters,
-    pulses: getTargetPulseCount(liters, configuredPulsesPerLiter),
+    volumeMl: Math.round(liters * 1000 * configuredPulsesPerLiter / calibrationBase),
   }));
 
   const activePromotions = useMemo(
@@ -354,6 +367,8 @@ export default function WaterMonitor() {
   );
 
   useEffect(() => {
+    setCalibrationLoading(true);
+    setOffsetMlInput('0');
     if (!selectedMachine) return undefined;
 
     let cancelled = false;
@@ -366,6 +381,10 @@ export default function WaterMonitor() {
         const data = await res.json().catch(() => null);
         if (!cancelled && res.ok && data?.pulsesPerLiter) {
           setPulsesPerLiterInput(String(data.pulsesPerLiter));
+          const base = Number(data.defaultPulsesPerLiter) || 360;
+          setCalibrationBase(base);
+          setOffsetMlInput(String(offsetFromCalibration(data.pulsesPerLiter, base)));
+          setCalibrationLoading(false);
         }
       } catch {
         // No bloqueamos el monitor si no carga la calibracion.
@@ -403,6 +422,7 @@ export default function WaterMonitor() {
         throw new Error('Selecciona una maquina antes de enviar comandos');
       }
 
+      if (calibrationLoading) throw new Error('Espera a que cargue la calibración de esta máquina');
       const nextPpl = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
       setPulsesPerLiter(nextPpl);
       setPulsesPerLiterInput(String(nextPpl));
@@ -436,9 +456,9 @@ export default function WaterMonitor() {
   };
 
   const handleSavePulsesPerLiter = async () => {
-    const nextValue = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
-
     try {
+      if (!selectedMachine || calibrationLoading) throw new Error('Selecciona una máquina y espera a que cargue su calibración');
+      const nextValue = calibrationFromOffset(offsetMlInput, calibrationBase);
       const token = await getManagementToken(getToken);
       const res = await managementFetch(`${API}/api/dispense/config/pulses`, {
         method: 'POST',
@@ -454,12 +474,14 @@ export default function WaterMonitor() {
 
       setPulsesPerLiter(data.pulsesPerLiter || nextValue);
       setPulsesPerLiterInput(String(data.pulsesPerLiter || nextValue));
+      const appliedOffset = offsetFromCalibration(data.pulsesPerLiter || nextValue, calibrationBase);
+      setOffsetMlInput(String(appliedOffset));
       setLastResponse({
         action: 'calibracion_global',
-        commandLine: `HW ${data.hardwareId || selectedMachineHardwareId || 'AUTO'} PULSOS ${data.pulsesPerLiter || nextValue}`,
+        commandLine: `Máquina ${selectedMachine.id}: desfase ${appliedOffset > 0 ? '+' : ''}${appliedOffset} ml / 20 L`,
         response: 'Calibracion guardada para esta maquina.',
       });
-      showSuccessToast(`Calibracion HW ${data.hardwareId || selectedMachineHardwareId}: ${data.pulsesPerLiter || nextValue} pulsos/L`);
+      showSuccessToast(`Desfase guardado: ${appliedOffset > 0 ? '+' : ''}${appliedOffset} ml por garrafón de 20 L`);
     } catch (error) {
       showErrorToast(error?.message || 'No se pudo guardar calibracion');
     }
@@ -556,7 +578,7 @@ export default function WaterMonitor() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data?.error || 'No se pudo generar el QR');
-      setSelectedQr(data);
+      if (qrRequestMachine.current === machineId) setSelectedQr(data);
     } catch (error) {
       showErrorToast(error?.message || 'No se pudo generar el QR');
     } finally {
@@ -634,10 +656,10 @@ export default function WaterMonitor() {
     : darkMode ? 'border-amber-900 bg-amber-950/30 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700';
 
   return (
-    <div className={shellClass}>
+    <div className={`management-panel ${darkMode ? 'management-dark' : 'management-light'} ${shellClass}`}>
       <header className={`sticky top-0 z-30 border-b backdrop-blur ${topBarClass}`}>
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4">
-          <Agua24Brand className="h-11" />
+          <div className={darkMode ? 'rounded-xl bg-white px-3 py-2' : ''}><Agua24Brand className="h-11" /></div>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant={darkMode ? 'secondary' : 'outline'} size="sm" onClick={() => setDarkMode((current) => !current)}>
               <Icon name={darkMode ? 'Sun' : 'Moon'} size={16} /> {darkMode ? 'Tema claro' : 'Tema oscuro'}
@@ -665,6 +687,7 @@ export default function WaterMonitor() {
                     key={tab.key}
                     type="button"
                     onClick={() => setActiveTab(tab.key)}
+                    aria-current={selected ? 'page' : undefined}
                     className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${selected
                       ? darkMode
                         ? 'border-sky-500/40 bg-sky-500/10 shadow-[0_12px_30px_rgba(14,165,233,0.12)]'
@@ -731,7 +754,7 @@ export default function WaterMonitor() {
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <Metric icon="Factory" label="Maquinas" value={monitorSummary.counts?.machines || 0} hint={`${monitorSummary.counts?.activeMachines || 0} activas`} darkMode={darkMode} />
                 <Metric icon="Wifi" label="Conexion" value={selectedMachineHasTelemetry ? 'En linea' : 'Sin lectura'} hint={formatSeenAt(telemetry.lastSeenAt)} darkMode={darkMode} />
-                <Metric icon="ShoppingBag" label="Ventas registradas" value={monitorSummary.sales?.transactions || 0} hint="Últimos 30 días" darkMode={darkMode} />
+                <Metric icon={isAdmin ? 'ShoppingBag' : 'SlidersHorizontal'} label={isAdmin ? 'Ventas de todas las máquinas' : 'Acceso normal'} value={isAdmin ? monitorSummary.sales?.transactions || 0 : 'Controles + desfase'} hint={isAdmin ? 'Últimos 30 días' : 'Estadísticas en Premium por máquina'} darkMode={darkMode} />
               </div>
             </div>
 
@@ -755,6 +778,7 @@ export default function WaterMonitor() {
           </div>
         ) : null}
 
+        {activeTab === 'premium' ? <MachinePremiumPanel key={selectedMachineId} machineId={selectedMachineId} isAdmin={isAdmin} darkMode={darkMode} /> : null}
         {isAdmin && activeTab === 'partners' ? (
           <PartnersManager machines={displayedMachines} onChanged={fetchMonitorSummary} darkMode={darkMode} />
         ) : null}
@@ -765,7 +789,7 @@ export default function WaterMonitor() {
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <Metric icon="ListChecks" label="Paso actual" value={`${currentStep.code}: ${currentStep.shortLabel || currentStep.label}`} hint={currentStep.instruction} darkMode={darkMode} />
-              <Metric icon="Gauge" label="Caudalimetro" value={`${telemetry.flowmeterPulses ?? 0} pulsos`} hint={`${flowmeterLiters.toFixed(3)} litros estimados`} darkMode={darkMode} />
+              <Metric icon="Gauge" label="Agua medida" value={`${Math.round(flowmeterLiters * 1000).toLocaleString('es-MX')} ml`} hint={`${flowmeterLiters.toFixed(3)} litros estimados`} darkMode={darkMode} />
               <Metric icon="FlaskConical" label="pH" value={telemetry.phDecimal ?? '--'} hint={telemetry.phVoltage ? `${telemetry.phVoltage} V` : 'Sin voltaje'} darkMode={darkMode} />
               <Metric icon="Coins" label="Saldo detectado en maquina" value={`$${Number(telemetry.accumulatedMoney || 0).toFixed(2)} MXN`} hint={`Moneda: ${telemetry.insertedCoinAmount || 0}`} darkMode={darkMode} />
             </div>
@@ -783,16 +807,16 @@ export default function WaterMonitor() {
 
             <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-end">
-                <Input label="Calibracion del caudalimetro" type="number" min="1" step="1" value={pulsesPerLiterInput} onChange={(event) => setPulsesPerLiterInput(event.target.value)} description="Pulsos necesarios para medir 1 litro." />
-                <Button onClick={handleSavePulsesPerLiter}>
-                  <Icon name="Save" size={16} /> Guardar calibracion
+                <Input label="Desfase por garrafón de 20 L (ml)" type="number" step="1" value={offsetMlInput} inputClassName={darkFieldClass} disabled={calibrationLoading} onChange={(event) => setOffsetMlInput(event.target.value)} description="Positivo: agrega agua. Negativo: reduce agua. El ajuste es proporcional para 5 y 10 L." />
+                <Button onClick={handleSavePulsesPerLiter} disabled={calibrationLoading || !selectedMachine}>
+                  <Icon name="Save" size={16} /> Guardar desfase en ml
                 </Button>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {targetPulseOptions.map((option) => (
                   <div key={option.liters} className={`rounded-2xl border px-4 py-3 ${mutedClass}`}>
                     <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Meta {option.liters} L</p>
-                    <p className={`mt-1 text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{option.pulses} pulsos</p>
+                    <p className={`mt-1 text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{option.volumeMl.toLocaleString('es-MX')} ml</p>
                   </div>
                 ))}
               </div>
@@ -939,23 +963,17 @@ export default function WaterMonitor() {
               <div className={`mt-6 rounded-[28px] border p-5 ${mutedClass}`}>
                 <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
                   <div className="flex justify-center lg:justify-start">
-                    <img
-                      src={selectedMachine.stickerUrl ? `${API}${selectedMachine.stickerUrl}` : `${API}/stickers/${selectedMachine.id}.png`}
-                      alt={`Sticker ${selectedMachine.id}`}
-                      className="h-48 w-48 rounded-2xl border border-sky-100 bg-white p-2 object-contain"
-                      onError={(event) => {
-                        event.currentTarget.src = `${API}/stickers/AQ-001.png`;
-                      }}
-                    />
+                    {selectedQr?.machineId === selectedMachine.id ? <img src={selectedQr.qrPngDataUrl} alt={`Sticker ${selectedMachine.id}`} className="h-48 w-48 rounded-2xl border border-sky-100 bg-white p-2 object-contain" /> : <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-dashed border-sky-300 p-4 text-center">Genera el sticker de {selectedMachine.id}</div>}
                   </div>
                   <div>
                     <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Sticker {selectedMachine.id}</h3>
+                    <Button className="mt-3" onClick={() => handleGenerateQr(selectedMachine.id)} loading={qrLoadingId === selectedMachine.id}>Generar sticker de esta máquina</Button>
                   </div>
                 </div>
               </div>
             ) : null}
 
-            {selectedQr ? (
+            {selectedQr?.machineId === selectedMachineId ? (
               <div className={`mt-6 rounded-[28px] border p-5 ${mutedClass}`}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
