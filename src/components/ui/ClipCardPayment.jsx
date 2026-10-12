@@ -8,6 +8,8 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
   const { user } = useUser();
   const mountId = `clip-card-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const [config, setConfig] = useState(null), [ready, setReady] = useState(false);
+  const [setupStatus, setSetupStatus] = useState('loading'), [setupError, setSetupError] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [payment, setPayment] = useState(null), [action, setAction] = useState(null);
   const [email, setEmail] = useState(user?.primaryEmailAddress?.emailAddress || '');
@@ -22,33 +24,54 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
   useEffect(() => {
-    let cancelled = false;
-    request('/api/payments/clip/config').then((value) => { if (!cancelled) setConfig(value); })
-      .catch((failure) => { if (!cancelled) setError(failure.message); });
-    return () => { cancelled = true; };
-  }, [request]);
-
-  useEffect(() => {
-    if (!config || !mount.current) return undefined;
+    const node = mount.current;
+    if (!node) return undefined;
     let cancelled = false, frame, resize;
-    setReady(false);
-    loadClipSdk().then((SDK) => {
-      if (cancelled || !mount.current) return;
-      const sdk = new SDK(config.apiKey);
+    const controller = new AbortController();
+    const failed = (failure) => {
+      if (cancelled) return;
+      cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
+      resize?.disconnect();
+      frame?.removeEventListener('load', loaded);
+      card.current = null;
+      node.replaceChildren();
+      setReady(false); setSetupStatus('error');
+      setSetupError(failure.status === 404
+        ? 'El servicio de pagos no está disponible en este momento. Intenta nuevamente más tarde.'
+        : failure.message || 'No se pudo cargar el formulario de Clip. Intenta nuevamente.');
+    };
+    const loaded = () => {
+      if (cancelled) return;
+      clearTimeout(timeout); setReady(true); setSetupStatus('ready');
+    };
+    const timeout = setTimeout(() => failed(new Error('El formulario de Clip tardó demasiado en cargar. Revisa tu conexión e intenta nuevamente.')), 30000);
+    setConfig(null); setReady(false); setSetupStatus('loading'); setSetupError('');
+    (async () => {
+      const value = await request('/api/payments/clip/config', { signal: controller.signal });
+      if (cancelled) return;
+      if (typeof value?.apiKey !== 'string' || !value.apiKey.trim()) throw new Error('No se pudo preparar el formulario de Clip. Intenta nuevamente más tarde.');
+      setConfig(value);
+      const SDK = await loadClipSdk();
+      if (cancelled) return;
+      const sdk = new SDK(value.apiKey);
       const element = sdk.element.create('Card', { locale: 'es', theme: darkMode ? 'dark' : 'light' });
       card.current = element;
       element.mount(mountId);
-      frame = mount.current.querySelector('iframe');
-      const loaded = () => { if (!cancelled) setReady(true); };
+      frame = node.querySelector('iframe');
       if (frame) {
         frame.title = 'Datos de tarjeta protegidos por Clip';
         frame.addEventListener('load', loaded, { once: true });
-        const size = () => mount.current?.parentElement.style.setProperty('--clip-card-height', `${parseFloat(frame.style.height) || frame.offsetHeight || 258}px`);
+        const size = () => node.parentElement?.style.setProperty('--clip-card-height', `${parseFloat(frame.style.height) || frame.offsetHeight || 258}px`);
         resize = new ResizeObserver(size); resize.observe(frame); size();
-      } else loaded();
-    }).catch((failure) => { if (!cancelled) setError(failure.message); });
-    return () => { cancelled = true; resize?.disconnect(); card.current = null; mount.current?.replaceChildren(); };
-  }, [config, darkMode, mountId]);
+      } else throw new Error('No se pudo abrir el formulario de tarjeta de Clip. Intenta nuevamente.');
+    })().catch(failed);
+    return () => {
+      cancelled = true; clearTimeout(timeout); controller.abort(); resize?.disconnect();
+      frame?.removeEventListener('load', loaded); card.current = null; node.replaceChildren();
+    };
+  }, [request, darkMode, mountId, loadAttempt]);
 
   const accept = useCallback((value) => {
     setPayment(value);
@@ -125,8 +148,12 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
       }}>Volver al pago anterior en Clip</Button>}
     </div> : null}
     <form className={`clip-card-form ${pending ? 'hidden' : ''}`} onSubmit={pay}>
-      <div className="clip-card-frame"><div id={mountId} ref={mount} className="clip-card-mount" /></div>
-      {!ready && <p role="status" className="text-sm">Cargando formulario de Clip…</p>}
+      <div className={`clip-card-frame ${setupStatus === 'error' ? 'hidden' : ''}`}><div id={mountId} ref={mount} className="clip-card-mount" /></div>
+      {setupStatus === 'loading' && <p role="status" className="text-sm">Cargando formulario de Clip…</p>}
+      {setupStatus === 'error' && <div className="col-span-full space-y-2">
+        <p role="alert" className={`rounded-lg px-3 py-2 text-sm font-semibold ${darkMode ? 'bg-red-950 text-red-100' : 'bg-red-50 text-red-900'}`}>{setupError}</p>
+        <Button type="button" fullWidth variant="outline" disabled={busy} iconName="RefreshCw" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Reintentar cargar formulario</Button>
+      </div>}
       <div className="clip-customer grid grid-cols-2 gap-2">
         <input aria-label="Correo para el recibo" autoComplete="email" type="email" placeholder="Correo" value={email} onChange={(e) => setEmail(e.target.value)} className={field} required />
         <input aria-label="Teléfono para el pago" autoComplete="tel" type="tel" placeholder="Teléfono (10 dígitos)" value={phone} onChange={(e) => setPhone(e.target.value)} className={field} required />
