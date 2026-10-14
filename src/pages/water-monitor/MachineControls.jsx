@@ -11,13 +11,29 @@ const components = [
   { title: 'Válvula de enjuague', description: 'Controla el agua para enjuagar.', icon: 'Waves', state: 'rinseValveOn',
     on: 'valvula_enjuague_on', off: 'valvula_enjuague_off', onLabel: 'Abrir', offLabel: 'Cerrar', activeLabel: 'Abierta', inactiveLabel: 'Cerrada' },
 ];
-export default function MachineControls({ ops }) {
+export default function MachineControls({ ops, isAdmin = false }) {
   const { machine, calibration, telemetry, online, configError, offset, setOffset, busy, command, lastCommand, saveOffset } = ops;
   let preview;
   try { preview = calibration && calibrationFromOffset(offset, calibration.base); } catch { /* Invalid input has no preview. */ }
   const disabled = !calibration || Boolean(busy);
   const step = getTelemetryStepInfo(telemetry?.currentStageCode || '00');
+  const frameBytes = String(telemetry?.rawFrame || '').split('-').map((byte) => byte.trim()).filter(Boolean);
+  const hasValidFrame = frameBytes.length === 15 && frameBytes.every((byte) => /^[0-9a-f]{2}$/i.test(byte));
   return <div className="m-control-layout">
+    {isAdmin && <section className="m-machine-frame" aria-live="polite" aria-label={`Lectura de 15 bytes de la máquina ${machine.id}`}>
+      <div className="m-machine-frame-heading">
+        <div><span className="m-frame-icon"><Icon name="Radio" size={19} /></span><div><h2>Lectura de máquina</h2><p>Trama recibida · 15 bytes · {machine.id}</p></div></div>
+        <span className={`m-frame-status${online ? ' is-online' : ''}`}><i />{online ? 'En línea' : hasValidFrame ? 'Última lectura' : 'Sin lectura'}</span>
+      </div>
+      {hasValidFrame ? <>
+        <ol className="m-frame-bytes" aria-label="Bytes de la última trama recibida">
+          {frameBytes.map((byte, index) => <li className={index === 0 ? 'is-start' : index === 14 ? 'is-end' : ''} key={`${index}-${byte}`}>
+            <span>BYTE {String(index + 1).padStart(2, '0')}</span><code>{byte.toUpperCase()}</code>
+          </li>)}
+        </ol>
+        <p className="m-frame-raw"><span>Trama completa</span><code>{frameBytes.map((byte) => byte.toUpperCase()).join('-')}</code></p>
+      </> : <p className="m-frame-empty">Todavía no se recibe una trama válida. La lectura aparecerá aquí cuando la máquina envíe sus 15 bytes.</p>}
+    </section>}
     <section className="m-surface m-calibration">
       <div className="m-section-title"><span className="m-feature-icon"><Icon name="SlidersHorizontal" size={20} /></span><div><h2>Ajusta la cantidad de agua</h2><p>Desfase de {machine.name || machine.id}</p></div></div>
       <p className="m-description">Si el garrafón recibe más o menos agua, corrige aquí la cantidad. El ajuste se aplica a 5, 10 y 20 litros.</p>
@@ -41,6 +57,6 @@ export default function MachineControls({ ops }) {
       </div>
     </section>
     <section className="m-live-summary"><div><span className="m-live-dot" /><span>Estado de la máquina</span><strong>{online ? step.label : 'Esperando conexión'}</strong></div><div><span>Agua medida</span><strong>{online && calibration ? `${pulsesToLiters(telemetry.flowmeterPulses, calibration.pulsesPerLiter).toLocaleString('es-MX', { maximumFractionDigits: 2 })} L` : '—'}</strong></div><div><span>Última solicitud</span><strong>{lastCommand?.label || 'Todavía no has enviado comandos'}</strong></div></section>
-    <details className="m-diagnostics"><summary>Ver diagnóstico técnico <Icon name="ChevronDown" size={16} /></summary><div><p>Trama recibida: <code>{telemetry?.rawFrame || 'Sin lectura'}</code></p><p>Respuesta: <code>{lastCommand?.response || telemetry?.error || 'Sin respuesta pendiente'}</code></p></div></details>
+    <details className="m-diagnostics"><summary>Ver diagnóstico técnico <Icon name="ChevronDown" size={16} /></summary><div><p>Respuesta: <code>{lastCommand?.response || telemetry?.error || 'Sin respuesta pendiente'}</code></p></div></details>
   </div>;
 }
