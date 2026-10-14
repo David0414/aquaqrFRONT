@@ -15,14 +15,11 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [payment, setPayment] = useState(null), [action, setAction] = useState(null);
-  const [email, setEmail] = useState(user?.primaryEmailAddress?.emailAddress || '');
-  const [phone, setPhone] = useState(user?.primaryPhoneNumber?.phoneNumber || '');
   const [address, setAddress] = useState({ postal_code: '', street: '', exterior_number: '' });
   const [billing, setBilling] = useState(false);
   const [billingOpen, setBillingOpen] = useState(false), [addressDraft, setAddressDraft] = useState(address);
   const billingDialog = useRef(null);
   const card = useRef(null), mount = useRef(null), submitting = useRef(false), checking = useRef(false), completed = useRef(null);
-  const openedChallenges = useRef(new Set());
   const latest = useRef({ verify, onSuccess, onPaymentChange });
   latest.current = { verify, onSuccess, onPaymentChange };
   const paymentId = (value) => value?.rechargeId || value?.paymentId;
@@ -102,11 +99,7 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
       if (completed.current !== paymentId(value)) { completed.current = paymentId(value); latest.current.onSuccess(value); }
     } else {
       const nextAction = value.pendingAction?.url ? value.pendingAction : null;
-      const key = nextAction ? `${paymentId(value)}:${nextAction.url}` : null;
-      const autoOpen = Boolean(key && !openedChallenges.current.has(key));
-      if (key) openedChallenges.current.add(key);
-      setAction((current) => nextAction ? { ...nextAction, key,
-        opened: current?.key === key ? Boolean(current.opened) : autoOpen } : null);
+      setAction(nextAction ? { ...nextAction, opened: true } : null);
       if (['FAILED', 'CANCELED'].includes(value.status)) setError('El pago no fue aprobado. Puedes corregir tus datos y hacer un nuevo intento.');
     }
   }, []);
@@ -140,9 +133,6 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
   const pay = async (event) => {
     event.preventDefault();
     if (submitting.current || checking.current || !ready || !card.current) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || phone.replace(/\D/g, '').length < 10) {
-      setError('Escribe tu correo y teléfono de 10 dígitos para continuar.'); return;
-    }
     submitting.current = true; setBusy(true); setError('');
     let prepared = payment;
     let started = false;
@@ -154,8 +144,11 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
       if (!token?.id) throw new Error('No se pudo validar la tarjeta. Revisa los datos ingresados.');
       started = true;
       // The browser sends only Clip's one-use token, never the card number or CVV.
-      const result = await submit(paymentId(prepared), token.id, { email: email.trim(), phone,
-        ...(billing ? { address } : {}) });
+      const result = await submit(paymentId(prepared), token.id, {
+        email: user?.primaryEmailAddress?.emailAddress || '',
+        phone: user?.primaryPhoneNumber?.phoneNumber || '',
+        ...(billing ? { address } : {}),
+      });
       accept(result);
     } catch (failure) {
       if (failure.data?.rechargeId || failure.data?.paymentId) accept(failure.data);
@@ -175,12 +168,11 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
       <div><strong>Procesando tu pago</strong><span>Espera la confirmación. No cierres esta pantalla.</span></div>
     </div>}
     {pending ? <div className="clip-pending">
-      <Icon name="LoaderCircle" size={28} className="clip-pending-spinner" /><h3>{action ? 'Confirma el pago con tu banco' : 'Confirmando tu pago'}</h3>
+      <Icon name="LoaderCircle" size={28} className="clip-pending-spinner" /><h3>Procesando tu pago</h3>
       <p role="status" className="text-base">{action
-        ? 'Tu banco solicita una validación. Al terminar, volveremos a revisar el pago y actualizaremos tu saldo automáticamente.'
-        : awaitingResume ? 'Estamos recuperando la confirmación del pago. No vuelvas a pagarlo; actualizaremos el saldo cuando el banco responda.'
+        ? 'Sigue las indicaciones que aparecen en la pantalla de pago. Actualizaremos tu saldo automáticamente al confirmar.'
+        : awaitingResume ? 'Estamos recuperando la confirmación del pago. No vuelvas a pagarlo; actualizaremos el saldo cuando recibamos respuesta.'
           : 'Estamos revisando el pago. Tu saldo o Premium se actualizará automáticamente cuando quede confirmado.'}</p>
-      {action && !action.opened && <Button fullWidth disabled={busy} onClick={() => setAction({ ...action, opened: true })}>Continuar con mi banco</Button>}
     </div> : null}
     <form className={`clip-card-form ${pending ? 'hidden' : ''}`} onSubmit={pay}>
       <div className={`clip-card-frame ${setupStatus === 'error' ? 'hidden' : ''}`}><div id={mountId} ref={mount} className="clip-card-mount" />
@@ -190,10 +182,6 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
         <div role="alert" className="clip-error"><Icon name="CircleAlert" size={17} /><span>{setupError}</span></div>
         <Button type="button" fullWidth variant="outline" disabled={busy} iconName="RefreshCw" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Reintentar cargar formulario</Button>
       </div>}
-      <div className="clip-customer">
-        <label className="clip-field"><span>Correo del recibo</span><input aria-label="Correo para el recibo" autoComplete="email" type="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} required /></label>
-        <label className="clip-field"><span>Teléfono</span><input aria-label="Teléfono para el pago" autoComplete="tel" type="tel" placeholder="10 dígitos" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={busy} required /></label>
-      </div>
       <button className="clip-billing" type="button" disabled={busy} aria-haspopup="dialog" onClick={() => { setAddressDraft({ ...address }); setBillingOpen(true); }}>
         <Icon name={billing ? 'CircleCheck' : 'MapPin'} size={13} />{billing ? 'Facturación guardada · Editar' : 'Facturación · American Express'}<Icon name="ChevronRight" size={13} />
       </button>
@@ -211,13 +199,13 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
         {billing && <button type="button" className="clip-remove-billing" onClick={() => { setBilling(false); setBillingOpen(false); }}>Continuar sin estos datos</button>}
       </form>
     </dialog>
-    {action?.opened && createPortal(<div role="dialog" aria-modal="true" aria-label="Validación bancaria del pago" className="fixed inset-0 z-[100] flex flex-col bg-white p-3 text-slate-900">
-      <h2 className="mb-2 text-lg font-bold">Confirma el pago con tu banco</h2>
-      <iframe src={action.url} title="Autenticación bancaria" className="min-h-0 flex-1 border-0" allow="payment" />
-      <Button className="mt-2" onClick={() => {
-        setAction((current) => current ? { ...current, opened: false } : null);
-        check(paymentId(payment), true);
-      }}>Volver a AquaQR</Button>
+    {action?.opened && createPortal(<div role="dialog" aria-modal="true" aria-label="Procesando tu pago" className="clip-auth-screen">
+      <header className="clip-auth-header"><span className="clip-auth-brand"><Icon name="Droplets" size={20} />AquaQR</span><span className="clip-auth-secure"><Icon name="ShieldCheck" size={17} />Pago seguro</span></header>
+      <main className="clip-auth-content">
+        <div className="clip-auth-status"><span className="clip-auth-spinner"><Icon name="LoaderCircle" size={22} /></span><div><h1>Procesando tu pago</h1><p>Sigue las indicaciones que aparecen aquí. El resultado se actualizará automáticamente.</p></div></div>
+        <div className="clip-auth-frame"><iframe src={action.url} title="Proceso seguro de pago" allow="payment" /></div>
+        <p className="clip-auth-footnote"><Icon name="LockKeyhole" size={14} />Mantén esta pantalla abierta mientras procesamos la operación.</p>
+      </main>
     </div>, document.body)}
   </div>;
 }

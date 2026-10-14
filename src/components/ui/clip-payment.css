@@ -30,7 +30,6 @@
 .clip-payment .clip-card-loading > svg { animation: clip-loading-spin 1s linear infinite; }
 .clip-payment .clip-setup-error { grid-column: 1 / -1; }
 .clip-payment .clip-setup-error > button { width: 100%; border: 1px solid var(--clip-border); border-radius: 10px; color: var(--clip-ink); background: var(--clip-surface); }
-.clip-payment .clip-customer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .clip-payment .clip-field { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
 .clip-payment .clip-field > span { font-size: 12px; font-weight: 600; color: var(--clip-muted); }
 .clip-payment .clip-field input { min-width: 0; width: 100%; height: 42px; padding: 0 12px; border: 1px solid #a6bbc9; border-radius: 10px; color: var(--clip-ink); background: var(--clip-surface); font-size: 16px; outline: 0; }
@@ -80,6 +79,23 @@
 .clip-payment .clip-pending > svg { color: #087481; }
 .clip-payment .clip-pending-spinner { animation: clip-loading-spin 1s linear infinite; }
 .clip-payment-dark .clip-pending > svg { color: #67e8f9; }
+.clip-auth-screen { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); color: #142d4e; background: radial-gradient(ellipse at 50% -15%, #d8f2f3 0, transparent 55%), #f3f7fb; }
+.clip-auth-header { display: flex; align-items: center; justify-content: space-between; min-height: 64px; padding: 0 clamp(18px, 5vw, 36px); border-bottom: 1px solid #dce7ee; background: #ffffffd9; backdrop-filter: blur(14px); }
+.clip-auth-brand, .clip-auth-secure { display: inline-flex; align-items: center; gap: 9px; font-weight: 750; }
+.clip-auth-brand { color: #15355d; font-size: 17px; letter-spacing: -.3px; }
+.clip-auth-brand svg { color: #07818b; }
+.clip-auth-secure { color: #42616a; font-size: 12px; }
+.clip-auth-content { width: min(100%, 820px); min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 18px; margin: 0 auto; padding: clamp(20px, 5vh, 42px) clamp(14px, 4vw, 28px) 20px; }
+.clip-auth-status { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border: 1px solid #d5e4eb; border-radius: 18px; background: #fff; box-shadow: 0 12px 36px #1939560c; }
+.clip-auth-spinner { display: grid; width: 46px; height: 46px; flex: 0 0 auto; place-items: center; border-radius: 15px; background: #e5f5f4; color: #087e8b; }
+.clip-auth-spinner svg { animation: clip-loading-spin 1.15s linear infinite; }
+.clip-auth-status h1 { color: #142d4e; font-size: clamp(18px, 4vw, 23px); font-weight: 800; letter-spacing: -.5px; }
+.clip-auth-status p { margin-top: 4px; color: #526579; font-size: 13px; line-height: 1.45; }
+.clip-auth-frame { position: relative; min-height: 0; flex: 1; overflow: hidden; border: 1px solid #d5e1e9; border-radius: 18px; background: white; box-shadow: 0 20px 60px #142d4e12; }
+.clip-auth-frame iframe { display: block; width: 100%; height: 100%; min-height: 0; border: 0; background: white; }
+.clip-auth-footnote { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 0; color: #526579; font-size: 12px; text-align: center; }
+.clip-auth-footnote svg { color: #087481; }
 @keyframes clip-loading-spin { to { transform: rotate(360deg); } }
 @media (max-width: 799px) { .clip-payment { padding: 16px; border-radius: 20px; } }
-@media (prefers-reduced-motion: reduce) { .clip-payment .clip-card-loading > svg { animation: none; } }
+@media (max-height: 560px) { .clip-auth-content { gap: 10px; padding-top: 12px; padding-bottom: 10px; } .clip-auth-status { padding: 10px 14px; } .clip-auth-spinner { width: 38px; height: 38px; border-radius: 12px; } }
+@media (prefers-reduced-motion: reduce) { .clip-payment .clip-card-loading > svg, .clip-auth-spinner > svg { animation: none; } }

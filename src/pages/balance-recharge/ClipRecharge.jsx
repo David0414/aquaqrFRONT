@@ -114,7 +114,7 @@ export default function ClipRecharge() {
       <header className="recharge-header">
         <div className="recharge-header-inner">
           <div className="recharge-header-title">
-            <button type="button" aria-label={completion ? 'Ir a mi wallet' : 'Volver'} disabled={locked} onClick={() => completion ? goToWallet() : step === 2 ? backToAmount() : navigate(-1)} className="recharge-back"><Icon name="ArrowLeft" size={20} /></button>
+            {!locked && <button type="button" aria-label={completion ? 'Ir a mi wallet' : 'Volver'} onClick={() => completion ? goToWallet() : step === 2 ? backToAmount() : navigate(-1)} className="recharge-back"><Icon name="ArrowLeft" size={20} /></button>}
             <div><h1>{completion ? 'Recarga confirmada' : 'Recargar saldo'}</h1><span className="recharge-small-step">{completion ? 'Saldo actualizado' : `Paso ${step} de 2 · ${step === 1 ? 'Monto' : 'Pago'}`}</span></div>
           </div>
           <span className="recharge-secure"><Icon name={completion ? 'CircleCheck' : 'ShieldCheck'} size={17} /><span>{completion ? 'Pago confirmado' : 'Pago protegido'}</span></span>

@@ -196,9 +196,6 @@
   .recharge-screen.recharge-payment-step .clip-sandbox { padding: 4px 8px; margin-bottom: 6px; }
   .recharge-screen.recharge-payment-step .recharge-bonus { display: none; }
   .recharge-screen.recharge-payment-step .clip-field input { height: 36px; }
-  .recharge-screen.recharge-payment-step .clip-customer .clip-field { position: relative; gap: 0; }
-  .recharge-screen.recharge-payment-step .clip-customer .clip-field > span { position: absolute; top: 5px; left: 10px; font-size: 10px; line-height: 12px; pointer-events: none; }
-  .recharge-screen.recharge-payment-step .clip-customer .clip-field input { height: 44px; padding: 16px 10px 4px; }
   .recharge-screen.recharge-payment-step .clip-card-form { gap: 4px; }
   .recharge-screen.recharge-payment-step .clip-security-note { display: none; }
   .recharge-screen.recharge-payment-step .clip-submit { height: 42px; }
@@ -269,7 +266,6 @@
   .recharge-screen.recharge-payment-step .clip-card-form { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 7px 10px; align-content: start; }
   .recharge-screen.recharge-payment-step .clip-card-form.hidden { display: none; }
   .recharge-screen.recharge-payment-step .clip-card-frame { --clip-card-scale: .64; grid-column: 1; grid-row: 1 / span 4; }
-  .recharge-screen.recharge-payment-step .clip-customer { grid-column: 2; grid-template-columns: 1fr; gap: 6px; }
   .recharge-screen.recharge-payment-step .clip-field > span { font-size: 11px; }
   .recharge-screen.recharge-payment-step .clip-field input { height: 32px; padding: 0 8px; }
   .recharge-screen.recharge-payment-step :is(.clip-billing, .clip-submit) { grid-column: 2; }
