@@ -7,10 +7,10 @@ import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
 import { checkoutRequestId } from '../../lib/checkout.mjs';
+import { downloadRechargeReceiptPdf } from '../../lib/transactionPdf.mjs';
 import ClipCardPayment from '../../components/ui/ClipCardPayment';
 import useRechargeViewport from './useRechargeViewport';
 import { loadCustomerSummary, readCustomerSummary, recordCustomerWallet } from '../../lib/customerSummary.mjs';
-import { loadClipSdk } from '../../lib/clipSdk.mjs';
 import './recharge.css';
 
 const API = import.meta.env.VITE_API_URL;
@@ -48,7 +48,6 @@ export default function ClipRecharge() {
 
   useEffect(() => {
     let cancelled = false;
-    loadClipSdk().catch(() => {});
     (async () => {
       try {
         const data = await loadCustomerSummary(userId, getToken);
@@ -77,7 +76,9 @@ export default function ClipRecharge() {
     const wallet = recordCustomerWallet(userId, data.wallet);
     if (wallet) window.dispatchEvent(new CustomEvent('wallet:updated', { detail: { ...wallet, userId, source: 'clip' } }));
     const walletState = { ...(wallet || {}), walletUserId: userId, walletUpdatedAt: Date.now() };
-    setCompletion({ amountCents: Number(data.amountCents || amountCents), balanceCents: wallet?.totalAvailableCents, walletState });
+    setCompletion({ rechargeId: data.rechargeId, date: new Date().toISOString(), currency: 'MXN',
+      amountCents: Number(data.amountCents || amountCents), bonusCents: Number(data.bonusCents || 0),
+      balanceCents: wallet?.totalAvailableCents, walletState });
   };
 
   const goToWallet = () => {
@@ -88,14 +89,14 @@ export default function ClipRecharge() {
     if (!completion) return undefined;
     const timer = window.setTimeout(() => {
       navigate('/home-dashboard', { replace: true, state: { ...completion.walletState, rechargeSuccess: true } });
-    }, 2200);
+    }, 8000);
     return () => window.clearTimeout(timer);
   }, [completion, navigate]);
 
   const prepare = async ({ newAttempt } = {}) => {
     if (!validAmount) throw new Error('El monto debe estar entre $10 y $500.');
     if (newAttempt || requestId.current?.amountCents !== amountCents) requestId.current = { amountCents, requestId: checkoutRequestId() };
-    return request('/api/recharge/clip/prepare', { method: 'POST', body: JSON.stringify(requestId.current) });
+    return request('/api/recharge/clip/create-checkout', { method: 'POST', body: JSON.stringify({ ...requestId.current, amountCents }) });
   };
   const paymentChanged = (data) => {
     setPayment(data); setAmount(data.amountCents / 100);
@@ -132,7 +133,10 @@ export default function ClipRecharge() {
           <h2>¡Pago exitoso!</h2>
           <p>Tu pago de <strong>{money(completion.amountCents)}</strong> se aprobó y ya está aplicado a tu wallet.</p>
           {Number.isFinite(completion.balanceCents) && <div className="recharge-success-balance"><span>Saldo disponible</span><strong>{money(completion.balanceCents)}</strong></div>}
-          <Button className="recharge-success-button" fullWidth onClick={goToWallet} iconName="Wallet">Ir a mi wallet</Button>
+          <div className="recharge-success-actions">
+            <Button className="recharge-success-button" fullWidth onClick={goToWallet} iconName="Wallet">Ir a mi wallet</Button>
+            <Button className="recharge-success-download" fullWidth variant="outline" onClick={() => downloadRechargeReceiptPdf(completion)} iconName="Download">Recibo PDF</Button>
+          </div>
           <span className="recharge-success-redirect">Volviendo a tu wallet…</span>
         </section> : <>
         {error && <p role="alert" className="recharge-message recharge-error">{error}</p>}
@@ -176,8 +180,7 @@ export default function ClipRecharge() {
               : !locked && <Button key="change-amount" className="recharge-change" type="button" variant="outline" onClick={backToAmount} aria-label="Cambiar monto">Cambiar</Button>}
             <p className="recharge-order-note"><Icon name="LockKeyhole" size={13} />{step === 1 ? 'Pago seguro con tarjeta' : 'El saldo se acredita al confirmar el pago'}</p>
           </aside>
-          {step === 2 && <ClipCardPayment request={request} amountCents={amountCents} prepare={prepare} resumeId={returnedId}
-            submit={(id, cardToken, customer) => request(`/api/recharge/clip/pay/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ cardToken, customer }) })}
+          {step === 2 && <ClipCardPayment amountCents={amountCents} prepare={prepare} resumeId={returnedId}
             verify={(id) => request(`/api/recharge/clip/status/${encodeURIComponent(id)}`)}
             onSuccess={finish} onPaymentChange={paymentChanged} onBusyChange={setPaymentBusy} />}
         </div>

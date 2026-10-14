@@ -16,12 +16,20 @@
 .clip-payment .clip-payment-title { display: flex; align-items: center; gap: 8px; }
 .clip-payment .clip-payment-title > svg { color: #087481; }
 .clip-payment-dark .clip-payment-title > svg { color: #67e8f9; }
+.clip-payment .clip-payment-secure { display: inline-flex; align-items: center; gap: 5px; color: var(--clip-muted); font-size: 11px; font-weight: 650; }
+.clip-payment .clip-payment-secure > svg { color: #087481; }
+.clip-payment-dark .clip-payment-secure > svg { color: #67e8f9; }
 .clip-payment .clip-payment-heading h2 { font-size: 18px; font-weight: 700; letter-spacing: -.4px; }
 .clip-payment .clip-sandbox { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 5px 10px; border: 1px solid #e9c46c; border-radius: 9px; background: #fff8e5; color: #764b0d; font-size: 11px; font-weight: 600; }
 .clip-payment .clip-error { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; padding: 10px 12px; border: 1px solid #f2c6bf; border-radius: 10px; background: #fff3f0; color: #9b251b; font-size: 13px; font-weight: 500; line-height: 1.45; }
 .clip-payment .clip-error > svg { flex-shrink: 0; margin-top: 1px; }
 .clip-payment-dark .clip-error { border-color: #f87171; color: #fecaca; background: #450a0a; }
 .clip-payment .clip-card-form { display: flex; flex-direction: column; gap: 10px; }
+.clip-payment .clip-checkout-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border: 1px solid var(--clip-border); border-radius: 14px; background: color-mix(in srgb, var(--clip-surface) 92%, #07818b 8%); }
+.clip-payment .clip-checkout-summary > span { color: var(--clip-muted); font-size: 13px; }
+.clip-payment .clip-checkout-summary > strong { color: var(--clip-ink); font-size: 25px; font-weight: 800; letter-spacing: -.5px; white-space: nowrap; }
+.clip-payment .clip-checkout-summary small { color: var(--clip-muted); font-size: 11px; font-weight: 650; letter-spacing: 0; }
+.clip-payment .clip-checkout-copy { color: var(--clip-muted); font-size: 13px; line-height: 1.5; }
 .clip-payment .clip-card-form.hidden, .clip-payment .clip-card-frame.hidden { display: none; }
 .clip-payment .clip-card-frame { --clip-card-scale: 1; position: relative; height: calc(var(--clip-card-height, 258px) * var(--clip-card-scale)); }
 .clip-payment .clip-card-mount { transform-origin: top left; transform: scale(var(--clip-card-scale)); width: calc(100% / var(--clip-card-scale)); }
@@ -77,6 +85,7 @@
 .clip-payment .clip-pending h3 { font-size: 18px; font-weight: 700; }
 .clip-payment .clip-pending p { color: var(--clip-muted); font-size: 14px; line-height: 1.5; }
 .clip-payment .clip-pending > svg { color: #087481; }
+.clip-payment .clip-paid > svg { color: #16835d; animation: none; }
 .clip-payment .clip-pending-spinner { animation: clip-loading-spin 1s linear infinite; }
 .clip-payment-dark .clip-pending > svg { color: #67e8f9; }
 .clip-auth-screen { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); color: #142d4e; background: radial-gradient(ellipse at 50% -15%, #d8f2f3 0, transparent 55%), #f3f7fb; }

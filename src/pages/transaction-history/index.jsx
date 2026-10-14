@@ -14,6 +14,7 @@ import NotificationToast, {
 import TransactionFilters from './components/TransactionFilters';
 import TransactionList from './components/TransactionList';
 import TransactionDetailModal from './components/TransactionDetailModal';
+import { downloadTransactionHistoryPdf, downloadTransactionReceiptPdf } from '../../lib/transactionPdf.mjs';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -151,9 +152,28 @@ const TransactionHistory = () => {
     setShowDetailModal(true);
   };
 
-  const handleGenerateReceipt = async () => {
-    showInfoToast('Generando recibo PDF…');
-    setTimeout(() => showSuccessToast('Recibo generado correctamente'), 800);
+  const handleGenerateReceipt = (transaction) => {
+    try {
+      downloadTransactionReceiptPdf(transaction);
+      showSuccessToast('Recibo PDF descargado');
+    } catch (error) {
+      console.error('No se pudo generar el recibo PDF', error);
+      showErrorToast('No se pudo descargar el recibo PDF');
+    }
+  };
+
+  const handleExport = (format) => {
+    if (format !== 'pdf') {
+      showInfoToast('La descarga CSV todavía no está disponible');
+      return;
+    }
+    try {
+      downloadTransactionHistoryPdf(filteredTransactions);
+      showSuccessToast('Historial PDF descargado');
+    } catch (error) {
+      console.error('No se pudo generar el historial PDF', error);
+      showErrorToast('No se pudo descargar el historial PDF');
+    }
   };
 
   const handleShare = async (tx) => {
@@ -225,7 +245,7 @@ ID: ${tx.id}`;
             onFiltersChange={setFilters}
             resultsCount={filteredTransactions.length}
             isLoading={isLoading}
-            onExport={(fmt) => showInfoToast(`Exportando a ${fmt.toUpperCase()}…`)}
+            onExport={handleExport}
           />
 
           <TransactionList

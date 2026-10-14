@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
+import { downloadDispenseReceiptPdf } from '../../lib/transactionPdf.mjs';
 
 function money(n){return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2}).format(n);}
 
@@ -58,7 +59,7 @@ export default function SuccessReceipt() {
           <Button variant="secondary" className="flex-1" onClick={() => navigate('/home-dashboard')}>
             <Icon name="Home" size={18}/> Inicio
           </Button>
-          <Button className="flex-1" onClick={() => window.print()}>
+          <Button className="flex-1" onClick={() => downloadDispenseReceiptPdf(tx)}>
             <Icon name="Download" size={18}/> Descargar PDF
           </Button>
         </div>

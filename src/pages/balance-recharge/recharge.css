@@ -47,7 +47,10 @@
 .recharge-screen .recharge-success-balance { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; padding: 14px 16px; border: 1px solid #d3ebe7; border-radius: 14px; background: #edf8f5; text-align: left; }
 .recharge-screen .recharge-success-balance span { color: #316458; font-size: 13px; }
 .recharge-screen .recharge-success-balance strong { color: #124f43; font-size: 22px; font-weight: 800; }
-.recharge-screen .recharge-success-button { height: 48px; margin-top: 18px; border-radius: 12px; background: #142d4e; color: #fff; font-weight: 700; }
+.recharge-screen .recharge-success-actions { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 8px; margin-top: 18px; }
+.recharge-screen .recharge-success-button, .recharge-screen .recharge-success-download { height: 48px; min-width: 0; margin-top: 0; padding: 0 8px; border-radius: 12px; font-size: 13px; font-weight: 700; }
+.recharge-screen .recharge-success-button { background: #142d4e; color: #fff; }
+.recharge-screen .recharge-success-download { border: 1px solid #b9cbd8; color: #142d4e; background: #fff; }
 .recharge-screen .recharge-success-redirect { display: block; margin-top: 12px; color: var(--recharge-muted); font-size: 12px; }
 @keyframes recharge-success-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .recharge-screen .recharge-workspace { width: 100%; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 24px; align-items: center; margin: auto 0; }
