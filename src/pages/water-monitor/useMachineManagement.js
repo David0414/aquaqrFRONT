@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { managementRequest } from '../../lib/management';
-import { calibrationFromOffset, offsetFromCalibration } from '../../lib/calibration.mjs';
 import { showErrorToast, showSuccessToast } from '../../components/ui/NotificationToast';
 
 export const hardwareId = (value) => String(value || '').toUpperCase().replace(/[^0-9A-F]/g, '').padStart(2, '0').slice(-2);
@@ -14,7 +13,7 @@ export default function useMachineManagement(machineId) {
   const machine = summary.machines.find((item) => item.id === machineId) || null;
   const [loading, setLoading] = useState(true), [error, setError] = useState('');
   const [telemetry, setTelemetry] = useState(null), [calibration, setCalibration] = useState(null);
-  const [configError, setConfigError] = useState(''), [offset, setOffset] = useState('0');
+  const [configError, setConfigError] = useState(''), [cCalValue, setCCalValue] = useState('');
   const [busy, setBusy] = useState(''), [lastCommand, setLastCommand] = useState(null);
   const inFlight = useRef(false), selectedId = useRef(machine?.id), loadSequence = useRef(0);
   selectedId.current = machine?.id;
@@ -31,7 +30,7 @@ export default function useMachineManagement(machineId) {
   useEffect(() => { refresh(); return () => { loadSequence.current++; }; }, [refresh]);
 
   useEffect(() => {
-    setTelemetry(null); setCalibration(null); setConfigError(''); setOffset('0'); setLastCommand(null);
+    setTelemetry(null); setCalibration(null); setConfigError(''); setCCalValue(''); setLastCommand(null);
     if (!machine) return undefined;
     const controller = new AbortController();
     const id = machine.id;
@@ -39,9 +38,8 @@ export default function useMachineManagement(machineId) {
     request(`/api/dispense/config?${query}`, { signal: controller.signal }).then((data) => {
       if (controller.signal.aborted || selectedId.current !== id) return;
       if (!data.pulsesPerLiter) throw new Error('No se pudo cargar el ajuste de esta máquina.');
-      const base = Number(data.defaultPulsesPerLiter) || 360;
-      setCalibration({ machineId: id, pulsesPerLiter: Number(data.pulsesPerLiter), base });
-      setOffset(String(offsetFromCalibration(data.pulsesPerLiter, base)));
+      setCalibration({ machineId: id, pulsesPerLiter: Number(data.pulsesPerLiter) });
+      setCCalValue(String(data.pulsesPerLiter));
     }).catch((failure) => { if (!controller.signal.aborted) setConfigError(failure.message); });
     return () => controller.abort();
   }, [request, machine?.id, machine?.hardwareId]);
@@ -82,21 +80,25 @@ export default function useMachineManagement(machineId) {
     finally { inFlight.current = false; setBusy(''); }
   };
 
-  const saveOffset = async () => {
+  const saveCalibration = async () => {
     if (!machine || calibration?.machineId !== machine.id || inFlight.current) return;
+    const pulsesPerLiter = Number(cCalValue);
+    if (!Number.isInteger(pulsesPerLiter) || pulsesPerLiter < 1 || pulsesPerLiter > 65535) {
+      showErrorToast('Ccal debe ser un número entero entre 1 y 65,535 pulsos por litro.');
+      return;
+    }
     const target = machine;
     inFlight.current = true; setBusy('calibration');
     try {
-      const pulsesPerLiter = calibrationFromOffset(offset, calibration.base);
       const data = await request('/api/dispense/config/pulses', { method: 'POST', body: JSON.stringify({
         machineId: target.id, hardwareId: hardwareId(target.hardwareId || target.id), pulsesPerLiter,
       }) });
       if (selectedId.current === target.id) {
         const saved = Number(data.pulsesPerLiter) || pulsesPerLiter;
         setCalibration({ ...calibration, pulsesPerLiter: saved });
-        setOffset(String(offsetFromCalibration(saved, calibration.base)));
+        setCCalValue(String(saved));
       }
-      showSuccessToast(`Desfase guardado en ${target.name || target.id}.`);
+      showSuccessToast(`Ccal de ${target.name || target.id} guardada: ${pulsesPerLiter} pulsos/L.`);
     } catch (failure) { showErrorToast(failure.message); }
     finally { inFlight.current = false; setBusy(''); }
   };
@@ -111,5 +113,5 @@ export default function useMachineManagement(machineId) {
     && hardwareId(telemetry.hardwareId || telemetry.machineHardwareId) === expectedHardware
     && Date.now() - new Date(telemetry.lastSeenAt).getTime() < 15000);
   return { machine, request, summary, loading, error, refresh, updatePremium, telemetry: visibleTelemetry, online,
-    calibration: calibration?.machineId === machine?.id ? calibration : null, configError, offset, setOffset, busy, command, lastCommand, saveOffset };
+    calibration: calibration?.machineId === machine?.id ? calibration : null, configError, cCalValue, setCCalValue, busy, command, lastCommand, saveCalibration };
 }

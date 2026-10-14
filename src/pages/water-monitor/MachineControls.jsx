@@ -1,6 +1,5 @@
 import React from 'react';
 import Icon from '../../components/AppIcon';
-import { calibrationFromOffset } from '../../lib/calibration.mjs';
 import { getTelemetryStepInfo, pulsesToLiters } from '../water-dispensing-control/telemetry';
 
 const components = [
@@ -12,9 +11,7 @@ const components = [
     on: 'valvula_enjuague_on', off: 'valvula_enjuague_off', onLabel: 'Abrir', offLabel: 'Cerrar', activeLabel: 'Abierta', inactiveLabel: 'Cerrada' },
 ];
 export default function MachineControls({ ops, isAdmin = false }) {
-  const { machine, calibration, telemetry, online, configError, offset, setOffset, busy, command, lastCommand, saveOffset } = ops;
-  let preview;
-  try { preview = calibration && calibrationFromOffset(offset, calibration.base); } catch { /* Invalid input has no preview. */ }
+  const { machine, calibration, telemetry, online, configError, cCalValue, setCCalValue, busy, command, lastCommand, saveCalibration } = ops;
   const disabled = !calibration || Boolean(busy);
   const step = getTelemetryStepInfo(telemetry?.currentStageCode || '00');
   const frameBytes = String(telemetry?.rawFrame || '').split('-').map((byte) => byte.trim()).filter(Boolean);
@@ -35,14 +32,13 @@ export default function MachineControls({ ops, isAdmin = false }) {
       </> : <p className="m-frame-empty">Todavía no se recibe una trama válida. La lectura aparecerá aquí cuando la máquina envíe sus 15 bytes.</p>}
     </section>}
     <section className="m-surface m-calibration">
-      <div className="m-section-title"><span className="m-feature-icon"><Icon name="SlidersHorizontal" size={20} /></span><div><h2>Ajusta la cantidad de agua</h2><p>Desfase de {machine.name || machine.id}</p></div></div>
-      <p className="m-description">Si el garrafón recibe más o menos agua, corrige aquí la cantidad. El ajuste se aplica a 5, 10 y 20 litros.</p>
+      <div className="m-calibration-heading"><div className="m-section-title"><span className="m-feature-icon"><Icon name="SlidersHorizontal" size={20} /></span><div><h2>Calibración Ccal</h2><p>{machine.name || machine.id}</p></div></div>
+        <details className="m-calibration-help"><summary aria-label="Cómo configurar Ccal" title="Cómo configurar Ccal">?</summary><div><strong>Cómo configurar Ccal</strong><p>Mide el volumen servido en mililitros (Vml) y cuenta los pulsos (Pd). Calcula Ccal = (Pd × 1000) / Vml y guarda el resultado para esta máquina.</p><p>Ejemplo: 4,300 pulsos en 10,000 ml = Ccal 430.</p></div></details>
+      </div>
       {configError ? <p className="m-notice m-error" role="alert">{configError}</p> : !calibration ? <p role="status" className="m-notice">Cargando el ajuste de esta máquina…</p> : null}
-      <label className="m-field" htmlFor="machine-offset"><span>Desfase por cada 20 litros</span><div className="m-number-field"><input id="machine-offset" className="m-input" type="number" step="1" value={offset} disabled={disabled} onChange={(event) => setOffset(event.target.value)} /><span>ml</span></div></label>
-      <div className="m-calibration-guide"><span><Icon name="Plus" size={15} /> Positivo: agrega agua</span><span><Icon name="Minus" size={15} /> Negativo: reduce agua</span></div>
-      <div className="m-volume-preview" aria-live="polite">{[5, 10, 20].map((liters) => <div key={liters}><span>Al elegir {liters} L</span><strong>{preview ? `${Math.round(liters * 1000 * preview / calibration.base).toLocaleString('es-MX')} ml` : '—'}</strong></div>)}</div>
-      <button type="button" className="m-button m-primary m-full" disabled={disabled || !preview} onClick={saveOffset}><Icon name="Save" size={17} />{busy === 'calibration' ? 'Guardando…' : 'Guardar desfase en ml'}</button>
-      <p className="m-caption">Este cambio aplica únicamente a esta máquina.</p>
+      <p className="m-calibration-formula">Pd = (Vml × Ccal) / 1000</p>
+      <label className="m-field" htmlFor="machine-ccal"><span>Ccal</span><div className="m-number-field"><input id="machine-ccal" className="m-input" type="number" min="1" max="65535" step="1" inputMode="numeric" value={cCalValue} disabled={disabled} onChange={(event) => setCCalValue(event.target.value)} /><span>pulsos/L</span></div></label>
+      <button type="button" className="m-button m-primary m-full" disabled={disabled || !cCalValue} onClick={saveCalibration}><Icon name="Save" size={17} />{busy === 'calibration' ? 'Guardando…' : 'Guardar Ccal'}</button>
     </section>
     <section className="m-surface m-components">
       <div className="m-section-title"><span className="m-feature-icon"><Icon name="Settings2" size={20} /></span><div><h2>Controles de la máquina</h2><p>Cada botón controla un componente de {machine.id}.</p></div></div>
