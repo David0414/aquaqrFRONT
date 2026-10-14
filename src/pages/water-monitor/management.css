@@ -176,6 +176,7 @@
 .m-frame-status { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 6px 9px; border-radius: 7px; color: var(--m-muted); background: var(--m-soft); font-size: 10px; font-weight: 650; }
 .m-frame-status i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .m-frame-status.is-online { color: var(--m-green-ink); background: var(--m-green-bg); }
+.m-frame-status.is-offline { color: var(--m-red-ink); background: var(--m-red-bg); }
 .m-frame-bytes { display: grid; grid-template-columns: repeat(15,minmax(0,1fr)); gap: 7px; margin: 0; padding: 0; list-style: none; }
 .m-frame-bytes li { display: grid; justify-items: center; gap: 5px; min-width: 0; padding: 9px 3px; border: 1px solid var(--m-line); border-radius: 8px; background: var(--m-soft); }
 .m-frame-bytes li.is-start,.m-frame-bytes li.is-end { border-color: var(--m-accent); background: color-mix(in srgb, var(--m-accent) 10%, var(--m-paper)); }

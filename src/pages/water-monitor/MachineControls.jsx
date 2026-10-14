@@ -23,7 +23,7 @@ export default function MachineControls({ ops, isAdmin = false }) {
     {isAdmin && <section className="m-machine-frame" aria-live="polite" aria-label={`Lectura de 15 bytes de la máquina ${machine.id}`}>
       <div className="m-machine-frame-heading">
         <div><span className="m-frame-icon"><Icon name="Radio" size={19} /></span><div><h2>Lectura de máquina</h2><p>Trama recibida · 15 bytes · {machine.id}</p></div></div>
-        <span className={`m-frame-status${online ? ' is-online' : ''}`}><i />{online ? 'En línea' : hasValidFrame ? 'Última lectura' : 'Sin lectura'}</span>
+        <span className={`m-frame-status${online ? ' is-online' : ' is-offline'}`}><i />{online ? 'En línea' : 'OFF'}</span>
       </div>
       {hasValidFrame ? <>
         <ol className="m-frame-bytes" aria-label="Bytes de la última trama recibida">
