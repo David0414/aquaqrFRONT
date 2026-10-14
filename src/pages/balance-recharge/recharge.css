@@ -90,7 +90,6 @@
 .recharge-screen .recharge-order-note { display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: 12px; color: var(--recharge-muted); font-size: 11px; line-height: 1.4; text-align: center; }
 .recharge-screen .recharge-change { width: 100%; height: 42px; border: 1px solid #c8d6e2; border-radius: 12px; font-size: 13px; color: var(--recharge-ink); background: #fff; }
 .recharge-screen .recharge-change:hover { border-color: #859eb2; background: #f3f7fb; }
-.recharge-screen .recharge-change-short { display: none; }
 .recharge-screen .recharge-message { flex-shrink: 0; padding: 12px 16px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
 .recharge-screen .recharge-error { border: 1px solid #f0bcb4; background: #fff2ef; color: #9b251b; }
 .recharge-screen .recharge-insufficient { display: flex; align-items: center; gap: 10px; border: 1px solid #ebc379; background: #fff6e2; color: #743c0d; }
@@ -148,9 +147,6 @@
   .recharge-screen.recharge-payment-step .recharge-bonus dt { font-size: 10px; }
   .recharge-screen.recharge-payment-step .recharge-bonus dd { font-size: 11px; margin: 0; letter-spacing: 0; }
   .recharge-screen.recharge-payment-step .recharge-change { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 64px; height: 32px; padding: 0; border-radius: 9px; background: #fff; font-size: 11px; }
-  .recharge-screen.recharge-payment-step .recharge-change > svg { margin: 0; }
-  .recharge-screen.recharge-payment-step .recharge-change-long { display: none; }
-  .recharge-screen.recharge-payment-step .recharge-change-short { display: inline; }
   .recharge-screen.recharge-payment-step .recharge-order-note { display: none; }
   .recharge-screen.recharge-payment-step .clip-payment { width: 100%; }
 }
@@ -251,9 +247,6 @@
   .recharge-screen.recharge-payment-step .recharge-summary .recharge-bonus { display: none; }
   .recharge-screen.recharge-payment-step .recharge-received { padding: 0; border: 0; background: none; }
   .recharge-screen.recharge-payment-step .recharge-change { position: static; transform: none; width: 100%; height: 34px; margin-top: 12px; font-size: 11px; }
-  .recharge-screen.recharge-payment-step .recharge-change-long { display: inline; }
-  .recharge-screen.recharge-payment-step .recharge-change-short { display: none; }
-  .recharge-screen.recharge-payment-step .recharge-change > svg { margin-right: 5px; }
   .recharge-screen.recharge-payment-step .recharge-order-note { display: none; }
   .recharge-screen.recharge-payment-step .clip-payment { padding: 10px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1fr); align-content: start; column-gap: 8px; }
   .recharge-screen.recharge-payment-step .clip-payment-heading { grid-column: 1; }

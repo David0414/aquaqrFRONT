@@ -8,6 +8,7 @@ import BottomTabNavigation from '../../components/ui/BottomTabNavigation';
 import NotificationToast from '../../components/ui/NotificationToast';
 import { showErrorToast, showInfoToast } from '../../components/ui/NotificationToast';
 import { useDispenseFlow } from './FlowProvider';
+import { canResumeDispense, resumedDispenseState } from '../../lib/dispenseSession.mjs';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -73,24 +74,18 @@ export default function WaterFlowLayout() {
         const token = await getToken({ template: CLERK_JWT_TEMPLATE });
         const res = await fetch(`${API}/api/dispense/active`, {
           headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
         });
         const data = await res.json().catch(() => null);
-        if (cancelled || !res.ok || !data?.active) return;
+        if (cancelled || !res.ok || !canResumeDispense(data)) return;
 
         setRecoveredActiveSession(true);
 
-        const nextPath = data.nextPath || location.pathname;
+        const nextPath = '/filling-progress';
         if (nextPath && nextPath !== location.pathname) {
           navigate(nextPath, {
             replace: true,
-            state: {
-              machineId: data.machineId,
-              machineLocation: data.machineLocation || 'Desconocida',
-              hardwareId: data.hardwareId,
-              selectedLiters: data.selectedLiters,
-              tx: data.tx || undefined,
-              fromActiveSession: true,
-            },
+            state: resumedDispenseState(data),
           });
           return;
         }

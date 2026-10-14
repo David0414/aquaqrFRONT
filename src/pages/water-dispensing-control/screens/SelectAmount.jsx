@@ -54,6 +54,7 @@ export default function SelectAmount() {
     && displayTelemetry.lastSeenAt
     && Date.now() - displayTelemetry.lastSeenAt < TELEMETRY_FRESH_MS
   );
+  const checkingConnection = !displayTelemetry.lastSeenAt && displayTelemetry.status === 'idle';
   const canStartFlow = currentStageCode === '00';
   const canChooseBottle = currentStageCode === '01' || currentStageCode === '02';
   const canGoToRinse = currentStageCode === '03' || currentStageCode === '04';
@@ -186,10 +187,10 @@ export default function SelectAmount() {
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-[2px]">
           <div className="w-full max-w-lg rounded-[2rem] border border-amber-200 bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-              <Icon name="AlertTriangle" size={28} />
+              <Icon name={checkingConnection ? 'Loader2' : 'AlertTriangle'} size={28} className={checkingConnection ? 'animate-spin' : ''} />
             </div>
             <div className="mt-5 text-center">
-              <h2 className="text-2xl font-black text-slate-900">Maquina sin conexion</h2>
+              <h2 className="text-2xl font-black text-slate-900">{checkingConnection ? 'Conectando con la máquina…' : 'Maquina sin conexion'}</h2>
             </div>
             <div className="mt-6">
               <Button

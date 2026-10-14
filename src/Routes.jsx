@@ -14,6 +14,7 @@ import NotFound from "pages/NotFound";
 
 // 👇 reanuda intención pendiente después de login
 import PendingDispenseWatcher from "components/PendingDispenseWatcher";
+import DispenseSessionBoundary from "components/DispenseSessionBoundary";
 
 import HomeDashboard from "./pages/home-dashboard";
 import TransactionComplete from "./pages/transaction-complete";
@@ -72,6 +73,7 @@ const Routes = () => {
         <LayoutHeader />
 
         {/* MUY IMPORTANTE: va dentro del BrowserRouter */}
+        <DispenseSessionBoundary>
         <PendingDispenseWatcher />
 
         <RouterRoutes>
@@ -219,6 +221,7 @@ const Routes = () => {
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </RouterRoutes>
+        </DispenseSessionBoundary>
         </AccountAccessProvider>
       </ErrorBoundary>
     </BrowserRouter>

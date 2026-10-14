@@ -3,6 +3,7 @@ import React from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAccountAccess } from './ui/AccountAccess';
+import { canResumeDispense, resumedDispenseState } from '../lib/dispenseSession.mjs';
 
 const API = import.meta.env.VITE_API_URL;
 const CLERK_JWT_TEMPLATE = 'aquaqr-api';
@@ -24,6 +25,11 @@ export default function PendingDispenseWatcher() {
     || location.pathname === '/water-monitor'
     || (location.pathname.startsWith('/user-login') && new URLSearchParams(location.search).get('panel') === '1');
   const resumeKeyRef = React.useRef('');
+  const returnedFromLoginRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (isLoaded && !isSignedIn) returnedFromLoginRef.current = true;
+  }, [isLoaded, isSignedIn]);
 
   React.useEffect(() => {
     resumeKeyRef.current = '';
@@ -39,6 +45,12 @@ export default function PendingDispenseWatcher() {
 
     window.sessionStorage.removeItem(PENDING_DISPENSE_STORAGE_KEY);
     window.localStorage.removeItem('pendingDispense');
+    const isLoginReturn = returnedFromLoginRef.current
+      || location.pathname.startsWith('/user-login')
+      || location.pathname.startsWith('/sign-in')
+      || location.pathname === '/account-redirect'
+      || location.pathname === '/qr-resolver';
+    if (!isLoginReturn) return;
     try {
       const { machineId, machineLocation, hardwareId, at } = JSON.parse(raw);
       const createdAt = Number(at);
@@ -65,12 +77,13 @@ export default function PendingDispenseWatcher() {
     } catch {
       // no-op
     }
-  }, [isLoaded, isSignedIn, navigate, userId, access?.role, managementAccess]);
+  }, [isLoaded, isSignedIn, navigate, userId, access?.role, managementAccess, location.pathname]);
 
   React.useEffect(() => {
     if (!isLoaded || !isSignedIn || access?.role !== 'CUSTOMER' || managementAccess) return undefined;
     const skipResume =
-      location.pathname.startsWith('/water')
+      location.state?.skipAutoDispenseResume
+      || location.pathname.startsWith('/water')
       || location.pathname === '/account-redirect'
       || location.pathname === '/partner-panel'
       || location.pathname === '/filling-progress'
@@ -86,11 +99,12 @@ export default function PendingDispenseWatcher() {
         const token = await getToken({ template: CLERK_JWT_TEMPLATE });
         const res = await fetch(`${API}/api/dispense/active`, {
           headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
         });
         const data = await res.json().catch(() => null);
-        if (cancelled || !res.ok || !data?.active) return;
+        if (cancelled || !res.ok || !canResumeDispense(data)) return;
 
-        const nextPath = data.nextPath || '/water/choose';
+        const nextPath = '/filling-progress';
         const resumeKey = `${nextPath}:${data.tx?.txId || data.machineId || ''}:${data.stageCode || ''}`;
         if (resumeKeyRef.current === resumeKey) return;
         resumeKeyRef.current = resumeKey;
@@ -104,14 +118,7 @@ export default function PendingDispenseWatcher() {
 
         navigate(nextPath, {
           replace: true,
-          state: {
-            machineId: data.machineId,
-            machineLocation: data.machineLocation || 'Desconocida',
-            hardwareId: data.hardwareId,
-            selectedLiters: data.selectedLiters,
-            tx: data.tx || undefined,
-            fromActiveSession: true,
-          },
+          state: resumedDispenseState(data),
         });
       } catch {
         // no-op: no bloqueamos la app si la consulta de reanudacion falla.
@@ -122,7 +129,7 @@ export default function PendingDispenseWatcher() {
     return () => {
       cancelled = true;
     };
-  }, [getToken, isLoaded, isSignedIn, location.pathname, navigate, userId, access?.role, managementAccess]);
+  }, [getToken, isLoaded, isSignedIn, location.pathname, location.state?.skipAutoDispenseResume, navigate, userId, access?.role, managementAccess]);
 
   return null;
 }
