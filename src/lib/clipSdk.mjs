@@ -9,7 +9,7 @@ export function loadClipSdk() {
     const timeout = setTimeout(() => failed(), 20000);
     function failed() {
       clearTimeout(timeout); script.remove(); pendingSdk = null;
-      reject(new Error('No se pudo cargar el formulario de Clip. Revisa tu conexión e intenta nuevamente.'));
+      reject(new Error('No se pudo cargar el formulario de pago. Revisa tu conexión e intenta nuevamente.'));
     }
     script.onload = () => {
       clearTimeout(timeout);

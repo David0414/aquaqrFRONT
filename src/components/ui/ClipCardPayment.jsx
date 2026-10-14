@@ -22,9 +22,11 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
   const [billingOpen, setBillingOpen] = useState(false), [addressDraft, setAddressDraft] = useState(address);
   const billingDialog = useRef(null);
   const card = useRef(null), mount = useRef(null), submitting = useRef(false), checking = useRef(false), completed = useRef(null);
+  const openedChallenges = useRef(new Set());
   const latest = useRef({ verify, onSuccess, onPaymentChange });
   latest.current = { verify, onSuccess, onPaymentChange };
   const paymentId = (value) => value?.rechargeId || value?.paymentId;
+  const awaitingResume = Boolean(resumeId && paymentId(payment) !== resumeId);
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
   useEffect(() => {
@@ -58,17 +60,17 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
       setReady(false); setSetupStatus('error');
       setSetupError(failure.status === 404
         ? 'El servicio de pagos no está disponible en este momento. Intenta nuevamente más tarde.'
-        : failure.message || 'No se pudo cargar el formulario de Clip. Intenta nuevamente.');
+        : 'No se pudo cargar el formulario de pago. Intenta nuevamente.');
     };
     const loaded = () => {
       if (cancelled) return;
       clearTimeout(timeout); setReady(true); setSetupStatus('ready');
     };
-    const timeout = setTimeout(() => failed(new Error('El formulario de Clip tardó demasiado en cargar. Revisa tu conexión e intenta nuevamente.')), 30000);
+    const timeout = setTimeout(() => failed(new Error('El formulario de pago tardó demasiado en cargar. Revisa tu conexión e intenta nuevamente.')), 30000);
     setConfig(null); setReady(false); setSetupStatus('loading'); setSetupError('');
     (async () => {
       const configuration = request('/api/payments/clip/config', { signal: controller.signal }).then((value) => {
-        if (typeof value?.apiKey !== 'string' || !value.apiKey.trim()) throw new Error('No se pudo preparar el formulario de Clip. Intenta nuevamente más tarde.');
+        if (typeof value?.apiKey !== 'string' || !value.apiKey.trim()) throw new Error('No se pudo preparar el formulario de pago. Intenta nuevamente más tarde.');
         if (!cancelled) setConfig(value);
         return value;
       });
@@ -80,11 +82,11 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
       element.mount(mountId);
       frame = node.querySelector('iframe');
       if (frame) {
-        frame.title = 'Datos de tarjeta protegidos por Clip';
+        frame.title = 'Datos de tarjeta protegidos';
         frame.addEventListener('load', loaded, { once: true });
         const size = () => node.parentElement?.style.setProperty('--clip-card-height', `${parseFloat(frame.style.height) || frame.offsetHeight || 258}px`);
         resize = new ResizeObserver(size); resize.observe(frame); size();
-      } else throw new Error('No se pudo abrir el formulario de tarjeta de Clip. Intenta nuevamente.');
+      } else throw new Error('No se pudo abrir el formulario de tarjeta. Intenta nuevamente.');
     })().catch(failed);
     return () => {
       cancelled = true; clearTimeout(timeout); controller.abort(); resize?.disconnect();
@@ -99,8 +101,12 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
       setAction(null);
       if (completed.current !== paymentId(value)) { completed.current = paymentId(value); latest.current.onSuccess(value); }
     } else {
-      setAction((current) => value.pendingAction ? { ...value.pendingAction,
-        opened: Boolean(current?.opened && current.url === value.pendingAction.url) } : null);
+      const nextAction = value.pendingAction?.url ? value.pendingAction : null;
+      const key = nextAction ? `${paymentId(value)}:${nextAction.url}` : null;
+      const autoOpen = Boolean(key && !openedChallenges.current.has(key));
+      if (key) openedChallenges.current.add(key);
+      setAction((current) => nextAction ? { ...nextAction, key,
+        opened: current?.key === key ? Boolean(current.opened) : autoOpen } : null);
       if (['FAILED', 'CANCELED'].includes(value.status)) setError('El pago no fue aprobado. Puedes corregir tus datos y hacer un nuevo intento.');
     }
   }, []);
@@ -110,11 +116,18 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
     checking.current = true;
     if (!silent) { setBusy(true); setError(''); }
     try { accept(await latest.current.verify(id)); }
-    catch (failure) { if (!silent) setError(failure.message); }
+    catch { if (!silent) setError('No pudimos consultar el estado del pago. Se volverá a revisar automáticamente.'); }
     finally { checking.current = false; if (!silent) setBusy(false); }
   }, [accept]);
 
-  useEffect(() => { if (resumeId && paymentId(payment) !== resumeId) check(resumeId); }, [resumeId, check]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!awaitingResume) return undefined;
+    const verify = () => check(resumeId, true);
+    verify();
+    const poll = setInterval(verify, 5000);
+    window.addEventListener('focus', verify);
+    return () => { clearInterval(poll); window.removeEventListener('focus', verify); };
+  }, [awaitingResume, resumeId, check]);
   useEffect(() => {
     if (!payment || payment.status !== 'PENDING' || payment.canPay) return undefined;
     const id = paymentId(payment);
@@ -138,7 +151,7 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
       accept(prepared);
       if (prepared.status === 'SUCCEEDED' || !prepared.canPay) return;
       const token = await card.current.cardToken();
-      if (!token?.id) throw new Error('Clip no devolvió el token de tarjeta. Revisa los datos ingresados.');
+      if (!token?.id) throw new Error('No se pudo validar la tarjeta. Revisa los datos ingresados.');
       started = true;
       // The browser sends only Clip's one-use token, never the card number or CVV.
       const result = await submit(paymentId(prepared), token.id, { email: email.trim(), phone,
@@ -147,29 +160,27 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
     } catch (failure) {
       if (failure.data?.rechargeId || failure.data?.paymentId) accept(failure.data);
       else if (started && prepared) accept({ ...prepared, canPay: false, status: 'PENDING' });
-      setError(started && !failure.data ? 'No se recibió la confirmación. Verifica el pago antes de hacer otro cargo.'
-        : failure.message || 'Revisa los datos de tu tarjeta e intenta nuevamente.');
+      setError(started && !failure.data ? 'No recibimos la confirmación. Estamos comprobando el pago; no vuelvas a pagarlo hasta recibir respuesta.'
+        : String(failure.message || 'Revisa los datos de tu tarjeta e intenta nuevamente.').replace(/\bClip\b/gi, 'el servicio de pago'));
     } finally { submitting.current = false; setBusy(false); }
   };
-  const pending = payment?.status === 'PENDING' && !payment.canPay;
+  const pending = awaitingResume || (payment?.status === 'PENDING' && !payment.canPay);
   const payableCents = payment?.status === 'PENDING' ? Number(payment.amountCents) : Number(amountCents);
   return <div className={`clip-payment ${darkMode ? 'clip-payment-dark' : ''}`}>
-    <div className="clip-payment-heading"><div className="clip-payment-title"><Icon name="CreditCard" size={21} /><h2>Pago con tarjeta</h2></div><span className="clip-provider">Clip</span></div>
+    <div className="clip-payment-heading"><div className="clip-payment-title"><Icon name="CreditCard" size={21} /><h2>Pago con tarjeta</h2></div></div>
     {config?.environment === 'sandbox' && <p role="status" className="clip-sandbox"><Icon name="FlaskConical" size={13} />Modo de prueba · sin cargos reales</p>}
     {error && <div role="alert" className="clip-error"><Icon name="CircleAlert" size={17} /><span>{error}</span></div>}
     {pending ? <div className="clip-pending">
-      <Icon name="Clock3" size={28} /><h3>Estamos verificando tu pago</h3>
-      <p role="status" className="text-base">Tu pago está pendiente. El saldo o Premium se habilitará al confirmarlo Clip.</p>
-      {action && <Button fullWidth disabled={busy} onClick={() => setAction({ ...action, opened: true })}>Completar validación bancaria</Button>}
-      <Button fullWidth loading={busy} onClick={() => check(paymentId(payment))}>Verificar pago</Button>
-      {payment.checkoutUrl && <Button fullWidth variant="outline" onClick={() => {
-        const url = new URL(payment.checkoutUrl);
-        if (url.protocol === 'https:' && (url.hostname === 'pago.clip.mx' || url.hostname.endsWith('.payclip.com'))) window.location.assign(url.href);
-      }}>Volver al pago anterior en Clip</Button>}
+      <Icon name="LoaderCircle" size={28} className="clip-pending-spinner" /><h3>{action ? 'Confirma el pago con tu banco' : 'Confirmando tu pago'}</h3>
+      <p role="status" className="text-base">{action
+        ? 'Tu banco solicita una validación. Al terminar, volveremos a revisar el pago y actualizaremos tu saldo automáticamente.'
+        : awaitingResume ? 'Estamos recuperando la confirmación del pago. No vuelvas a pagarlo; actualizaremos el saldo cuando el banco responda.'
+          : 'Estamos revisando el pago. Tu saldo o Premium se actualizará automáticamente cuando quede confirmado.'}</p>
+      {action && !action.opened && <Button fullWidth disabled={busy} onClick={() => setAction({ ...action, opened: true })}>Continuar con mi banco</Button>}
     </div> : null}
     <form className={`clip-card-form ${pending ? 'hidden' : ''}`} onSubmit={pay}>
       <div className={`clip-card-frame ${setupStatus === 'error' ? 'hidden' : ''}`}><div id={mountId} ref={mount} className="clip-card-mount" />
-        {setupStatus === 'loading' && <p role="status" className="clip-card-loading"><Icon name="LoaderCircle" size={24} />Cargando formulario de Clip…</p>}
+        {setupStatus === 'loading' && <p role="status" className="clip-card-loading"><Icon name="LoaderCircle" size={24} />Cargando formulario de pago…</p>}
       </div>
       {setupStatus === 'error' && <div className="clip-setup-error">
         <div role="alert" className="clip-error"><Icon name="CircleAlert" size={17} /><span>{setupError}</span></div>
@@ -183,9 +194,9 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
         <Icon name={billing ? 'CircleCheck' : 'MapPin'} size={13} />{billing ? 'Facturación guardada · Editar' : 'Facturación · American Express'}<Icon name="ChevronRight" size={13} />
       </button>
       <Button className="clip-submit" type="submit" fullWidth loading={busy} disabled={busy || !ready || !config || !Number.isFinite(payableCents) || payableCents <= 0 || payment?.status === 'SUCCEEDED'} iconName="LockKeyhole" iconSize={16}>
-        Pagar ${(payableCents / 100).toFixed(2)} con Clip
+        Pagar ${(payableCents / 100).toFixed(2)}
       </Button>
-      <p className="clip-security-note"><Icon name="ShieldCheck" size={13} />Tu tarjeta se procesa directamente con Clip</p>
+      <p className="clip-security-note"><Icon name="ShieldCheck" size={13} />Pago seguro con tarjeta</p>
     </form>
     <dialog ref={billingDialog} className="clip-billing-dialog" aria-labelledby={`${mountId}-billing-title`} onCancel={() => setBillingOpen(false)} onClose={() => setBillingOpen(false)}>
       <div className="clip-billing-dialog-heading"><div><h2 id={`${mountId}-billing-title`}>Datos de facturación</h2><p>Para pagar con American Express</p></div><button type="button" aria-label="Cerrar facturación" autoFocus onClick={() => setBillingOpen(false)}><Icon name="X" size={20} /></button></div>
@@ -199,7 +210,10 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
     {action?.opened && createPortal(<div role="dialog" aria-modal="true" aria-label="Validación bancaria del pago" className="fixed inset-0 z-[100] flex flex-col bg-white p-3 text-slate-900">
       <h2 className="mb-2 text-lg font-bold">Confirma el pago con tu banco</h2>
       <iframe src={action.url} title="Autenticación bancaria" className="min-h-0 flex-1 border-0" allow="payment" />
-      <Button className="mt-2" onClick={() => { setAction(null); check(paymentId(payment)); }}>Cerrar y verificar pago</Button>
+      <Button className="mt-2" onClick={() => {
+        setAction((current) => current ? { ...current, opened: false } : null);
+        check(paymentId(payment), true);
+      }}>Volver a AquaQR</Button>
     </div>, document.body)}
   </div>;
 }

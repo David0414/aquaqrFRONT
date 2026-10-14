@@ -17,7 +17,6 @@
 .clip-payment .clip-payment-title > svg { color: #087481; }
 .clip-payment-dark .clip-payment-title > svg { color: #67e8f9; }
 .clip-payment .clip-payment-heading h2 { font-size: 18px; font-weight: 700; letter-spacing: -.4px; }
-.clip-payment .clip-provider { padding: 4px 9px; background: #fff1e8; border: 1px solid #f4d5be; border-radius: 8px; color: #b44013; font-size: 13px; font-weight: 700; }
 .clip-payment .clip-sandbox { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 5px 10px; border: 1px solid #e9c46c; border-radius: 9px; background: #fff8e5; color: #764b0d; font-size: 11px; font-weight: 600; }
 .clip-payment .clip-error { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; padding: 10px 12px; border: 1px solid #f2c6bf; border-radius: 10px; background: #fff3f0; color: #9b251b; font-size: 13px; font-weight: 500; line-height: 1.45; }
 .clip-payment .clip-error > svg { flex-shrink: 0; margin-top: 1px; }
@@ -72,6 +71,7 @@
 .clip-payment .clip-pending h3 { font-size: 18px; font-weight: 700; }
 .clip-payment .clip-pending p { color: var(--clip-muted); font-size: 14px; line-height: 1.5; }
 .clip-payment .clip-pending > svg { color: #087481; }
+.clip-payment .clip-pending-spinner { animation: clip-loading-spin 1s linear infinite; }
 .clip-payment-dark .clip-pending > svg { color: #67e8f9; }
 @keyframes clip-loading-spin { to { transform: rotate(360deg); } }
 @media (max-width: 799px) { .clip-payment { padding: 16px; border-radius: 20px; } }

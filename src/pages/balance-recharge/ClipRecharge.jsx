@@ -92,7 +92,7 @@ export default function ClipRecharge() {
     try { sessionStorage.setItem(RESUME_KEY, JSON.stringify({ userId, rechargeId: data.rechargeId, state })); } catch { /* Verification remains authenticated. */ }
     if (data.rechargeId && data.rechargeId !== returnedId) navigate(`/balance-recharge?clipRecharge=${encodeURIComponent(data.rechargeId)}`, { replace: true, state });
   };
-  const locked = paymentBusy || (payment?.status === 'PENDING' && !payment.canPay);
+  const locked = paymentBusy || Boolean(returnedId && !payment) || (payment?.status === 'PENDING' && !payment.canPay);
 
   const backToAmount = () => {
     setStep(1); setPayment(null); setError(''); requestId.current = null;
@@ -153,8 +153,8 @@ export default function ClipRecharge() {
             </dl>
             <div className="recharge-projected"><Icon name="Wallet" size={18} /><div><span>Tu saldo después de recargar</span><strong>{money(wallet + (validAmount ? receives : 0))}</strong></div></div>
             {step === 1 ? <Button className="recharge-continue" fullWidth size="lg" disabled={!validAmount} aria-label={validAmount ? `Continuar con ${money(amountCents)}` : 'Continuar'} iconName="ArrowRight" iconPosition="right" onClick={() => { setStep(2); setError(''); }}><span>Continuar<span className="recharge-continue-amount">{validAmount ? ` con ${money(amountCents)}` : ''}</span></span></Button>
-              : <Button key="change-amount" className="recharge-change" type="button" variant="outline" disabled={locked} onClick={backToAmount} aria-label="Cambiar monto">Cambiar</Button>}
-            <p className="recharge-order-note"><Icon name="LockKeyhole" size={13} />{step === 1 ? 'Paga con tu tarjeta a través de Clip' : 'El saldo se acredita al confirmar el pago'}</p>
+              : !locked && <Button key="change-amount" className="recharge-change" type="button" variant="outline" onClick={backToAmount} aria-label="Cambiar monto">Cambiar</Button>}
+            <p className="recharge-order-note"><Icon name="LockKeyhole" size={13} />{step === 1 ? 'Pago seguro con tarjeta' : 'El saldo se acredita al confirmar el pago'}</p>
           </aside>
           {step === 2 && <ClipCardPayment request={request} amountCents={amountCents} prepare={prepare} resumeId={returnedId}
             submit={(id, cardToken, customer) => request(`/api/recharge/clip/pay/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ cardToken, customer }) })}
