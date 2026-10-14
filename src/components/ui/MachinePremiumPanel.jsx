@@ -2,102 +2,74 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { managementRequest } from '../../lib/management';
-import Button from './Button';
 import Icon from '../AppIcon';
 import { checkoutRequestId } from '../../lib/checkout.mjs';
 import ClipCardPayment from './ClipCardPayment';
 
-const money = (cents) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(cents / 100);
-export default function MachinePremiumPanel({ machineId, isAdmin, darkMode }) {
+const money = (cents) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(cents || 0) / 100);
+export default function MachinePremiumPanel({ machineId, isAdmin, darkMode, onBusyChange, onPremiumChange }) {
   const { getToken } = useAuth();
   const location = useLocation(), navigate = useNavigate();
   const [premium, setPremium] = useState(null), [stats, setStats] = useState(null);
-  const [prices, setPrices] = useState([]);
   const [error, setError] = useState(''), [message, setMessage] = useState(''), [busy, setBusy] = useState(false);
   const [showCheckout, setShowCheckout] = useState(Boolean(new URLSearchParams(location.search).get('premiumPayment')));
-  const requestId = useRef(null), inFlight = useRef(false);
-  const card = darkMode ? 'border-slate-500 bg-slate-800 text-white' : 'border-sky-200 bg-white text-slate-900';
+  const requestId = useRef(null), loadSequence = useRef(0), controller = useRef(null), callbacks = useRef({ onPremiumChange });
+  callbacks.current = { onPremiumChange };
   const paymentId = new URLSearchParams(location.search).get('premiumPayment');
   const returnMachine = new URLSearchParams(location.search).get('machineId');
   const path = `/api/monitor-admin/machines/${encodeURIComponent(machineId)}`;
   const request = useCallback((target, options) => managementRequest(target, getToken, options), [getToken]);
   const load = useCallback(async () => {
     if (!machineId) return;
+    const sequence = ++loadSequence.current;
+    controller.current?.abort();
+    const abort = new AbortController(); controller.current = abort;
     setBusy(true); setError('');
     try {
       if (paymentId && returnMachine === machineId) {
-        const result = await managementRequest(`${path}/premium/payments/${encodeURIComponent(paymentId)}`, getToken);
+        const result = await request(`${path}/premium/payments/${encodeURIComponent(paymentId)}`, { signal: abort.signal });
+        if (abort.signal.aborted) return;
         setMessage(result.status === 'SUCCEEDED' ? 'Pago confirmado. Premium está activo para esta máquina.'
-          : result.status === 'PENDING' ? 'Tu pago sigue pendiente. Verifica de nuevo después de completar el pago en Clip.' : 'El pago fue cancelado o venció.');
-        if (result.status === 'SUCCEEDED') navigate(location.pathname, { replace: true });
+          : result.status === 'PENDING' ? 'Tu pago sigue pendiente. Completa el pago y verifica su estado.' : 'El pago no se completó. Puedes realizar un nuevo intento.');
+        if (result.status === 'SUCCEEDED') navigate(`${location.pathname}?machineId=${encodeURIComponent(machineId)}&section=premium`, { replace: true });
       }
-      const info = await managementRequest(`${path}/premium`, getToken);
-      setPremium(info);
-      setPrices(info.quote.plans.map((plan) => ({ ...plan, price: (plan.monthlyPriceCents / 100).toFixed(2) })));
-      if (isAdmin || info.active) setStats((await managementRequest(`${path}/statistics`, getToken)).sales);
-      else setStats(null);
-    } catch (failure) { setStats(null); setError(failure.message); }
-    finally { setBusy(false); }
-  }, [getToken, machineId, path, isAdmin, paymentId, returnMachine, navigate, location.pathname]);
-  useEffect(() => { load(); }, [load]);
-
+      const info = await request(`${path}/premium`, { signal: abort.signal });
+      if (abort.signal.aborted || sequence !== loadSequence.current) return;
+      setPremium(info); callbacks.current.onPremiumChange?.(machineId, info);
+      if (isAdmin || info.active) {
+        const result = await request(`${path}/statistics`, { signal: abort.signal });
+        if (!abort.signal.aborted && sequence === loadSequence.current) setStats(result.sales);
+      } else setStats(null);
+    } catch (failure) { if (!abort.signal.aborted && sequence === loadSequence.current) { setStats(null); setError(failure.message); } }
+    finally { if (sequence === loadSequence.current) setBusy(false); }
+  }, [request, machineId, path, isAdmin, paymentId, returnMachine, navigate, location.pathname]);
+  useEffect(() => { load(); return () => { controller.current?.abort(); loadSequence.current++; }; }, [load]);
   const prepare = async ({ newAttempt } = {}) => {
     if (newAttempt || !requestId.current) requestId.current = checkoutRequestId();
-    try {
-      return await request(`${path}/premium/prepare`, { method: 'POST',
-        body: JSON.stringify({ expectedPriceCents: premium.quote.amountCents, requestId: requestId.current }) });
-    } catch (failure) {
-      if (failure.code === 'PRICE_CHANGED') { requestId.current = null; await load(); }
-      throw failure;
-    }
+    try { return await request(`${path}/premium/prepare`, { method: 'POST', body: JSON.stringify({ expectedPriceCents: premium.quote.amountCents, requestId: requestId.current }) }); }
+    catch (failure) { if (failure.code === 'PRICE_CHANGED') { requestId.current = null; await load(); } throw failure; }
   };
-  const savePrices = async () => {
-    if (inFlight.current) return;
-    inFlight.current = true; setBusy(true); setError('');
-    try {
-      await managementRequest('/api/monitor-admin/premium/plans', getToken, { method: 'PUT',
-        body: JSON.stringify({ prices: prices.map((p) => ({ key: p.key, monthlyPriceCents: Math.round(Number(p.price) * 100) })) }) });
-      setMessage('Tarifas guardadas. Los pagos anteriores conservan su importe y vigencia.');
-      await load();
-    } catch (failure) { setError(failure.message); }
-    finally { inFlight.current = false; setBusy(false); }
-  };
-  if (!machineId) return <p className="text-lg">Selecciona una máquina para consultar Premium.</p>;
-  return <section className={`rounded-3xl border p-6 ${card}`}>
-    <div className="flex flex-wrap items-center justify-between gap-4"><div>
-      <p className={`font-semibold ${darkMode ? 'text-cyan-300' : 'text-sky-800'}`}>Premium por máquina</p>
-      <h2 className="mt-2 text-3xl font-black">{machineId}</h2>
-      <p className="mt-2 text-base">{isAdmin ? 'Consulta estadísticas y administra las tarifas de tus socios.' : 'Los controles y el desfase están incluidos. Premium habilita las estadísticas de esta máquina.'}</p>
-    </div><Button variant="outline" loading={busy} onClick={load}>Actualizar / verificar pago</Button></div>
-    {error && <p role="alert" className={`mt-4 rounded-xl border p-3 ${darkMode ? 'border-red-400 bg-red-950 text-red-100' : 'border-red-300 bg-red-50 text-red-900'}`}>{error}</p>}
-    {message && <p role="status" className={`mt-4 rounded-xl p-3 ${darkMode ? 'bg-sky-950 text-sky-100' : 'bg-sky-50 text-sky-900'}`}>{message}</p>}
-    {premium && <div className={`mt-5 rounded-2xl border p-5 ${darkMode ? 'border-cyan-500 bg-slate-900' : 'border-sky-300 bg-sky-50'}`}>
-      <div className="flex flex-wrap items-start justify-between gap-5"><div>
-        <h3 className="text-xl font-bold">Segmento {premium.quote.segment}</h3>
-        <p className="mt-2">Volumen del último mes completo: <strong>{premium.quote.volumeGarrafones.toLocaleString('es-MX', { maximumFractionDigits: 2 })} garrafones de 20 L</strong>.</p>
-        <p className="mt-2 text-3xl font-black">{money(premium.quote.amountCents)} <span className="text-base font-medium">MXN / mes</span></p>
-        <p className="mt-2">{premium.active ? `Activo hasta ${new Date(premium.endsAt).toLocaleDateString('es-MX')}` : 'Esta máquina todavía no tiene Premium activo.'}</p>
-      </div>{!isAdmin && !showCheckout && <Button loading={busy} disabled={busy} onClick={() => setShowCheckout(true)} iconName="Crown">{premium.active ? 'Renovar con Clip' : 'Activar Premium con Clip'}</Button>}</div>
-      {!isAdmin && <p className="mt-3 text-sm">Pago por un mes, sin renovación automática. Si renuevas antes de vencer, el mes se agrega a tu vigencia actual.</p>}
-      {!isAdmin && showCheckout && <div className="mx-auto mt-4 max-w-xl"><ClipCardPayment request={request} darkMode={darkMode}
-        amountCents={premium.quote.amountCents} prepare={prepare} resumeId={returnMachine === machineId ? paymentId : null}
-        submit={(id, cardToken, customer) => request(`${path}/premium/payments/${encodeURIComponent(id)}/pay`, { method: 'POST', body: JSON.stringify({ cardToken, customer }) })}
-        verify={(id) => request(`${path}/premium/payments/${encodeURIComponent(id)}`)}
-        onPaymentChange={(value) => { if (value.paymentId && value.paymentId !== paymentId) navigate(`${location.pathname}?premiumPayment=${encodeURIComponent(value.paymentId)}&machineId=${encodeURIComponent(machineId)}`, { replace: true }); }}
-        onSuccess={async () => { setShowCheckout(false); setMessage('Pago confirmado. Premium está activo para esta máquina.'); await load(); }} />
-      </div>}
-    </div>}
-    {stats ? <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {[['Ventas', stats.transactions], ['Litros vendidos', Number(stats.liters).toLocaleString('es-MX')], ['Garrafones equivalentes', (Number(stats.liters) / 20).toLocaleString('es-MX', { maximumFractionDigits: 2 })],
-        ['Ingresos registrados', money(stats.revenueCents)], ['Paquetes de agua vendidos', stats.membershipPurchases]].map(([label, value]) =>
-        <div key={label} className={`rounded-2xl border p-4 ${card}`}><p className="text-base">{label}</p><p className="mt-2 text-3xl font-bold">{value}</p><p className="mt-2 text-sm">Últimos 30 días · {machineId}</p></div>)}
-    </div> : premium && !isAdmin && <div className="mt-6 flex items-start gap-3 rounded-2xl border border-dashed p-5"><Icon name="LockKeyhole" size={24} /><div><h3 className="text-xl font-bold">Estadísticas Premium</h3><p className="mt-2">Activa la membresía de esta máquina para ver ventas, ingresos y consumo. Puedes seguir usando sus controles y ajustar el desfase desde Operación.</p></div></div>}
-    {isAdmin && prices.length > 0 && <div className="mt-7"><h3 className="text-2xl font-bold">Tarifas por volumen mensual</h3>
-      <p className="mt-2">Cada máquina toma el precio del rango que le corresponde. Los pagos ya confirmados mantienen su vigencia.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">{prices.map((p, i) => <label key={p.key} className={`rounded-2xl border p-4 ${card}`}>
-        <span className="block font-semibold">{p.label} · {i === 0 ? '0' : prices[i - 1].maxGarrafones + 1}{p.maxGarrafones === null ? '+' : `–${p.maxGarrafones}`} garrafones</span>
-        <span className="mt-2 block text-sm">Precio mensual (MXN)</span>
-        <input type="number" min="1" step="0.01" value={p.price} onChange={(e) => setPrices((items) => items.map((item) => item.key === p.key ? { ...item, price: e.target.value } : item))} className="mt-2 h-12 w-full rounded-xl border px-3" />
-      </label>)}</div><Button className="mt-4" loading={busy} onClick={savePrices}>Guardar tarifas Premium</Button></div>}
+  if (!machineId) return <p className="m-notice">Abre una máquina para consultar su Premium.</p>;
+  return <section className="m-premium-content">
+    <div className="m-section-heading"><div><p className="m-kicker">PREMIUM POR MÁQUINA</p><h2>{isAdmin ? 'Premium y estadísticas' : 'Conoce mejor tu máquina'}</h2><p>{isAdmin ? 'Consulta las ventas y el acceso Premium del socio responsable.' : 'Activa las estadísticas de ventas, ingresos y consumo de esta máquina.'}</p></div><button className="m-button" type="button" disabled={busy} onClick={load}><Icon name="RefreshCw" size={16} />{busy ? 'Actualizando…' : 'Actualizar / verificar pago'}</button></div>
+    {error && <p role="alert" className="m-notice m-error">{error}</p>}{message && <p role="status" className="m-notice m-success">{message}</p>}
+    {!premium && !error && <div className="m-empty" role="status">Consultando Premium de {machineId}…</div>}
+    {premium && <div className="m-premium-layout"><div className="m-premium-offer"><div className="m-premium-offer-top"><span className="m-premium-mark"><Icon name="Crown" size={27} /></span><span className={`m-badge ${premium.active ? 'm-green' : 'm-gold'}`}>{premium.active ? 'Premium activo' : 'Acceso normal'}</span></div>
+      <h3>Premium de {machineId}</h3><p>Estadísticas para administrar con más información.</p><div className="m-premium-price"><strong>{money(premium.quote.amountCents)}</strong><span>MXN / mes</span></div>
+      <div className="m-premium-volume"><span>Segmento {premium.quote.segment}</span><strong>{Number(premium.quote.volumeGarrafones).toLocaleString('es-MX', { maximumFractionDigits: 2 })} garrafones</strong><small>Vendidos en el último mes completo. Ese volumen determina tu tarifa.</small></div>
+      <p className="m-premium-expiry">{premium.active ? `Activo hasta ${new Date(premium.endsAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'Premium todavía no está activo en esta máquina.'}</p>
+      {isAdmin ? <div className="m-notice"><Icon name="ShieldCheck" size={18} />La administración tiene acceso a las estadísticas sin contratar Premium.</div>
+        : !showCheckout && <button className="m-button m-primary m-full" type="button" disabled={busy} onClick={() => setShowCheckout(true)}><Icon name="Crown" size={17} />{premium.active ? 'Renovar con Clip' : 'Activar Premium con Clip'}</button>}
+      {!isAdmin && <p className="m-caption">Un mes de acceso, sin renovación automática. Una renovación anticipada se suma a la vigencia actual.</p>}
+    </div><div className="m-surface m-premium-benefits"><p className="m-kicker">TU ACCESO, SIN CONFUSIONES</p><h3>¿Qué puedes hacer?</h3><div className="m-benefit-group"><h4>Incluido en tu acceso normal</h4>{['Controlar bomba, llenado y enjuague', 'Corregir el desfase en mililitros', 'Cambiar datos y precio de tu máquina', 'Generar su código QR'].map((text) => <p key={text}><Icon name="Check" size={16} />{text}</p>)}</div><div className="m-benefit-group m-benefit-premium"><h4><Icon name="Crown" size={16} /> Con Premium en esta máquina</h4>{['Ventas y litros vendidos', 'Ingresos registrados', 'Paquetes de agua vendidos'].map((text) => <p key={text}><Icon name="Check" size={16} />{text}</p>)}</div><p className="m-caption">Cada máquina tiene su propia membresía Premium.</p></div></div>}
+    {!isAdmin && premium && showCheckout && <div className="m-premium-checkout"><ClipCardPayment request={request} darkMode={darkMode} onBusyChange={onBusyChange}
+      amountCents={premium.quote.amountCents} prepare={prepare} resumeId={returnMachine === machineId ? paymentId : null}
+      submit={(id, cardToken, customer) => request(`${path}/premium/payments/${encodeURIComponent(id)}/pay`, { method: 'POST', body: JSON.stringify({ cardToken, customer }) })}
+      verify={(id) => request(`${path}/premium/payments/${encodeURIComponent(id)}`)}
+      onPaymentChange={(value) => { if (value.paymentId && value.paymentId !== paymentId) navigate(`${location.pathname}?premiumPayment=${encodeURIComponent(value.paymentId)}&machineId=${encodeURIComponent(machineId)}&section=premium`, { replace: true }); }}
+      onSuccess={async () => { setShowCheckout(false); setMessage('Pago confirmado. Premium está activo para esta máquina.'); await load(); }} /></div>}
+    {stats ? <div className="m-statistics"><div className="m-section-heading"><div><h3>El rendimiento de esta máquina</h3><p>Últimos 30 días · {machineId}</p></div><span className="m-badge m-green"><Icon name="BarChart3" size={14} />Estadísticas disponibles</span></div><div className="m-stat-grid">
+      {[['Ventas de agua', stats.transactions, 'ShoppingBag'], ['Litros vendidos', Number(stats.liters).toLocaleString('es-MX'), 'Droplets'], ['Garrafones equivalentes', (Number(stats.liters) / 20).toLocaleString('es-MX', { maximumFractionDigits: 2 }), 'Package'], ['Ingresos registrados', money(stats.revenueCents), 'Wallet'], ['Paquetes de agua vendidos', stats.membershipPurchases, 'BadgeCheck']].map(([label, value, icon]) => <div key={label} className="m-surface m-stat-card"><Icon name={icon} size={20} /><span>{label}</span><strong>{value}</strong></div>)}
+    </div></div> : premium && !isAdmin && <div className="m-locked-statistics"><Icon name="LockKeyhole" size={26} /><div><h3>Tus estadísticas estarán aquí</h3><p>Activa Premium en {machineId} para consultar su rendimiento. Sus controles siguen disponibles.</p></div></div>}
   </section>;
 }

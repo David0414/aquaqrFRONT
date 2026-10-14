@@ -1,1047 +1,119 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useClerk } from '@clerk/clerk-react';
 import Agua24Brand from '../../components/Agua24Brand';
 import Icon from '../../components/AppIcon';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
-import NotificationToast, { showErrorToast, showSuccessToast } from '../../components/ui/NotificationToast';
-import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
+import NotificationToast, { showSuccessToast } from '../../components/ui/NotificationToast';
 import { useManagementAccess } from '../../components/ui/ManagementGuard';
+import { useDispenseFlow } from '../water-dispensing-control/FlowProvider';
+import { clearAdminSession } from '../../lib/management';
 import PartnersManager from '../../components/ui/PartnersManager';
 import MachinePremiumPanel from '../../components/ui/MachinePremiumPanel';
-import { calibrationFromOffset, offsetFromCalibration } from '../../lib/calibration.mjs';
-import { managementHeaders, clearAdminSession, getManagementToken, managementFetch } from '../../lib/management';
-import {
-  getTelemetryStepInfo,
-  pulsesToLiters,
-  sanitizePulsesPerLiter,
-} from '../water-dispensing-control/telemetry';
+import useMachineManagement, { money } from './useMachineManagement';
+import MachineModel from './MachineModel';
+import MachineControls from './MachineControls';
+import MachineSettings, { MachineAssignment } from './MachineSettings';
+import ManagementDialog from './ManagementDialog';
+import { MachineQr, PremiumRates, PromotionSettings } from './ManagementCatalogs';
+import './management.css';
 
-const API = import.meta.env.VITE_API_URL;
-
-function sanitizePointsPerLiter(value, fallback = 0.5) {
-  const next = Number.parseFloat(value);
-  if (!Number.isFinite(next) || next < 0) return fallback;
-  return Math.round(next * 100) / 100;
-}
-const MONITOR_THEME_KEY = 'agua24-monitor-dark-mode';
-
-const HARDWARE_COMMANDS = [
-  { key: 'bomba_on', label: 'Bomba ON', icon: 'Power', className: 'bg-[#1E3F7A] text-white hover:bg-[#183666]' },
-  { key: 'bomba_off', label: 'Bomba OFF', icon: 'PowerOff', className: 'bg-[#334155] text-white hover:bg-[#1e293b]' },
-  { key: 'valvula_enjuague_on', label: 'Enjuague ON', icon: 'Waves', className: 'bg-[#0e7490] text-white hover:bg-[#155e75]' },
-  { key: 'valvula_enjuague_off', label: 'Enjuague OFF', icon: 'CircleOff', className: 'bg-[#64748b] text-white hover:bg-[#475569]' },
-  { key: 'valvula_llenado_on', label: 'Llenado ON', icon: 'Droplet', className: 'bg-[#047857] text-white hover:bg-[#065f46]' },
-  { key: 'valvula_llenado_off', label: 'Llenado OFF', icon: 'CircleOff', className: 'bg-[#475569] text-white hover:bg-[#334155]' },
+const THEME_KEY = 'agua24-monitor-dark-mode';
+const sections = [
+  { key: 'controls', label: 'Controles', icon: 'SlidersHorizontal' },
+  { key: 'premium', label: 'Premium y estadísticas', icon: 'Crown' },
+  { key: 'settings', label: 'Datos y precio', icon: 'PencilLine' },
+  { key: 'qr', label: 'Código QR', icon: 'QrCode' },
 ];
-
-const SAFETY_COMMANDS = [
-  { key: 'apagar_valvulas_forzado', label: 'Apagar todo', icon: 'ShieldAlert', variant: 'warning' },
-  { key: 'reiniciar_sistema', label: 'Reiniciar a 00', icon: 'RotateCcw', variant: 'danger' },
-];
-
-const MONITOR_TABS = [
-  { key: 'overview', label: 'Operación y desfase', icon: 'SlidersHorizontal' },
-  { key: 'premium', label: 'Estadísticas / Premium', icon: 'Crown' },
-  { key: 'machines', label: 'Maquinas', icon: 'Factory' },
-  { key: 'partners', label: 'Socios', icon: 'Users' },
-  { key: 'promotions', label: 'Promociones', icon: 'Gift' },
-];
-
-const MACHINE_STATUS_OPTIONS = [
-  { value: 'ONLINE', label: 'Online' },
-  { value: 'OFFLINE', label: 'Offline' },
-  { value: 'MAINTENANCE', label: 'Mantenimiento' },
-  { value: 'INSTALLING', label: 'Instalacion' },
-];
-
-const emptyMachineForm = {
-  id: '',
-  name: '',
-  location: '',
-  address: '',
-  hardwareId: '',
-  pricePerGarrafon: '35',
-  status: 'ONLINE',
-  isActive: true,
-  coinsEnabled: false,
-};
-
-const emptyTelemetry = {
-  machineOnline: false,
-  lastSeenAt: null,
-  rawFrame: '',
-  currentStageCode: '00',
-  phDecimal: null,
-  solidsDecimal: null,
-  phVoltage: null,
-  fillValveOn: false,
-  rinseValveOn: false,
-  pumpOn: false,
-  flowmeterPulses: 0,
-  insertedCoinAmount: 0,
-  accumulatedMoney: 0,
-  hardwareId: '',
-  error: '',
-};
-
-function buildAuthHeaders(token, extra = {}) {
-  return managementHeaders(token, extra);
-}
-
-function normalizeHardwareId(value) {
-  const clean = String(value || '').trim().toUpperCase().replace(/[^0-9A-F]/g, '');
-  return clean ? clean.padStart(2, '0').slice(-2) : '';
-}
-
-function formatSeenAt(value) {
-  if (!value) return 'Sin lectura';
-  return new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(new Date(value));
-}
-
-function machinePreferenceScore(machine) {
-  const id = String(machine?.id || '').toUpperCase();
-  if (id.startsWith('AQ-')) return 3;
-  if (machine?.discoveredFrom === 'database') return 2;
-  return 1;
-}
-
-function StatusPill({ active, labelOn, labelOff, darkMode }) {
-  return (
-    <div className={`rounded-2xl border px-4 py-3 ${active ? 'border-emerald-300 bg-emerald-500/10' : darkMode ? 'border-slate-700 bg-slate-950/70' : 'border-sky-200 bg-sky-50'}`}>
-      <div className="flex items-center justify-between gap-3">
-        <span className={`text-sm font-medium ${darkMode ? 'text-slate-100' : 'text-text-primary'}`}>{active ? labelOn : labelOff}</span>
-        <span className={`h-3 w-3 rounded-full ${active ? 'bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]' : 'bg-slate-300'}`} />
-      </div>
-    </div>
-  );
-}
-
-function Metric({ icon, label, value, hint, darkMode }) {
-  return (
-    <div className={`rounded-3xl border p-4 shadow-sm ${darkMode ? 'border-slate-700 bg-slate-950/75' : 'border-sky-200 bg-white shadow-[0_12px_28px_rgba(30,63,122,0.07)]'}`}>
-      <div className="flex flex-wrap items-start gap-3">
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${darkMode ? 'bg-slate-900' : 'bg-sky-100'}`}>
-          <Icon name={icon} size={19} className="text-[#42B9D4]" />
-        </div>
-        <div className="min-w-0 basis-[120px] grow">
-          <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{label}</p>
-          <p className={`mt-1 text-xl font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{value}</p>
-          {hint ? <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{hint}</p> : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SectionHeader({ eyebrow, title, description, darkMode }) {
-  return (
-    <div className="mb-5">
-      {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#42B9D4]">{eyebrow}</p> : null}
-      <h2 className={`mt-2 text-2xl font-black ${darkMode ? 'text-white' : 'text-text-primary'}`}>{title}</h2>
-      {description ? <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{description}</p> : null}
-    </div>
-  );
-}
-
-function CommandGrid({ title, description, commands, loadingAction, onCommand, darkMode }) {
-  return (
-    <section className={`rounded-3xl border p-5 shadow-sm ${darkMode ? 'border-slate-700 bg-slate-950/75' : 'border-sky-200 bg-white shadow-[0_12px_28px_rgba(30,63,122,0.07)]'}`}>
-      <div className="mb-4">
-        <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{title}</h3>
-        <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{description}</p>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-2">
-        {commands.map((item) => (
-          <Button
-            key={item.key}
-            variant={item.variant}
-            onClick={() => onCommand(item.key)}
-            loading={loadingAction === item.key}
-            className={`justify-center ${item.className || ''}`}
-          >
-            <Icon name={item.icon} size={16} /> {item.label}
-          </Button>
-        ))}
-      </div>
-    </section>
-  );
-}
+const adminPages = [{ key: 'machines', label: 'Máquinas', icon: 'Boxes' }, { key: 'partners', label: 'Socios', icon: 'Users' },
+  { key: 'rates', label: 'Tarifas Premium', icon: 'Crown' }, { key: 'promotions', label: 'Promociones', icon: 'Gift' }];
 
 export default function WaterMonitor() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { getToken, isSignedIn } = useAuth();
-  const { signOut } = useClerk();
-  const access = useManagementAccess();
-  const isAdmin = access?.role === 'ADMIN';
-  const { pulsesPerLiter, setPulsesPerLiter, setTelemetryEnabled } = useDispenseFlow();
-
-  const [loadingAction, setLoadingAction] = useState('');
-  const [lastResponse, setLastResponse] = useState(null);
-  const [pulsesPerLiterInput, setPulsesPerLiterInput] = useState(String(pulsesPerLiter || 360));
-  const [calibrationBase, setCalibrationBase] = useState(360);
-  const [offsetMlInput, setOffsetMlInput] = useState('0');
-  const [calibrationLoading, setCalibrationLoading] = useState(true);
-  const [monitorSummary, setMonitorSummary] = useState({ machines: [], promotions: [], counts: {} });
-  const [machineForm, setMachineForm] = useState(emptyMachineForm);
-  const [machineSaving, setMachineSaving] = useState(false);
-  const [selectedQr, setSelectedQr] = useState(null);
-  const [qrLoadingId, setQrLoadingId] = useState('');
-  const [promotionSavingKey, setPromotionSavingKey] = useState('');
-  const [pointsPerLiterConfig, setPointsPerLiterConfig] = useState('0.5');
-  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(location.search).get('premiumPayment') ? 'premium' : 'overview');
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(MONITOR_THEME_KEY) === 'true';
-  });
-  const [selectedMachineId, setSelectedMachineId] = useState(() => new URLSearchParams(location.search).get('machineId') || '');
-  const qrRequestMachine = React.useRef('');
-  const [telemetry, setTelemetry] = useState(emptyTelemetry);
-
-  useEffect(() => {
-    setTelemetryEnabled(false);
-    return () => setTelemetryEnabled(false);
-  }, [setTelemetryEnabled]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(MONITOR_THEME_KEY, String(darkMode));
-  }, [darkMode]);
-
-  useEffect(() => {
-    setPulsesPerLiterInput(String(pulsesPerLiter || 360));
-  }, [pulsesPerLiter]);
-
-  const fetchMonitorSummary = async () => {
-    try {
-      const token = await getManagementToken(getToken);
-      const res = await managementFetch(`${API}/api/monitor-admin/summary`, {
-        headers: buildAuthHeaders(token),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) {
-        throw new Error(data?.error || 'No se pudo cargar el monitor');
-      }
-      setMonitorSummary(data);
-      const pointsPromotion = (data.promotions || []).find((promotion) => promotion.key === 'monthly_consumption_points');
-      if (pointsPromotion?.config?.pointsPerLiter) {
-        setPointsPerLiterConfig(String(pointsPromotion.config.pointsPerLiter));
-      }
-    } catch (error) {
-      showErrorToast(error?.message || 'No se pudo cargar el panel de monitoreo');
-    }
+  const navigate = useNavigate(), location = useLocation();
+  const { isSignedIn } = useAuth(), { signOut } = useClerk();
+  const access = useManagementAccess(), isAdmin = access?.role === 'ADMIN';
+  const { setTelemetryEnabled } = useDispenseFlow();
+  const params = new URLSearchParams(location.search);
+  const page = isAdmin && ['partners', 'rates', 'promotions'].includes(params.get('view')) ? params.get('view') : 'machines';
+  const selectedId = page === 'machines' ? params.get('machineId') : null;
+  const section = params.get('premiumPayment') ? 'premium' : ['controls', 'premium', 'settings', 'qr', ...(isAdmin ? ['assignment'] : [])].includes(params.get('section')) ? params.get('section') : 'controls';
+  const ops = useMachineManagement(selectedId), { machine, summary, request } = ops;
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem(THEME_KEY) === 'true');
+  const [partners, setPartners] = useState([]), [partnersLoading, setPartnersLoading] = useState(isAdmin), [partnersError, setPartnersError] = useState('');
+  const [search, setSearch] = useState(''), [filter, setFilter] = useState('all'), [listPage, setListPage] = useState(1);
+  const [formBusy, setFormBusy] = useState(false), [premiumBusy, setPremiumBusy] = useState(false), [createOpen, setCreateOpen] = useState(false);
+  const blocked = Boolean(ops.busy) || formBusy || premiumBusy;
+  useEffect(() => { setTelemetryEnabled(false); return () => setTelemetryEnabled(false); }, [setTelemetryEnabled]);
+  useEffect(() => { localStorage.setItem(THEME_KEY, String(darkMode)); }, [darkMode]);
+  const loadPartners = useCallback(async () => {
+    if (!isAdmin) return;
+    try { const data = await request('/api/management/partners'); setPartners(data.items || []); setPartnersError(''); }
+    catch (error) { setPartnersError(error.message); }
+    finally { setPartnersLoading(false); }
+  }, [isAdmin, request]);
+  useEffect(() => { loadPartners(); }, [loadPartners]);
+  const refreshAll = async () => { await Promise.all([ops.refresh(), loadPartners()]); };
+  const go = (view = 'machines', id, nextSection = 'controls', replace = false) => {
+    if (blocked) return;
+    const next = new URLSearchParams();
+    if (view !== 'machines') next.set('view', view);
+    if (id) { next.set('machineId', id); next.set('section', nextSection); }
+    navigate(`${location.pathname}${next.size ? `?${next}` : ''}`, { replace });
   };
-
-  useEffect(() => {
-    fetchMonitorSummary();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const displayedMachines = useMemo(
-    () => [...(monitorSummary.machines || [])],
-    [monitorSummary.machines]
-  );
-
-  useEffect(() => {
-    if (!displayedMachines.length) {
-      setSelectedMachineId('');
-      setTelemetry(emptyTelemetry);
-      if (!isAdmin) setMachineForm(emptyMachineForm);
-      return;
-    }
-    setSelectedMachineId((current) => {
-      if (current && displayedMachines.some((machine) => machine.id === current)) return current;
-      return displayedMachines[0]?.id || '';
-    });
-  }, [displayedMachines, isAdmin]);
-
-  const selectedMachine = useMemo(
-    () => displayedMachines.find((machine) => machine.id === selectedMachineId) || null,
-    [displayedMachines, selectedMachineId]
-  );
-
-  useEffect(() => {
-    qrRequestMachine.current = selectedMachineId;
-    setSelectedQr(null);
-    setLastResponse(null);
-  }, [selectedMachineId]);
-
-  useEffect(() => {
-    if (!isAdmin && selectedMachine) handleMachineEdit(selectedMachine);
-  }, [isAdmin, selectedMachine]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const telemetryHardwareId = normalizeHardwareId(telemetry.hardwareId);
-  const monitorMachines = useMemo(() => {
-    if (!telemetryHardwareId) return displayedMachines;
-    const filtered = displayedMachines.filter((machine) => normalizeHardwareId(machine.hardwareId || machine.id) === telemetryHardwareId);
-    if (!filtered.length) return displayedMachines;
-    const preferred = [...filtered].sort((left, right) => machinePreferenceScore(right) - machinePreferenceScore(left));
-    return preferred.length ? [preferred[0]] : filtered;
-  }, [displayedMachines, telemetryHardwareId]);
-
-  const machineSelectOptions = useMemo(
-    () => displayedMachines.map((machine) => ({
-      value: machine.id,
-      label: `${machine.id}${machine.name ? ` · ${machine.name}` : ''}`,
-    })),
-    [displayedMachines]
-  );
-
-  useEffect(() => {
-    if (!selectedMachineId) return undefined;
-
-    let cancelled = false;
-    let intervalId = 0;
-
-    const loadTelemetry = async () => {
-      try {
-        const token = await getManagementToken(getToken);
-        const res = await managementFetch(`${API}/api/telemetry/machine/${selectedMachineId}`, {
-          headers: buildAuthHeaders(token),
-          cache: 'no-store',
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data) {
-          throw new Error(data?.error || 'No se pudo cargar la telemetria');
-        }
-        if (!cancelled) {
-          setTelemetry({
-            ...emptyTelemetry,
-            ...data,
-            hardwareId: data.hardwareId || '',
-          });
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setTelemetry((current) => ({
-            ...current,
-            machineOnline: false,
-            error: error?.message || 'No se pudo cargar la telemetria',
-          }));
-        }
-      }
-    };
-
-    loadTelemetry();
-    intervalId = window.setInterval(loadTelemetry, 2000);
-
-    return () => {
-      cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
-    };
-  }, [getToken, selectedMachineId]);
-
-  const currentStep = getTelemetryStepInfo(telemetry.currentStageCode);
-  const configuredPulsesPerLiter = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
-  const flowmeterLiters = pulsesToLiters(telemetry.flowmeterPulses, configuredPulsesPerLiter);
-  const targetPulseOptions = [5, 10, 20].map((liters) => ({
-    liters,
-    volumeMl: Math.round(liters * 1000 * configuredPulsesPerLiter / calibrationBase),
-  }));
-
-  const activePromotions = useMemo(
-    () => (monitorSummary.promotions || []).filter((promotion) => promotion.isActive && promotion.key !== 'premium_membership'),
-    [monitorSummary.promotions]
-  );
-
-  const visiblePromotions = useMemo(
-    () => activePromotions.concat(
-      (monitorSummary.promotions || []).filter((promotion) => !promotion.isActive && promotion.key !== 'premium_membership')
-    ),
-    [activePromotions, monitorSummary.promotions]
-  );
-
-  const selectedMachineHardwareId = normalizeHardwareId(selectedMachine?.hardwareId || selectedMachine?.id);
-  const selectedMachineHasTelemetry = Boolean(
-    telemetry.lastSeenAt
-    && selectedMachineHardwareId
-    && telemetryHardwareId
-    && selectedMachineHardwareId === telemetryHardwareId
-    && Date.now() - new Date(telemetry.lastSeenAt).getTime() < 15000
-  );
-
-  useEffect(() => {
-    setCalibrationLoading(true);
-    setOffsetMlInput('0');
-    if (!selectedMachine) return undefined;
-
-    let cancelled = false;
-    const loadMachineConfig = async () => {
-      try {
-        const query = new URLSearchParams();
-        if (selectedMachineHardwareId) query.set('hardwareId', selectedMachineHardwareId);
-        if (selectedMachine.id) query.set('machineId', selectedMachine.id);
-        const res = await managementFetch(`${API}/api/dispense/config?${query.toString()}`);
-        const data = await res.json().catch(() => null);
-        if (!cancelled && res.ok && data?.pulsesPerLiter) {
-          setPulsesPerLiterInput(String(data.pulsesPerLiter));
-          const base = Number(data.defaultPulsesPerLiter) || 360;
-          setCalibrationBase(base);
-          setOffsetMlInput(String(offsetFromCalibration(data.pulsesPerLiter, base)));
-          setCalibrationLoading(false);
-        }
-      } catch {
-        // No bloqueamos el monitor si no carga la calibracion.
-      }
-    };
-
-    loadMachineConfig();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedMachine, selectedMachineHardwareId]);
-
-  const activeMachineLabel = useMemo(() => {
-    if (selectedMachine) {
-      return `${selectedMachine.id}${selectedMachine.location ? ` · ${selectedMachine.location}` : ''}`;
-    }
-    if (telemetryHardwareId) return `Maquina ${telemetryHardwareId}`;
-    return 'Sin maquina detectada';
-  }, [selectedMachine, telemetryHardwareId]);
-
-  const connectionHeadline = selectedMachineHasTelemetry
-    ? 'Maquina conectada'
-    : selectedMachine
-      ? 'Sin telemetria reciente'
-      : 'Esperando maquina';
-  const connectionSubtitle = selectedMachineHasTelemetry
-    ? `Ultima lectura: ${formatSeenAt(telemetry.lastSeenAt)}`
-    : selectedMachine
-      ? `Estado configurado: ${selectedMachine.status || 'ONLINE'}`
-      : `Ultima lectura: ${formatSeenAt(telemetry.lastSeenAt)}`;
-
-  const handleCommand = async (action) => {
-    try {
-      if (!selectedMachine) {
-        throw new Error('Selecciona una maquina antes de enviar comandos');
-      }
-
-      if (calibrationLoading) throw new Error('Espera a que cargue la calibración de esta máquina');
-      const nextPpl = sanitizePulsesPerLiter(pulsesPerLiterInput, pulsesPerLiter);
-      setPulsesPerLiter(nextPpl);
-      setPulsesPerLiterInput(String(nextPpl));
-      setLoadingAction(action);
-
-      const token = await getManagementToken(getToken);
-      const res = await managementFetch(`${API}/api/dispense/demo/control`, {
-        method: 'POST',
-        headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          action,
-          management: true,
-          machineId: selectedMachine.id,
-          machineLocation: selectedMachine.location,
-          hardwareId: selectedMachineHardwareId,
-          pulsesPerLiter: nextPpl,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.message || data?.detail || data?.error || 'No se pudo enviar el comando');
-      }
-
-      setLastResponse(data);
-      showSuccessToast(`Comando enviado a HW ${selectedMachineHardwareId}: ${action}`);
-    } catch (error) {
-      showErrorToast(error?.message || 'No se pudo enviar el comando');
-    } finally {
-      setLoadingAction('');
-    }
+  const saved = async (id) => {
+    await refreshAll(); setCreateOpen(false);
+    const next = new URLSearchParams();
+    if (id) { next.set('machineId', id); next.set('section', 'settings'); }
+    navigate(`${location.pathname}${next.size ? `?${next}` : ''}`, { replace: true });
+    showSuccessToast(id ? `Cambios guardados en ${id}.` : 'Máquina eliminada del catálogo.');
   };
+  const assigned = async () => { await refreshAll(); showSuccessToast('Socio responsable actualizado.'); };
+  const logout = async () => { if (blocked) return; clearAdminSession(); if (isSignedIn) await signOut(); navigate(isAdmin ? '/user-login?panel=1&access=admin' : '/partner-login', { replace: true }); };
+  const filtered = useMemo(() => summary.machines.filter((item) => {
+    const text = `${item.id} ${item.name || ''} ${item.location || ''} ${item.partner?.name || ''} ${item.partner?.email || ''}`.toLowerCase();
+    return text.includes(search.trim().toLowerCase()) && (filter === 'all' || filter === 'premium' && item.premium?.active || filter === 'unassigned' && !item.partnerId || filter === 'active' && item.isActive);
+  }), [summary.machines, search, filter]);
+  useEffect(() => { setListPage(1); }, [search, filter]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / 6)), currentListPage = Math.min(listPage, pageCount);
+  const listed = filtered.slice((currentListPage - 1) * 6, currentListPage * 6);
+  const fleet = summary.machines, totalPremium = fleet.filter((item) => item.premium?.active).length;
+  const owner = machine?.partner?.name || machine?.partner?.email || 'Sin socio asignado';
+  const visibleSections = isAdmin ? [...sections, { key: 'assignment', label: 'Socio responsable', icon: 'UserRoundCheck' }] : sections;
+  const navigation = isAdmin ? adminPages : [{ key: 'machines', label: 'Mis máquinas', icon: 'Boxes' }];
 
-  const handleSavePulsesPerLiter = async () => {
-    try {
-      if (!selectedMachine || calibrationLoading) throw new Error('Selecciona una máquina y espera a que cargue su calibración');
-      const nextValue = calibrationFromOffset(offsetMlInput, calibrationBase);
-      const token = await getManagementToken(getToken);
-      const res = await managementFetch(`${API}/api/dispense/config/pulses`, {
-        method: 'POST',
-        headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          pulsesPerLiter: nextValue,
-          machineId: selectedMachine?.id,
-          hardwareId: selectedMachineHardwareId,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.message || data?.error || 'No se pudo guardar calibracion');
-
-      setPulsesPerLiter(data.pulsesPerLiter || nextValue);
-      setPulsesPerLiterInput(String(data.pulsesPerLiter || nextValue));
-      const appliedOffset = offsetFromCalibration(data.pulsesPerLiter || nextValue, calibrationBase);
-      setOffsetMlInput(String(appliedOffset));
-      setLastResponse({
-        action: 'calibracion_global',
-        commandLine: `Máquina ${selectedMachine.id}: desfase ${appliedOffset > 0 ? '+' : ''}${appliedOffset} ml / 20 L`,
-        response: 'Calibracion guardada para esta maquina.',
-      });
-      showSuccessToast(`Desfase guardado: ${appliedOffset > 0 ? '+' : ''}${appliedOffset} ml por garrafón de 20 L`);
-    } catch (error) {
-      showErrorToast(error?.message || 'No se pudo guardar calibracion');
-    }
-  };
-
-  const handleMachineChange = (field, value) => {
-    setMachineForm((current) => ({ ...current, [field]: value }));
-  };
-
-  const handleMachineSubmit = async () => {
-    try {
-      if (!machineForm.id.trim()) {
-        throw new Error('El ID de maquina es requerido');
-      }
-      setMachineSaving(true);
-      const token = await getManagementToken(getToken);
-      const res = await managementFetch(`${API}/api/monitor-admin/machines${isAdmin ? '' : `/${encodeURIComponent(machineForm.id)}`}`, {
-        method: isAdmin ? 'POST' : 'PUT',
-        headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ ...machineForm, coinsEnabled: isAdmin ? machineForm.coinsEnabled : undefined }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo guardar la maquina');
-      showSuccessToast(`Maquina ${data.machine.id} guardada`);
-      if (isAdmin) setMachineForm(emptyMachineForm);
-      fetchMonitorSummary();
-    } catch (error) {
-      showErrorToast(error?.message || 'No se pudo guardar la maquina');
-    } finally {
-      setMachineSaving(false);
-    }
-  };
-
-  const handleMachineEdit = (machine) => {
-    setMachineForm({
-      id: machine.id || '',
-      name: machine.name || '',
-      location: machine.location || '',
-      address: machine.address || '',
-      hardwareId: machine.hardwareId || '',
-      pricePerGarrafon: String(((machine.pricePerGarrafonCents || 3500) / 100).toFixed(2)),
-      status: machine.status || 'ONLINE',
-      isActive: machine.isActive !== false,
-      coinsEnabled: machine.coinsEnabled === true,
-    });
-  };
-
-  const handleMachineToggle = async (machine) => {
-    try {
-      const token = await getManagementToken(getToken);
-      const res = await managementFetch(`${API}/api/monitor-admin/machines/${machine.id}`, {
-        method: 'PUT',
-        headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ ...machine, isActive: !machine.isActive }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo actualizar la maquina');
-      showSuccessToast(`Maquina ${machine.id} ${data.machine.isActive ? 'activada' : 'desactivada'}`);
-      fetchMonitorSummary();
-    } catch (error) {
-      showErrorToast(error?.message || 'No se pudo actualizar la maquina');
-    }
-  };
-
-  const handleMachineDelete = async (machine) => {
-    try {
-      const token = await getManagementToken(getToken);
-      const res = await managementFetch(`${API}/api/monitor-admin/machines/${machine.id}`, {
-        method: 'DELETE',
-        headers: buildAuthHeaders(token),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo eliminar la maquina');
-
-      showSuccessToast(`Maquina ${machine.id} eliminada`);
-      if (selectedMachineId === machine.id) {
-        setSelectedMachineId('');
-      }
-      if (machineForm.id === machine.id) {
-        setMachineForm(emptyMachineForm);
-      }
-      fetchMonitorSummary();
-    } catch (error) {
-      showErrorToast(error?.message || 'No se pudo eliminar la maquina');
-    }
-  };
-
-  const handleGenerateQr = async (machineId) => {
-    try {
-      setQrLoadingId(machineId);
-      const token = await getManagementToken(getToken);
-      const res = await managementFetch(`${API}/api/monitor-admin/machines/${machineId}/qr`, {
-        headers: buildAuthHeaders(token),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo generar el QR');
-      if (qrRequestMachine.current === machineId) setSelectedQr(data);
-    } catch (error) {
-      showErrorToast(error?.message || 'No se pudo generar el QR');
-    } finally {
-      setQrLoadingId('');
-    }
-  };
-
-  const handlePromotionToggle = async (promotion) => {
-    try {
-      setPromotionSavingKey(promotion.key);
-      const token = await getManagementToken(getToken);
-      const payload = { isActive: !promotion.isActive };
-      if (promotion.key === 'monthly_consumption_points') {
-        payload.config = { pointsPerLiter: sanitizePointsPerLiter(pointsPerLiterConfig) };
-      }
-      const res = await managementFetch(`${API}/api/monitor-admin/promotions/${promotion.key}`, {
-        method: 'PUT',
-        headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo actualizar la promocion');
-      showSuccessToast(`Promocion ${data.promotion.isActive ? 'activada' : 'desactivada'}`);
-      fetchMonitorSummary();
-    } catch (error) {
-      showErrorToast(error?.message || 'No se pudo actualizar la promocion');
-    } finally {
-      setPromotionSavingKey('');
-    }
-  };
-
-  const handleSavePointsConfig = async () => {
-    try {
-      setPromotionSavingKey('monthly_consumption_points');
-      const token = await getManagementToken(getToken);
-      const res = await managementFetch(`${API}/api/monitor-admin/promotions/monthly_consumption_points`, {
-        method: 'PUT',
-        headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          config: {
-            pointsPerLiter: sanitizePointsPerLiter(pointsPerLiterConfig),
-          },
-        }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo guardar la configuracion');
-      showSuccessToast('Puntos por litro actualizados');
-      fetchMonitorSummary();
-    } catch (error) {
-      showErrorToast(error?.message || 'No se pudo guardar la configuracion');
-    } finally {
-      setPromotionSavingKey('');
-    }
-  };
-
-  const handleLogout = async () => {
-    clearAdminSession();
-    if (isSignedIn) await signOut();
-    navigate('/user-login', { replace: true });
-  };
-
-  const shellClass = darkMode
-    ? 'min-h-screen bg-[radial-gradient(circle_at_top_left,#111827_0,#0f172a_42%,#020617_100%)] text-slate-100'
-    : 'min-h-screen bg-[linear-gradient(180deg,#d9f0f8_0%,#edf8fc_42%,#dbeef6_100%)] text-slate-900';
-  const topBarClass = darkMode ? 'border-slate-700 bg-slate-950/90' : 'border-sky-200 bg-white/90 shadow-sm';
-  const panelClass = darkMode ? 'border-slate-700 bg-slate-950/78' : 'border-sky-200 bg-white/95 shadow-[0_18px_45px_rgba(30,63,122,0.08)]';
-  const cardClass = darkMode ? 'border-slate-700 bg-slate-950/75' : 'border-sky-200 bg-white shadow-[0_12px_28px_rgba(30,63,122,0.07)]';
-  const mutedClass = darkMode ? 'border-slate-700 bg-slate-900/85' : 'border-sky-200 bg-sky-50';
-  const darkFieldClass = darkMode ? 'border-slate-600 bg-slate-950 text-white placeholder:text-slate-500' : 'border-sky-200 bg-white';
-  const darkSelectClass = darkMode ? '[&_button]:border-slate-600 [&_button]:bg-slate-950 [&_button]:text-white [&_label]:text-white [&_p]:text-slate-400' : '[&_button]:border-sky-200 [&_button]:bg-white';
-  const machineFormMode = machineForm.id ? `Editando ${machineForm.id}` : isAdmin ? 'Nueva máquina' : 'Selecciona una de tus máquinas';
-  const machineStatusLabel = selectedMachine?.isActive ? 'Activa en catalogo' : 'Pendiente o inactiva';
-  const machineStatusTone = selectedMachine?.isActive
-    ? darkMode ? 'border-emerald-900 bg-emerald-950/30 text-emerald-300' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-    : darkMode ? 'border-amber-900 bg-amber-950/30 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700';
-
-  return (
-    <div className={`management-panel ${darkMode ? 'management-dark' : 'management-light'} ${shellClass}`}>
-      <header className={`sticky top-0 z-30 border-b backdrop-blur ${topBarClass}`}>
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4">
-          <div className={darkMode ? 'rounded-xl bg-white px-3 py-2' : ''}><Agua24Brand className="h-11" /></div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant={darkMode ? 'secondary' : 'outline'} size="sm" onClick={() => setDarkMode((current) => !current)}>
-              <Icon name={darkMode ? 'Sun' : 'Moon'} size={16} /> {darkMode ? 'Tema claro' : 'Tema oscuro'}
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <Icon name="LogOut" size={16} /> Salir
-            </Button>
+  return <div className={`management-panel management-workspace ${darkMode ? 'management-dark' : 'management-light'}`}>
+    <aside className="m-sidebar"><div className="m-brand"><Agua24Brand className="m-brand-logo" showTagline={false} /></div><div className="m-workspace-label"><span className="m-workspace-dot" />{isAdmin ? 'Administración' : 'Espacio de socio'}</div>
+      <nav className="m-sidebar-nav" aria-label={isAdmin ? 'Panel de administrador' : 'Panel de socio'}>{navigation.map((item) => <button key={item.key} className={page === item.key ? 'is-current' : ''} aria-current={page === item.key ? 'page' : undefined} onClick={() => go(item.key)} disabled={blocked}><Icon name={item.icon} size={20} /><span>{item.label}</span>{item.key === 'machines' && <small>{fleet.length}</small>}</button>)}</nav>
+      <div className="m-sidebar-note"><Icon name={isAdmin ? 'ShieldCheck' : 'Sparkles'} size={24} /><h2>{isAdmin ? 'Todo, por máquina.' : 'Tu operación, clara.'}</h2><p>{isAdmin ? 'Abre una máquina para editarla, controlar sus componentes o asignar su socio.' : 'Tus controles siempre están incluidos. Premium agrega estadísticas a cada máquina.'}</p></div>
+      <div className="m-sidebar-account"><span className="m-avatar">{(access?.name || (isAdmin ? 'AD' : 'SO')).slice(0, 2).toUpperCase()}</span><div><strong>{access?.name || (isAdmin ? 'Administrador' : 'Socio')}</strong><span>{isAdmin ? 'Acceso administrativo' : 'Solo tus máquinas'}</span></div></div>
+    </aside>
+    <div className="m-main-shell"><header className="m-topbar"><div><Icon name={isAdmin ? 'ShieldCheck' : 'LayoutDashboard'} size={17} /><span>{isAdmin ? 'Panel de administrador' : 'Panel de socio'}</span><span className="m-topbar-divider">/</span><strong>{machine?.name || navigation.find((item) => item.key === page)?.label}</strong></div><div className="m-topbar-actions"><button className="m-icon-button" onClick={refreshAll} disabled={blocked} aria-label="Actualizar panel" title="Actualizar panel"><Icon name="RefreshCw" size={18} /></button><button className="m-icon-button" onClick={() => setDarkMode((value) => !value)} aria-label={darkMode ? 'Usar tema claro' : 'Usar tema oscuro'} title={darkMode ? 'Tema claro' : 'Tema oscuro'}><Icon name={darkMode ? 'Sun' : 'Moon'} size={18} /></button><button className="m-button m-logout" onClick={logout} disabled={blocked}><Icon name="LogOut" size={16} /><span>Salir</span></button></div></header>
+      <main className="m-main" id="management-content">
+        {ops.error && <p role="alert" className="m-notice m-error">{ops.error} <button onClick={ops.refresh}>Reintentar</button></p>}
+        {partnersError && isAdmin && <p role="alert" className="m-notice m-error">{partnersError} <button onClick={loadPartners}>Reintentar cargar socios</button></p>}
+        {page === 'machines' && !selectedId && <div className="m-page-enter" key="fleet"><section className="m-fleet-hero"><div><p className="m-kicker">{isAdmin ? 'CENTRO DE OPERACIONES' : 'BIENVENIDO A TU ESPACIO'}</p><h1>{isAdmin ? 'Cada máquina, en orden.' : 'Tus máquinas, bajo control.'}</h1><p>{isAdmin ? 'Abre una máquina para ver sus controles, editarla o asignar su socio responsable.' : 'Elige una máquina para controlarla, ajustar su agua o consultar su Premium.'}</p></div><div className="m-hero-art" aria-hidden="true"><span className="m-orbit m-orbit-one" /><span className="m-orbit m-orbit-two" /><MachineModel machine={fleet[0] || { id: 'AGUA/24' }} /><span className="m-hero-art-caption"><Icon name="Droplets" size={16} />AGUA / 24 · Conectada contigo</span></div></section>
+          <div className="m-fleet-counters"><div><Icon name="Boxes" size={21} /><span>{isAdmin ? 'Máquinas en tu operación' : 'Máquinas asignadas'}<strong>{fleet.length}</strong></span></div><div><Icon name="BadgeCheck" size={21} /><span>Habilitadas para clientes<strong>{fleet.filter((item) => item.isActive).length}</strong></span></div><div><Icon name={isAdmin ? 'UserRoundCheck' : 'Crown'} size={21} /><span>{isAdmin ? 'Sin socio asignado' : 'Con Premium activo'}<strong>{isAdmin ? fleet.filter((item) => !item.partnerId).length : totalPremium}</strong></span></div></div>
+          <div className="m-fleet-title"><div><h2>{isAdmin ? 'Todas las máquinas' : 'Mis máquinas'}</h2><p>Abre una ficha para ver sus funciones y configuración.</p></div>{isAdmin ? <button className="m-button m-primary" onClick={() => setCreateOpen(true)}><Icon name="Plus" size={17} />Registrar máquina</button> : <span>{filtered.length} {filtered.length === 1 ? 'máquina' : 'máquinas'}</span>}</div>
+          <div className="m-list-toolbar"><label className="m-search"><Icon name="Search" size={18} /><input aria-label="Buscar máquina" placeholder={isAdmin ? 'Máquina, ubicación o socio' : 'Busca tu máquina o ubicación'} value={search} onChange={(event) => setSearch(event.target.value)} /></label><div className="m-filter-group" aria-label="Filtrar máquinas">{[['all', 'Todas'], ['active', 'Habilitadas'], [isAdmin ? 'unassigned' : 'premium', isAdmin ? 'Sin socio' : 'Premium']].map(([key, label]) => <button key={key} aria-pressed={filter === key} className={filter === key ? 'is-current' : ''} onClick={() => setFilter(key)}>{label}</button>)}</div></div>
+          {ops.loading ? <div className="m-machine-grid" role="status" aria-label="Cargando máquinas">{[1, 2, 3].map((key) => <div key={key} className="m-machine-skeleton" />)}</div> : !listed.length ? <div className="m-empty"><Icon name="Boxes" size={38} /><h2>{fleet.length ? 'No encontramos esa máquina' : isAdmin ? 'Registra tu primera máquina' : 'Aún no tienes máquinas asignadas'}</h2><p>{fleet.length ? 'Cambia tu búsqueda o el filtro.' : isAdmin ? 'Añade una máquina y después asígnala a su socio responsable.' : 'El administrador debe asignarte una máquina para que aparezca aquí.'}</p></div> : <div className="m-machine-grid">{listed.map((item, index) => <button key={item.id} className="m-machine-card" aria-label={`Administrar ${item.name || item.id} · ${item.id}`} onClick={() => go('machines', item.id, item.detectedOnly ? 'settings' : 'controls')} style={{ '--card-order': index }}><div className="m-machine-card-art"><span className={`m-badge ${item.isActive ? 'm-green' : 'm-amber'}`}>{item.detectedOnly ? 'Por registrar' : item.isActive ? 'Habilitada' : 'Pausada'}</span><MachineModel machine={item} compact /><span className="m-machine-card-id">{item.id}</span></div><div className="m-machine-card-body"><div><h3>{item.name || `Máquina ${item.id}`}</h3><Icon name="ArrowUpRight" size={19} /></div><p><Icon name="MapPin" size={14} />{item.location || 'Ubicación por definir'}</p><div className="m-machine-card-meta"><span>{money(item.pricePerGarrafonCents)}<small>/ 20 L</small></span><span className={`m-badge ${item.premium?.active ? 'm-gold' : ''}`}><Icon name={item.premium?.active ? 'Crown' : 'SlidersHorizontal'} size={13} />{item.premium ? item.premium.active ? 'Premium activo' : 'Acceso normal' : 'Consultar Premium'}</span></div>{isAdmin && <div className="m-machine-card-owner"><Icon name="UserRound" size={15} /><span>{item.partner?.name || item.partner?.email || 'Sin socio asignado'}</span></div>}<span className="m-machine-card-action">Administrar máquina <Icon name="ArrowRight" size={15} /></span></div></button>)}</div>}
+          {pageCount > 1 && <div className="m-pagination"><button className="m-button" disabled={currentListPage === 1} onClick={() => setListPage(currentListPage - 1)}>Anterior</button><span>Página {currentListPage} de {pageCount}</span><button className="m-button" disabled={currentListPage === pageCount} onClick={() => setListPage(currentListPage + 1)}>Siguiente</button></div>}
+        </div>}
+        {page === 'machines' && selectedId && (ops.loading ? <div className="m-empty" role="status">Abriendo máquina…</div> : !machine ? <div className="m-empty"><Icon name="LockKeyhole" size={32} /><h1>Máquina no disponible</h1><p>No está en las máquinas que puedes administrar.</p><button className="m-button" onClick={() => go()}>Volver a mis máquinas</button></div> : <div className="m-page-enter" key={machine.id}><button className="m-back-link" onClick={() => go()} disabled={blocked}><Icon name="ArrowLeft" size={17} />{isAdmin ? 'Todas las máquinas' : 'Mis máquinas'}</button>
+          <section className="m-machine-hero"><MachineModel machine={machine} online={ops.online} interactive /><div className="m-machine-identity"><p className="m-kicker">MÁQUINA {machine.id}</p><h1>{machine.name || machine.id}</h1><p className="m-machine-location"><Icon name="MapPin" size={17} />{machine.location || 'Ubicación por definir'}</p><div className="m-machine-badges"><span className={`m-badge ${ops.online ? 'm-green' : 'm-amber'}`}><Icon name={ops.online ? 'Wifi' : 'WifiOff'} size={14} />{ops.telemetry ? ops.online ? 'En línea' : 'Sin señal reciente' : 'Consultando conexión'}</span><span className={`m-badge ${machine.premium?.active ? 'm-gold' : ''}`}><Icon name={machine.premium?.active ? 'Crown' : 'SlidersHorizontal'} size={14} />{machine.premium?.active ? 'Premium activo' : 'Acceso normal'}</span></div><p className="m-caption">{ops.online ? `Última lectura: ${new Date(ops.telemetry.lastSeenAt).toLocaleTimeString('es-MX')}` : 'Los controles y ajustes pertenecen únicamente a esta máquina.'}</p></div><div className="m-machine-owner"><span>{isAdmin ? 'Socio responsable' : 'Precio de venta · 20 L'}</span><strong>{isAdmin ? owner : money(machine.pricePerGarrafonCents)}</strong><p>{isAdmin ? machine.partner?.email || 'Puedes asignarle un socio desde esta ficha.' : 'Puedes modificarlo en Datos y precio.'}</p>{isAdmin && <button className="m-button" disabled={blocked} onClick={() => go('machines', machine.id, 'assignment')}><Icon name="UserRoundCheck" size={16} />{machine.partnerId ? 'Cambiar socio' : 'Asignar socio'}</button>}</div></section>
+          <nav className="m-machine-tabs" aria-label={`Funciones de ${machine.id}`}>{visibleSections.map((item) => <button key={item.key} aria-current={section === item.key ? 'page' : undefined} className={section === item.key ? 'is-current' : ''} onClick={() => go('machines', machine.id, item.key)} disabled={blocked}><Icon name={item.icon} size={18} /><span>{item.label}</span></button>)}</nav>
+          <div className="m-section-enter" key={`${machine.id}:${section}`}>
+            {section === 'controls' && <MachineControls ops={ops} />}
+            {section === 'premium' && <MachinePremiumPanel key={machine.id} machineId={machine.id} isAdmin={isAdmin} darkMode={darkMode} onBusyChange={setPremiumBusy} onPremiumChange={ops.updatePremium} />}
+            {section === 'settings' && <MachineSettings key={machine.id} machine={machine} isAdmin={isAdmin} request={request} onSaved={saved} onBusyChange={setFormBusy} />}
+            {section === 'qr' && <MachineQr key={machine.id} machine={machine} request={request} />}
+            {section === 'assignment' && isAdmin && <MachineAssignment key={machine.id} machine={machine} partners={partners} request={request} onSaved={assigned} onBusyChange={setFormBusy} />}
           </div>
-        </div>
-      </header>
-
-      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-          <section className={`overflow-hidden rounded-[28px] border shadow-sm ${panelClass}`}>
-            <div className={`border-b px-5 py-5 ${darkMode ? 'border-slate-800 bg-slate-950/50' : 'border-sky-100 bg-[linear-gradient(135deg,#effbff_0%,#ffffff_55%,#f2f8ff_100%)]'}`}>
-              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>{isAdmin ? 'Administrador' : 'Mi panel de socio'}</h1>
-              {access?.name ? <p className="mt-2 text-sm">{access.name}</p> : null}
-            </div>
-
-            <div className="space-y-3 p-4">
-              {MONITOR_TABS.filter((tab) => isAdmin || !['partners', 'promotions'].includes(tab.key)).map((tab) => {
-                const selected = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveTab(tab.key)}
-                    aria-current={selected ? 'page' : undefined}
-                    className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${selected
-                      ? darkMode
-                        ? 'border-sky-500/40 bg-sky-500/10 shadow-[0_12px_30px_rgba(14,165,233,0.12)]'
-                        : 'border-sky-200 bg-sky-50 shadow-[0_14px_32px_rgba(66,185,212,0.16)]'
-                      : darkMode
-                        ? 'border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900/80'
-                        : 'border-slate-200 bg-white hover:border-sky-200 hover:bg-sky-50/70'
-                    }`}
-                  >
-                    <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${selected
-                      ? darkMode ? 'bg-sky-500/15 text-sky-300' : 'bg-sky-100 text-[#1E3F7A]'
-                      : darkMode ? 'bg-slate-900 text-slate-300' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      <Icon name={tab.icon} size={18} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{tab.label}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className={`rounded-[28px] border p-5 shadow-sm ${cardClass}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#42B9D4]">Maquina activa</p>
-                <h2 className={`mt-2 text-xl font-black ${darkMode ? 'text-white' : 'text-text-primary'}`}>{activeMachineLabel}</h2>
-              </div>
-              <div className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${machineStatusTone}`}>
-                {machineStatusLabel}
-              </div>
-            </div>
-            <div className="mt-4">
-              <Select
-                label="Selecciona maquina"
-                options={machineSelectOptions}
-                value={selectedMachineId}
-                onChange={setSelectedMachineId}
-                placeholder="Selecciona una maquina"
-                className={darkSelectClass}
-              />
-            </div>
-            <div className={`mt-4 rounded-2xl border p-4 ${selectedMachineHasTelemetry ? (darkMode ? 'border-emerald-900 bg-emerald-950/30' : 'border-emerald-200 bg-emerald-50') : (darkMode ? 'border-amber-900 bg-amber-950/20' : 'border-amber-200 bg-amber-50')}`}>
-              <div className="flex items-start gap-3">
-                <Icon name={selectedMachineHasTelemetry ? 'Wifi' : 'WifiOff'} size={20} className={selectedMachineHasTelemetry ? 'text-emerald-500' : 'text-amber-500'} />
-                <div className="min-w-0">
-                  <p className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{connectionHeadline}</p>
-                  <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{connectionSubtitle}</p>
-                  <p className={`mt-2 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>HW esperado: {selectedMachineHardwareId || 'Sin configurar'}</p>
-                  <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>HW leido: {telemetryHardwareId || 'Sin lectura'}</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </aside>
-
-        <div className="space-y-6">
-        <section className={`rounded-3xl border p-6 shadow-sm ${panelClass}`}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-center">
-            <div>
-              <h1 className={`mt-2 text-3xl font-black ${darkMode ? 'text-white' : 'text-[#1E3F7A]'}`}>{isAdmin ? 'Vista de todas las máquinas' : 'Mis máquinas'}</h1>
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <Metric icon="Factory" label="Maquinas" value={monitorSummary.counts?.machines || 0} hint={`${monitorSummary.counts?.activeMachines || 0} activas`} darkMode={darkMode} />
-                <Metric icon="Wifi" label="Conexion" value={selectedMachineHasTelemetry ? 'En linea' : 'Sin lectura'} hint={formatSeenAt(telemetry.lastSeenAt)} darkMode={darkMode} />
-                <Metric icon={isAdmin ? 'ShoppingBag' : 'SlidersHorizontal'} label={isAdmin ? 'Ventas de todas las máquinas' : 'Acceso normal'} value={isAdmin ? monitorSummary.sales?.transactions || 0 : 'Controles + desfase'} hint={isAdmin ? 'Últimos 30 días' : 'Estadísticas en Premium por máquina'} darkMode={darkMode} />
-              </div>
-            </div>
-
-            <div className={`rounded-3xl border p-5 ${selectedMachineHasTelemetry ? (darkMode ? 'border-emerald-900 bg-emerald-950/40' : 'border-emerald-200 bg-emerald-50') : (darkMode ? 'border-amber-900 bg-amber-950/30' : 'border-amber-200 bg-amber-50')}`}>
-              <div className="flex items-start gap-3">
-                <Icon name={selectedMachineHasTelemetry ? 'Wifi' : 'WifiOff'} size={24} className={selectedMachineHasTelemetry ? 'text-emerald-500' : 'text-amber-500'} />
-                <div>
-                  <p className={`font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{connectionHeadline}</p>
-                  <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{connectionSubtitle}</p>
-                  <p className={`mt-2 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Administrando: {activeMachineLabel}</p>
-                  <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware esperado: {selectedMachineHardwareId || 'Sin configurar'} · Hardware leido: {telemetryHardwareId || 'Sin lectura'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {!displayedMachines.length ? (
-          <div role="status" className={`rounded-2xl border p-5 ${cardClass}`}>
-            {isAdmin ? 'Registra una máquina para comenzar.' : 'Aún no tienes máquinas asignadas. El administrador debe asignarte una máquina para poder administrarla.'}
-          </div>
-        ) : null}
-
-        {activeTab === 'premium' ? <MachinePremiumPanel key={selectedMachineId} machineId={selectedMachineId} isAdmin={isAdmin} darkMode={darkMode} /> : null}
-        {isAdmin && activeTab === 'partners' ? (
-          <PartnersManager machines={displayedMachines} onChanged={fetchMonitorSummary} darkMode={darkMode} />
-        ) : null}
-
-        {activeTab === 'overview' && displayedMachines.length > 0 ? (
-          <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader eyebrow="" title="Operacion en vivo" description="" darkMode={darkMode} />
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Metric icon="ListChecks" label="Paso actual" value={`${currentStep.code}: ${currentStep.shortLabel || currentStep.label}`} hint={currentStep.instruction} darkMode={darkMode} />
-              <Metric icon="Gauge" label="Agua medida" value={`${Math.round(flowmeterLiters * 1000).toLocaleString('es-MX')} ml`} hint={`${flowmeterLiters.toFixed(3)} litros estimados`} darkMode={darkMode} />
-              <Metric icon="FlaskConical" label="pH" value={telemetry.phDecimal ?? '--'} hint={telemetry.phVoltage ? `${telemetry.phVoltage} V` : 'Sin voltaje'} darkMode={darkMode} />
-              <Metric icon="Coins" label="Saldo detectado en maquina" value={`$${Number(telemetry.accumulatedMoney || 0).toFixed(2)} MXN`} hint={`Moneda: ${telemetry.insertedCoinAmount || 0}`} darkMode={darkMode} />
-            </div>
-
-            <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
-              <div className="mb-4">
-                <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Actuadores</h3>
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <StatusPill active={telemetry.pumpOn} labelOn="Bomba encendida" labelOff="Bomba apagada" darkMode={darkMode} />
-                <StatusPill active={telemetry.fillValveOn} labelOn="Llenado abierto" labelOff="Llenado cerrado" darkMode={darkMode} />
-                <StatusPill active={telemetry.rinseValveOn} labelOn="Enjuague abierto" labelOff="Enjuague cerrado" darkMode={darkMode} />
-              </div>
-            </section>
-
-            <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-end">
-                <Input label="Desfase por garrafón de 20 L (ml)" type="number" step="1" value={offsetMlInput} inputClassName={darkFieldClass} disabled={calibrationLoading} onChange={(event) => setOffsetMlInput(event.target.value)} description="Positivo: agrega agua. Negativo: reduce agua. El ajuste es proporcional para 5 y 10 L." />
-                <Button onClick={handleSavePulsesPerLiter} disabled={calibrationLoading || !selectedMachine}>
-                  <Icon name="Save" size={16} /> Guardar desfase en ml
-                </Button>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {targetPulseOptions.map((option) => (
-                  <div key={option.liters} className={`rounded-2xl border px-4 py-3 ${mutedClass}`}>
-                    <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Meta {option.liters} L</p>
-                    <p className={`mt-1 text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{option.volumeMl.toLocaleString('es-MX')} ml</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-              <CommandGrid title="Control manual" description="Activa o apaga componentes de forma individual." commands={HARDWARE_COMMANDS} loadingAction={loadingAction} onCommand={handleCommand} darkMode={darkMode} />
-              <CommandGrid title="Seguridad" description="Usalo para recuperar la maquina o apagar actuadores." commands={SAFETY_COMMANDS} loadingAction={loadingAction} onCommand={handleCommand} darkMode={darkMode} />
-            </div>
-
-            <section className={`mt-5 rounded-3xl border p-5 ${cardClass}`}>
-              <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Trama y respuesta</h3>
-              <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                <div className={`rounded-2xl border p-4 ${mutedClass}`}>
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Trama recibida</p>
-                  <p className={`mt-2 break-all font-data text-sm ${darkMode ? 'text-white' : 'text-text-primary'}`}>{telemetry.rawFrame || 'Sin trama valida'}</p>
-                  {telemetry.error ? <p className="mt-2 text-sm font-medium text-error">{telemetry.error}</p> : null}
-                </div>
-                <div className={`rounded-2xl border p-4 ${mutedClass}`}>
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Ultimo comando</p>
-                  {lastResponse ? (
-                    <div className={`mt-2 space-y-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>
-                      <p>Accion: <span className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{lastResponse.action}</span></p>
-                      <p>Comando: <span className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{lastResponse.commandLine || lastResponse.command}</span></p>
-                      <p>Respuesta: <span className={`font-semibold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{lastResponse.response || '-'}</span></p>
-                    </div>
-                  ) : (
-                    <p className={`mt-2 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>Sin comandos enviados.</p>
-                  )}
-                </div>
-              </div>
-            </section>
-          </section>
-        ) : null}
-
-        {activeTab === 'machines' && (isAdmin || displayedMachines.length > 0) ? (
-          <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader eyebrow="" title="Administracion de maquinas" description="" darkMode={darkMode} />
-
-            <div className="mb-6 grid gap-4 md:grid-cols-3">
-              <Metric icon="Factory" label="Registradas" value={monitorSummary.counts?.machines || 0} hint="Catalogo total" darkMode={darkMode} />
-              <Metric icon="BadgeCheck" label="Activas" value={monitorSummary.counts?.activeMachines || 0} hint="Listas para operar" darkMode={darkMode} />
-              <Metric icon="PencilRuler" label="Formulario" value={machineFormMode} hint={machineForm.id ? `ID: ${machineForm.id}` : 'Lista para alta nueva'} darkMode={darkMode} />
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)]">
-              <div className={`overflow-hidden rounded-[28px] border shadow-sm ${mutedClass}`}>
-                <div className={`border-b px-5 py-4 ${darkMode ? 'border-slate-800 bg-slate-950/50' : 'border-sky-100 bg-white/80'}`}>
-                  <h3 className={`mt-2 text-xl font-black ${darkMode ? 'text-white' : 'text-text-primary'}`}>Configuracion de maquina</h3>
-                </div>
-                <div className="space-y-4 p-5">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className={`rounded-2xl border px-4 py-3 ${darkMode ? 'border-slate-800 bg-slate-950/70' : 'border-slate-200 bg-white'}`}>
-                      <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Modo</p>
-                      <p className={`mt-1 text-sm font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{machineFormMode}</p>
-                    </div>
-                    <div className={`rounded-2xl border px-4 py-3 ${darkMode ? 'border-slate-800 bg-slate-950/70' : 'border-slate-200 bg-white'}`}>
-                      <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Monitoreo</p>
-                      <p className={`mt-1 text-sm font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{selectedMachineHasTelemetry ? 'Con lectura reciente' : 'Sin lectura reciente'}</p>
-                    </div>
-                  </div>
-                  <Input label="ID de maquina" value={machineForm.id} disabled={!isAdmin} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('id', event.target.value)} />
-                  <Input label="Nombre comercial" value={machineForm.name} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('name', event.target.value)} />
-                  <Input label="Ubicacion visible" value={machineForm.location} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('location', event.target.value)} />
-                  <Input label="Direccion" value={machineForm.address} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('address', event.target.value)} />
-                  <Input label="Hardware ID" value={machineForm.hardwareId} disabled={!isAdmin} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('hardwareId', event.target.value)} />
-                  <Input label="Precio publico garrafon" type="number" min="1" step="0.50" value={machineForm.pricePerGarrafon} inputClassName={darkFieldClass} onChange={(event) => handleMachineChange('pricePerGarrafon', event.target.value)} description="Este precio se usa para cobrar agua y calcular membresias." />
-                  <Select className={darkSelectClass} label="Estado operativo" options={MACHINE_STATUS_OPTIONS} value={machineForm.status} onChange={(value) => handleMachineChange('status', value)} />
-                  {isAdmin ? <div className={`flex items-center justify-between gap-3 rounded-2xl border p-4 ${mutedClass}`}>
-                    <div><p className="text-sm font-semibold">Habilitar monedas</p><p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Permite acreditar monedas de esta máquina. Guarda para aplicar.</p></div>
-                    <button type="button" role="switch" aria-label="Habilitar monedas" aria-checked={machineForm.coinsEnabled}
-                      onClick={() => handleMachineChange('coinsEnabled', !machineForm.coinsEnabled)}
-                      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-sky-400 ${machineForm.coinsEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                      <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${machineForm.coinsEnabled ? 'left-1 translate-x-5' : 'left-1'}`} />
-                    </button>
-                  </div> : <p className="text-sm">Monedas: {machineForm.coinsEnabled ? 'habilitadas' : 'deshabilitadas'} por el administrador.</p>}
-                  <label className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-sm ${darkMode ? 'border-slate-800 bg-slate-950/70 text-white' : 'border-slate-200 bg-white text-text-primary'}`}>
-                    <input type="checkbox" checked={machineForm.isActive} onChange={(event) => handleMachineChange('isActive', event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400" />
-                    Publicar maquina como activa en catalogo
-                  </label>
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Button onClick={handleMachineSubmit} loading={machineSaving} disabled={!isAdmin && !machineForm.id} className="flex-1 justify-center">
-                      <Icon name="Save" size={16} /> Guardar maquina
-                    </Button>
-                    {isAdmin ? <Button variant="outline" className={darkMode ? 'border-slate-700 text-white hover:bg-slate-800' : ''} onClick={() => setMachineForm(emptyMachineForm)}>
-                      <Icon name="RefreshCcw" size={15} /> Limpiar
-                    </Button> : null}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {displayedMachines.map((machine) => (
-                  <article key={machine.id} className={`rounded-[28px] border p-5 shadow-sm transition ${machine.id === selectedMachineId
-                    ? darkMode
-                      ? 'border-sky-500/40 bg-slate-950/85 shadow-[0_16px_34px_rgba(14,165,233,0.15)]'
-                      : 'border-sky-200 bg-white shadow-[0_16px_34px_rgba(66,185,212,0.16)]'
-                    : cardClass
-                  }`}>
-                    <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{machine.id}</h3>
-                          <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${machine.isActive ? 'bg-success/10 text-success' : 'bg-slate-200 text-slate-600'}`}>
-                            {machine.isActive ? 'Activa' : 'Inactiva'}
-                          </span>
-                          {machine.id === selectedMachineId ? (
-                            <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${darkMode ? 'bg-sky-500/10 text-sky-300' : 'bg-sky-100 text-[#1E3F7A]'}`}>
-                              En gestion
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.name || 'Sin nombre'} · {machine.location || 'Sin ubicacion'}</p>
-                        <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{machine.address || 'Sin direccion guardada'}</p>
-                        <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>Hardware: {machine.hardwareId || machine.id || 'N/D'} · Estado: {machine.status || 'ONLINE'}</p>
-                        <p className={`mt-1 text-xs font-semibold ${darkMode ? 'text-sky-300' : 'text-[#1E3F7A]'}`}>Precio publico: ${((machine.pricePerGarrafonCents || 3500) / 100).toFixed(2)} por garrafon</p>
-                        {isAdmin ? <p className="mt-2 text-sm font-semibold">Socio: {machine.partner?.name || machine.partner?.email || 'Sin asignar'}{machine.partner?.managementAccessActive === false ? ' · Acceso suspendido' : ''}</p> : null}
-                      </div>
-                      <div className="flex flex-wrap gap-2 xl:max-w-[260px] xl:justify-end">
-                        <Button variant="outline" size="sm" onClick={() => handleMachineEdit(machine)}>
-                          <Icon name="Pencil" size={14} /> Editar
-                        </Button>
-                        <Button variant="secondary" size="sm" onClick={() => setSelectedMachineId(machine.id)}>
-                          <Icon name="Monitor" size={14} /> Administrar
-                        </Button>
-                        <Button variant="secondary" size="sm" onClick={() => handleGenerateQr(machine.id)} loading={qrLoadingId === machine.id}>
-                          <Icon name="QrCode" size={14} /> QR
-                        </Button>
-                        <Button variant={machine.isActive ? 'warning' : 'success'} size="sm" onClick={() => handleMachineToggle(machine)}>
-                          <Icon name={machine.isActive ? 'PauseCircle' : 'PlayCircle'} size={14} />
-                          {machine.isActive ? 'Desactivar' : 'Activar'}
-                        </Button>
-                        {isAdmin ? <Button variant="danger" size="sm" onClick={() => handleMachineDelete(machine)}>
-                          <Icon name="Trash2" size={14} /> Eliminar
-                        </Button> : null}
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-
-            {selectedMachine ? (
-              <div className={`mt-6 rounded-[28px] border p-5 ${mutedClass}`}>
-                <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-                  <div className="flex justify-center lg:justify-start">
-                    {selectedQr?.machineId === selectedMachine.id ? <img src={selectedQr.qrPngDataUrl} alt={`Sticker ${selectedMachine.id}`} className="h-48 w-48 rounded-2xl border border-sky-100 bg-white p-2 object-contain" /> : <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-dashed border-sky-300 p-4 text-center">Genera el sticker de {selectedMachine.id}</div>}
-                  </div>
-                  <div>
-                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>Sticker {selectedMachine.id}</h3>
-                    <Button className="mt-3" onClick={() => handleGenerateQr(selectedMachine.id)} loading={qrLoadingId === selectedMachine.id}>Generar sticker de esta máquina</Button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {selectedQr?.machineId === selectedMachineId ? (
-              <div className={`mt-6 rounded-[28px] border p-5 ${mutedClass}`}>
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>QR generado de {selectedQr.machineId}</h3>
-                    <p className={`mt-1 text-sm ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{selectedQr.machineLocation || 'Sin ubicacion registrada'}</p>
-                    <p className={`mt-2 break-all text-xs ${darkMode ? 'text-slate-400' : 'text-text-secondary'}`}>{selectedQr.deepUrl}</p>
-                  </div>
-                  <button type="button" onClick={() => setSelectedQr(null)} className="text-sm font-semibold text-[#42B9D4]">
-                    Cerrar
-                  </button>
-                </div>
-                <div className="mt-4 flex justify-center md:justify-start">
-                  <img src={selectedQr.qrPngDataUrl} alt={`QR ${selectedQr.machineId}`} className="h-48 w-48 rounded-2xl border border-sky-100 bg-white p-3" />
-                </div>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
-        {isAdmin && activeTab === 'promotions' ? (
-          <section className={`rounded-3xl border p-6 shadow-sm ${cardClass}`}>
-            <SectionHeader eyebrow="" title="Promociones y recompensas" description="" darkMode={darkMode} />
-
-            <div className="mb-5 grid gap-4 md:grid-cols-3">
-              <Metric icon="Sparkles" label="Promociones activas" value={monitorSummary.counts?.activePromotions || 0} hint="Catalogo actualizado de beneficios." darkMode={darkMode} />
-              <Metric icon="Factory" label="Maquinas activas" value={monitorSummary.counts?.activeMachines || 0} hint={`${monitorSummary.counts?.machines || 0} maquinas registradas`} darkMode={darkMode} />
-              <Metric icon="Gift" label="Puntos por litro" value={pointsPerLiterConfig} hint="Beneficio automatico de consumo mensual." darkMode={darkMode} />
-            </div>
-
-            <div className={`mb-5 rounded-3xl border p-4 ${mutedClass}`}>
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
-                <Input label="Puntos por litro" type="number" min="0" step="0.1" value={pointsPerLiterConfig} onChange={(event) => setPointsPerLiterConfig(event.target.value)} description="Usa 0.5 para que cada 20 litros sumen 10 puntos." />
-                <Button onClick={handleSavePointsConfig} loading={promotionSavingKey === 'monthly_consumption_points'}>
-                  <Icon name="Save" size={16} /> Guardar puntos/L
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {visiblePromotions.map((promotion) => (
-                <article key={promotion.key} className={`rounded-3xl border p-4 shadow-sm ${cardClass}`}>
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-text-primary'}`}>{promotion.sortOrder}. {promotion.title}</h3>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${promotion.isActive ? 'bg-success/10 text-success' : 'bg-slate-200 text-slate-600'}`}>
-                          {promotion.isActive ? 'Activa' : 'Inactiva'}
-                        </span>
-                      </div>
-                      <p className={`mt-2 text-sm font-medium ${darkMode ? 'text-slate-100' : 'text-text-primary'}`}>{promotion.summary || 'Sin resumen configurado'}</p>
-                      <p className={`mt-2 text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-text-secondary'}`}>{promotion.description || 'Sin descripcion configurada'}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center">
-                      <Button variant={promotion.isActive ? 'warning' : 'success'} onClick={() => handlePromotionToggle(promotion)} loading={promotionSavingKey === promotion.key}>
-                        <Icon name={promotion.isActive ? 'PauseCircle' : 'PlayCircle'} size={16} />
-                        {promotion.isActive ? 'Desactivar' : 'Activar'}
-                      </Button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
-        </div>
+        </div>)}
+        {isAdmin && page === 'partners' && <div className="m-page-enter" key="partners"><PartnersManager partners={partners} loading={partnersLoading} request={request} onChanged={refreshAll} onOpenMachine={(id) => go('machines', id, 'assignment')} /></div>}
+        {isAdmin && page === 'rates' && <div className="m-page-enter" key="rates"><PremiumRates request={request} /></div>}
+        {isAdmin && page === 'promotions' && <div className="m-page-enter" key="promotions"><PromotionSettings promotions={summary.promotions} request={request} onChanged={ops.refresh} /></div>}
       </main>
-
-      <NotificationToast />
     </div>
-  );
+    {createOpen && isAdmin && <ManagementDialog title="Nueva máquina" busy={formBusy} onClose={() => setCreateOpen(false)}><MachineSettings creating isAdmin request={request} onSaved={saved} onBusyChange={setFormBusy} existingIds={fleet.filter((item) => !item.detectedOnly).map((item) => item.id)} /></ManagementDialog>}
+    <NotificationToast />
+  </div>;
 }
