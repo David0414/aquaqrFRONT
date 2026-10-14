@@ -68,6 +68,13 @@
 .clip-payment-dark .clip-submit:disabled { background: #334155; color: #cbd5e1; }
 .clip-payment .clip-security-note { display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: 10px; color: var(--clip-muted); font-size: 11px; line-height: 1.4; text-align: center; }
 .clip-payment .clip-pending { display: flex; flex-direction: column; gap: 12px; padding: 16px 0; }
+.clip-payment .clip-processing { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid #b9d9de; border-radius: 12px; background: #eff9fa; color: #155e68; }
+.clip-payment .clip-processing > svg { flex: 0 0 auto; animation: clip-loading-spin 1s linear infinite; }
+.clip-payment .clip-processing strong, .clip-payment .clip-processing span { display: block; }
+.clip-payment .clip-processing strong { font-size: 13px; font-weight: 700; }
+.clip-payment .clip-processing span { margin-top: 2px; color: #42616a; font-size: 12px; line-height: 1.35; }
+.clip-payment-dark .clip-processing { border-color: #155e75; background: #083344; color: #a5f3fc; }
+.clip-payment-dark .clip-processing span { color: #cbd5e1; }
 .clip-payment .clip-pending h3 { font-size: 18px; font-weight: 700; }
 .clip-payment .clip-pending p { color: var(--clip-muted); font-size: 14px; line-height: 1.5; }
 .clip-payment .clip-pending > svg { color: #087481; }

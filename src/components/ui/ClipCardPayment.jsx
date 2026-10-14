@@ -170,6 +170,10 @@ export default function ClipCardPayment({ request, amountCents, prepare, submit,
     <div className="clip-payment-heading"><div className="clip-payment-title"><Icon name="CreditCard" size={21} /><h2>Pago con tarjeta</h2></div></div>
     {config?.environment === 'sandbox' && <p role="status" className="clip-sandbox"><Icon name="FlaskConical" size={13} />Modo de prueba · sin cargos reales</p>}
     {error && <div role="alert" className="clip-error"><Icon name="CircleAlert" size={17} /><span>{error}</span></div>}
+    {busy && !pending && <div role="status" aria-live="polite" className="clip-processing">
+      <Icon name="LoaderCircle" size={20} className="clip-pending-spinner" />
+      <div><strong>Procesando tu pago</strong><span>Espera la confirmación. No cierres esta pantalla.</span></div>
+    </div>}
     {pending ? <div className="clip-pending">
       <Icon name="LoaderCircle" size={28} className="clip-pending-spinner" /><h3>{action ? 'Confirma el pago con tu banco' : 'Confirmando tu pago'}</h3>
       <p role="status" className="text-base">{action

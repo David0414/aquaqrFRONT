@@ -33,6 +33,7 @@ export default function ClipRecharge() {
   const [promotion, setPromotion] = useState(() => readCustomerSummary(userId)?.promotions?.find((p) => p.key === 'topup_bonus' && p.isActive && p.isEnabledForUserThisMonth) || null);
   const [payment, setPayment] = useState(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
+  const [completion, setCompletion] = useState(null);
   const [error, setError] = useState('');
   const requestId = useRef(null);
   const returnState = location.state || savedReturn(userId, returnedId);
@@ -76,10 +77,20 @@ export default function ClipRecharge() {
     const wallet = recordCustomerWallet(userId, data.wallet);
     if (wallet) window.dispatchEvent(new CustomEvent('wallet:updated', { detail: { ...wallet, userId, source: 'clip' } }));
     const walletState = { ...(wallet || {}), walletUserId: userId, walletUpdatedAt: Date.now() };
-    if (returnState.returnTo === '/promotions') navigate('/promotions?view=memberships', { replace: true, state: {
-      membershipKey: returnState.membershipKey, membershipMachineId: returnState.membershipMachineId, ...walletState } });
-    else navigate(returnState.returnTo || '/home-dashboard', { replace: true, state: { ...returnState, ...walletState, fromInsufficientBalance: false } });
+    setCompletion({ amountCents: Number(data.amountCents || amountCents), balanceCents: wallet?.totalAvailableCents, walletState });
   };
+
+  const goToWallet = () => {
+    navigate('/home-dashboard', { replace: true, state: { ...(completion?.walletState || {}), rechargeSuccess: true } });
+  };
+
+  useEffect(() => {
+    if (!completion) return undefined;
+    const timer = window.setTimeout(() => {
+      navigate('/home-dashboard', { replace: true, state: { ...completion.walletState, rechargeSuccess: true } });
+    }, 2200);
+    return () => window.clearTimeout(timer);
+  }, [completion, navigate]);
 
   const prepare = async ({ newAttempt } = {}) => {
     if (!validAmount) throw new Error('El monto debe estar entre $10 y $500.');
@@ -103,18 +114,27 @@ export default function ClipRecharge() {
       <header className="recharge-header">
         <div className="recharge-header-inner">
           <div className="recharge-header-title">
-            <button type="button" aria-label="Volver" disabled={locked} onClick={() => step === 2 ? backToAmount() : navigate(-1)} className="recharge-back"><Icon name="ArrowLeft" size={20} /></button>
-            <div><h1>Recargar saldo</h1><span className="recharge-small-step">Paso {step} de 2 · {step === 1 ? 'Monto' : 'Pago'}</span></div>
+            <button type="button" aria-label={completion ? 'Ir a mi wallet' : 'Volver'} disabled={locked} onClick={() => completion ? goToWallet() : step === 2 ? backToAmount() : navigate(-1)} className="recharge-back"><Icon name="ArrowLeft" size={20} /></button>
+            <div><h1>{completion ? 'Recarga confirmada' : 'Recargar saldo'}</h1><span className="recharge-small-step">{completion ? 'Saldo actualizado' : `Paso ${step} de 2 · ${step === 1 ? 'Monto' : 'Pago'}`}</span></div>
           </div>
-          <span className="recharge-secure"><Icon name="ShieldCheck" size={17} /><span>Pago protegido</span></span>
+          <span className="recharge-secure"><Icon name={completion ? 'CircleCheck' : 'ShieldCheck'} size={17} /><span>{completion ? 'Pago confirmado' : 'Pago protegido'}</span></span>
         </div>
       </header>
-      <ol className="recharge-steps" aria-label="Pasos de la recarga">
+      {!completion && <ol className="recharge-steps" aria-label="Pasos de la recarga">
         <li className={step === 1 ? 'is-current' : 'is-complete'} aria-current={step === 1 ? 'step' : undefined}><span className="recharge-step-number">{step === 2 ? <Icon name="Check" size={14} /> : '1'}</span>Elige el monto</li>
         <li className={step === 2 ? 'is-current' : ''} aria-current={step === 2 ? 'step' : undefined}><span className="recharge-step-number">2</span>Pago con tarjeta</li>
-      </ol>
+      </ol>}
       <main className="recharge-main">
-        <div ref={viewport.viewport} className="recharge-viewport"><div ref={viewport.content} className="recharge-content">
+        <div ref={viewport.viewport} className={`recharge-viewport ${completion ? 'has-completion' : ''}`}><div ref={viewport.content} className="recharge-content">
+        {completion ? <section className="recharge-success" role="status" aria-live="polite">
+          <div className="recharge-success-icon"><Icon name="CircleCheck" size={38} /></div>
+          <span className="recharge-success-eyebrow">Recarga confirmada</span>
+          <h2>¡Pago exitoso!</h2>
+          <p>Tu pago de <strong>{money(completion.amountCents)}</strong> se aprobó y ya está aplicado a tu wallet.</p>
+          {Number.isFinite(completion.balanceCents) && <div className="recharge-success-balance"><span>Saldo disponible</span><strong>{money(completion.balanceCents)}</strong></div>}
+          <Button className="recharge-success-button" fullWidth onClick={goToWallet} iconName="Wallet">Ir a mi wallet</Button>
+          <span className="recharge-success-redirect">Volviendo a tu wallet…</span>
+        </section> : <>
         {error && <p role="alert" className="recharge-message recharge-error">{error}</p>}
         {step === 1 && returnState.fromInsufficientBalance && <section role="alert" className="recharge-message recharge-insufficient"><Icon name="CircleAlert" size={22} /><div><h2>Tu saldo no alcanza</h2><p>{Number(returnState.requiredAmount) > 0 ? `Te faltan $${Number(returnState.requiredAmount).toFixed(2)}. ` : ''}Elige cuánto recargar para continuar.</p></div></section>}
         {step === 1 && returnState.membershipKey && !returnState.fromInsufficientBalance && <p className="recharge-message recharge-membership">Después de recargar volverás a confirmar tu paquete de agua.</p>}
@@ -161,6 +181,7 @@ export default function ClipRecharge() {
             verify={(id) => request(`/api/recharge/clip/status/${encodeURIComponent(id)}`)}
             onSuccess={finish} onPaymentChange={paymentChanged} onBusyChange={setPaymentBusy} />}
         </div>
+        </>}
         </div></div>
       </main>
       <BottomTabNavigation className="recharge-navigation" onNavigate={() => !paymentBusy} />
