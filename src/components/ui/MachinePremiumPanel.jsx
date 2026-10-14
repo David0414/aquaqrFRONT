@@ -46,7 +46,7 @@ export default function MachinePremiumPanel({ machineId, isAdmin, darkMode, onBu
   useEffect(() => { load(); return () => { controller.current?.abort(); loadSequence.current++; }; }, [load]);
   const prepare = async ({ newAttempt } = {}) => {
     if (newAttempt || !requestId.current) requestId.current = checkoutRequestId();
-    try { return await request(`${path}/premium/checkout`, { method: 'POST', body: JSON.stringify({ expectedPriceCents: premium.quote.amountCents, requestId: requestId.current }) }); }
+    try { return await request(`${path}/premium/prepare`, { method: 'POST', body: JSON.stringify({ expectedPriceCents: premium.quote.amountCents, requestId: requestId.current }) }); }
     catch (failure) { if (failure.code === 'PRICE_CHANGED') { requestId.current = null; await load(); } throw failure; }
   };
   if (!machineId) return <p className="m-notice">Abre una máquina para consultar su Premium.</p>;
@@ -62,8 +62,9 @@ export default function MachinePremiumPanel({ machineId, isAdmin, darkMode, onBu
         : !showCheckout && <button className="m-button m-primary m-full" type="button" disabled={busy} onClick={() => setShowCheckout(true)}><Icon name="Crown" size={17} />{premium.active ? 'Renovar Premium' : 'Activar Premium'}</button>}
       {!isAdmin && <p className="m-caption">Un mes de acceso, sin renovación automática. Una renovación anticipada se suma a la vigencia actual.</p>}
     </div><div className="m-surface m-premium-benefits"><p className="m-kicker">TU ACCESO, SIN CONFUSIONES</p><h3>¿Qué puedes hacer?</h3><div className="m-benefit-group"><h4>Incluido en tu acceso normal</h4>{['Controlar bomba, llenado y enjuague', 'Corregir el desfase en mililitros', 'Cambiar datos y precio de tu máquina', 'Generar su código QR'].map((text) => <p key={text}><Icon name="Check" size={16} />{text}</p>)}</div><div className="m-benefit-group m-benefit-premium"><h4><Icon name="Crown" size={16} /> Con Premium en esta máquina</h4>{['Ventas y litros vendidos', 'Ingresos registrados', 'Paquetes de agua vendidos'].map((text) => <p key={text}><Icon name="Check" size={16} />{text}</p>)}</div><p className="m-caption">Cada máquina tiene su propia membresía Premium.</p></div></div>}
-    {!isAdmin && premium && showCheckout && <div className="m-premium-checkout"><ClipCardPayment darkMode={darkMode} onBusyChange={onBusyChange}
+    {!isAdmin && premium && showCheckout && <div className="m-premium-checkout"><ClipCardPayment request={request} darkMode={darkMode} onBusyChange={onBusyChange}
       amountCents={premium.quote.amountCents} prepare={prepare} resumeId={returnMachine === machineId ? paymentId : null}
+      submit={(id, cardToken, customer) => request(`${path}/premium/payments/${encodeURIComponent(id)}/pay`, { method: 'POST', body: JSON.stringify({ cardToken, customer }) })}
       verify={(id) => request(`${path}/premium/payments/${encodeURIComponent(id)}`)}
       onPaymentChange={(value) => { if (value.paymentId && value.paymentId !== paymentId) navigate(`${location.pathname}?premiumPayment=${encodeURIComponent(value.paymentId)}&machineId=${encodeURIComponent(machineId)}&section=premium`, { replace: true }); }}
       onSuccess={async () => { setShowCheckout(false); setMessage('Pago confirmado. Premium está activo para esta máquina.'); await load(); }} /></div>}

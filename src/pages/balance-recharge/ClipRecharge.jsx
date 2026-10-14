@@ -96,7 +96,7 @@ export default function ClipRecharge() {
   const prepare = async ({ newAttempt } = {}) => {
     if (!validAmount) throw new Error('El monto debe estar entre $10 y $500.');
     if (newAttempt || requestId.current?.amountCents !== amountCents) requestId.current = { amountCents, requestId: checkoutRequestId() };
-    return request('/api/recharge/clip/create-checkout', { method: 'POST', body: JSON.stringify({ ...requestId.current, amountCents }) });
+    return request('/api/recharge/clip/prepare', { method: 'POST', body: JSON.stringify({ ...requestId.current, amountCents }) });
   };
   const paymentChanged = (data) => {
     setPayment(data); setAmount(data.amountCents / 100);
@@ -180,7 +180,8 @@ export default function ClipRecharge() {
               : !locked && <Button key="change-amount" className="recharge-change" type="button" variant="outline" onClick={backToAmount} aria-label="Cambiar monto">Cambiar</Button>}
             <p className="recharge-order-note"><Icon name="LockKeyhole" size={13} />{step === 1 ? 'Pago seguro con tarjeta' : 'El saldo se acredita al confirmar el pago'}</p>
           </aside>
-          {step === 2 && <ClipCardPayment amountCents={amountCents} prepare={prepare} resumeId={returnedId}
+          {step === 2 && <ClipCardPayment request={request} amountCents={amountCents} prepare={prepare} resumeId={returnedId}
+            submit={(id, cardToken, customer) => request(`/api/recharge/clip/pay/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ cardToken, customer }) })}
             verify={(id) => request(`/api/recharge/clip/status/${encodeURIComponent(id)}`)}
             onSuccess={finish} onPaymentChange={paymentChanged} onBusyChange={setPaymentBusy} />}
         </div>
